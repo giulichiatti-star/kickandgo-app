@@ -1,0 +1,175 @@
+import { useEffect, useState } from 'react'
+import { listarJugadores, posACat } from '../lib/jugadores'
+import { guardarConvocatoria, ultimaConvocatoria } from '../lib/convocatorias'
+
+const CAT_COLOR = {
+  POR: 'bg-dorado/15 text-dorado',
+  DEF: 'bg-azul/15 text-azul',
+  MED: 'bg-morado/15 text-morado',
+  DEL: 'bg-rojo/15 text-rojo',
+}
+const MAX_TIT = 11
+const MAX_SUP = 7
+
+export default function Convocatoria() {
+  const [jugadores, setJugadores] = useState([])
+  const [titulares, setTitulares] = useState([]) // ids
+  const [suplentes, setSuplentes] = useState([]) // ids
+  const [rival, setRival] = useState('')
+  const [fecha, setFecha] = useState('')
+  const [cargando, setCargando] = useState(true)
+  const [msg, setMsg] = useState('')
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const js = await listarJugadores()
+        setJugadores(js)
+        const ult = await ultimaConvocatoria()
+        if (ult) {
+          setRival(ult.rival || '')
+          setFecha(ult.fecha || '')
+          setTitulares((ult.titulares || []).map((t) => t.id).filter(Boolean))
+          setSuplentes((ult.suplentes || []).map((s) => s.id).filter(Boolean))
+        }
+      } catch (e) { setMsg(e.message) }
+      finally { setCargando(false) }
+    })()
+  }, [])
+
+  const estaConvocado = (id) => titulares.includes(id) || suplentes.includes(id)
+
+  function toggle(id) {
+    if (estaConvocado(id)) {
+      setTitulares((t) => t.filter((x) => x !== id))
+      setSuplentes((s) => s.filter((x) => x !== id))
+    } else if (titulares.length < MAX_TIT) {
+      setTitulares((t) => [...t, id])
+    } else if (suplentes.length < MAX_SUP) {
+      setSuplentes((s) => [...s, id])
+    } else {
+      setMsg('⚠️ Máximo 18 convocados (11 + 7)')
+    }
+  }
+
+  function aBanca(id) {
+    setTitulares((t) => t.filter((x) => x !== id))
+    if (suplentes.length < MAX_SUP) setSuplentes((s) => [...s, id])
+  }
+  function aTitular(id) {
+    if (titulares.length >= MAX_TIT) { setMsg('⚠️ Ya tienes 11 titulares'); return }
+    setSuplentes((s) => s.filter((x) => x !== id))
+    setTitulares((t) => [...t, id])
+  }
+
+  const byId = (id) => jugadores.find((j) => j.id === id)
+  const hayPortero = titulares.some((id) => posACat(byId(id)?.posicion) === 'POR')
+
+  async function guardar() {
+    setMsg('')
+    if (titulares.length < MAX_TIT) { setMsg('⚠️ Necesitas 11 titulares'); return }
+    if (!hayPortero) { setMsg('⚠️ Falta un portero entre los titulares'); return }
+    const empaqueta = (id) => {
+      const j = byId(id)
+      return { id: j.id, nombre: j.nombre, dorsal: j.dorsal, posicion: j.posicion, cat: posACat(j.posicion) }
+    }
+    try {
+      await guardarConvocatoria({
+        rival, fecha, formacion: '433',
+        titulares: titulares.map(empaqueta),
+        suplentes: suplentes.map(empaqueta),
+      })
+      setMsg('✅ Convocatoria guardada')
+    } catch (e) { setMsg('⚠️ ' + e.message) }
+  }
+
+  if (cargando) return <div className="text-sm text-muted py-10 text-center">Cargando…</div>
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h1 className="text-xl font-extrabold">Convocatoria</h1>
+          <p className="text-xs text-muted">{titulares.length + suplentes.length} / 18 convocados</p>
+        </div>
+        <button className="btn btn-primary" onClick={guardar}>✓ Confirmar</button>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 mb-4">
+        <div>
+          <label className="text-xs text-muted">Rival</label>
+          <input className="field mt-1" value={rival} onChange={(e) => setRival(e.target.value)} placeholder="Próximo rival" />
+        </div>
+        <div>
+          <label className="text-xs text-muted">Fecha</label>
+          <input className="field mt-1" type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} />
+        </div>
+      </div>
+
+      {msg && <div className="text-xs mb-3 text-zinc-300">{msg}</div>}
+
+      {jugadores.length === 0 ? (
+        <div className="card p-8 text-center text-sm text-muted">
+          No hay jugadores en la plantilla. Añádelos primero en <b className="text-cyan">Plantilla</b>.
+        </div>
+      ) : (
+        <>
+          {/* Titulares + Suplentes */}
+          <div className="grid sm:grid-cols-2 gap-3 mb-4">
+            <Bloque titulo="⭐ Titulares" color="text-cyan" count={`${titulares.length}/11`}
+              ids={titulares} byId={byId} accion="→ banca" onAccion={aBanca} />
+            <Bloque titulo="🔄 Suplentes" color="text-azul" count={`${suplentes.length}/7`}
+              ids={suplentes} byId={byId} accion="→ titular" onAccion={aTitular} />
+          </div>
+
+          {/* Plantel disponible */}
+          <div className="card p-3">
+            <div className="text-xs font-bold text-muted uppercase tracking-wide mb-2">Plantel — toca para convocar</div>
+            <div className="space-y-1.5">
+              {jugadores.map((j) => {
+                const cat = posACat(j.posicion)
+                const conv = estaConvocado(j.id)
+                return (
+                  <button key={j.id} onClick={() => toggle(j.id)}
+                    className={`w-full flex items-center gap-3 p-2 rounded-lg border text-left transition ${
+                      conv ? 'border-cyan/40 bg-cyan/5' : 'border-borde hover:bg-white/5'}`}>
+                    <div className={`w-4 h-4 rounded border flex items-center justify-center text-[9px] font-black ${
+                      conv ? 'bg-cyan border-cyan text-black' : 'border-borde'}`}>{conv ? '✓' : ''}</div>
+                    <span className="flex-1 text-sm">#{j.dorsal} {j.nombre}</span>
+                    <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded ${CAT_COLOR[cat]}`}>{cat}</span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+function Bloque({ titulo, color, count, ids, byId, accion, onAccion }) {
+  return (
+    <div className="card p-3">
+      <div className="flex items-center justify-between mb-2">
+        <span className={`text-sm font-extrabold ${color}`}>{titulo}</span>
+        <span className="text-xs text-muted">{count}</span>
+      </div>
+      {ids.length === 0 ? (
+        <div className="text-[11px] text-muted py-2">Vacío</div>
+      ) : (
+        <div className="space-y-1">
+          {ids.map((id) => {
+            const j = byId(id); if (!j) return null
+            return (
+              <div key={id} className="flex items-center gap-2 text-sm">
+                <span className="flex-1 truncate">#{j.dorsal} {j.nombre}</span>
+                <button className="text-[10px] text-muted hover:text-cyan" onClick={() => onAccion(id)}>{accion}</button>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
