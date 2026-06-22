@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { listarJugadores, posACat } from '../lib/jugadores'
 import { guardarConvocatoria, ultimaConvocatoria } from '../lib/convocatorias'
+import { getPerfil } from '../lib/perfil'
+import { nTitulares, nSuplentes } from '../lib/formaciones'
 
 const CAT_COLOR = {
   POR: 'bg-dorado/15 text-dorado',
@@ -8,8 +10,6 @@ const CAT_COLOR = {
   MED: 'bg-morado/15 text-morado',
   DEL: 'bg-rojo/15 text-rojo',
 }
-const MAX_TIT = 11
-const MAX_SUP = 7
 
 export default function Convocatoria() {
   const [jugadores, setJugadores] = useState([])
@@ -19,11 +19,16 @@ export default function Convocatoria() {
   const [fecha, setFecha] = useState('')
   const [cargando, setCargando] = useState(true)
   const [msg, setMsg] = useState('')
+  const [tipo, setTipo] = useState('11')
+  const MAX_TIT = nTitulares(tipo)
+  const MAX_SUP = nSuplentes(tipo)
 
   useEffect(() => {
     (async () => {
       try {
-        const js = await listarJugadores()
+        let t = '11'
+        try { const p = await getPerfil(); t = p?.tipo_equipo || '11'; setTipo(t) } catch {}
+        const js = await listarJugadores(t)
         setJugadores(js)
         const ult = await ultimaConvocatoria()
         if (ult) {
@@ -45,11 +50,18 @@ export default function Convocatoria() {
       setSuplentes((s) => s.filter((x) => x !== id))
     } else if (titulares.length < MAX_TIT) {
       setTitulares((t) => [...t, id])
+      setMsg('')
     } else if (suplentes.length < MAX_SUP) {
       setSuplentes((s) => [...s, id])
+      setMsg(`✅ ${MAX_TIT} titulares completos · este va a suplentes`)
     } else {
-      setMsg('⚠️ Máximo 18 convocados (11 + 7)')
+      setMsg(`⚠️ Máximo ${MAX_TIT + MAX_SUP} convocados`)
     }
+  }
+
+  function limpiarTodo() {
+    if (!confirm('¿Vaciar la convocatoria (titulares y suplentes)?')) return
+    setTitulares([]); setSuplentes([]); setMsg('')
   }
 
   function aBanca(id) {
@@ -57,7 +69,7 @@ export default function Convocatoria() {
     if (suplentes.length < MAX_SUP) setSuplentes((s) => [...s, id])
   }
   function aTitular(id) {
-    if (titulares.length >= MAX_TIT) { setMsg('⚠️ Ya tienes 11 titulares'); return }
+    if (titulares.length >= MAX_TIT) { setMsg(`⚠️ Ya tienes ${MAX_TIT} titulares`); return }
     setSuplentes((s) => s.filter((x) => x !== id))
     setTitulares((t) => [...t, id])
   }
@@ -67,7 +79,7 @@ export default function Convocatoria() {
 
   async function guardar() {
     setMsg('')
-    if (titulares.length < MAX_TIT) { setMsg('⚠️ Necesitas 11 titulares'); return }
+    if (titulares.length < MAX_TIT) { setMsg(`⚠️ Necesitas ${MAX_TIT} titulares`); return }
     if (!hayPortero) { setMsg('⚠️ Falta un portero entre los titulares'); return }
     const empaqueta = (id) => {
       const j = byId(id)
@@ -90,9 +102,12 @@ export default function Convocatoria() {
       <div className="flex items-center justify-between mb-4">
         <div>
           <h1 className="text-xl font-extrabold">Convocatoria</h1>
-          <p className="text-xs text-muted">{titulares.length + suplentes.length} / 18 convocados</p>
+          <p className="text-xs text-muted">{titulares.length + suplentes.length} / {MAX_TIT + MAX_SUP} convocados · Fútbol {tipo}</p>
         </div>
-        <button className="btn btn-primary" onClick={guardar}>✓ Confirmar</button>
+        <div className="flex gap-2">
+          <button className="btn btn-outline" onClick={limpiarTodo}>🧹 Limpiar</button>
+          <button className="btn btn-primary" onClick={guardar}>✓ Confirmar</button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3 mb-4">
@@ -106,6 +121,18 @@ export default function Convocatoria() {
         </div>
       </div>
 
+      {/* Progreso de convocados */}
+      <div className="mb-4">
+        <div className="flex justify-between text-[11px] text-muted mb-1">
+          <span>{titulares.length}/{MAX_TIT} titulares · {suplentes.length}/{MAX_SUP} suplentes</span>
+          <span>{titulares.length + suplentes.length}/{MAX_TIT + MAX_SUP}</span>
+        </div>
+        <div className="h-2 rounded-full overflow-hidden flex bg-white/5">
+          <div style={{ width: `${(titulares.length / (MAX_TIT + MAX_SUP)) * 100}%`, background: '#2dd4bf' }} />
+          <div style={{ width: `${(suplentes.length / (MAX_TIT + MAX_SUP)) * 100}%`, background: '#3b82f6' }} />
+        </div>
+      </div>
+
       {msg && <div className="text-xs mb-3 text-zinc-300">{msg}</div>}
 
       {jugadores.length === 0 ? (
@@ -116,9 +143,9 @@ export default function Convocatoria() {
         <>
           {/* Titulares + Suplentes */}
           <div className="grid sm:grid-cols-2 gap-3 mb-4">
-            <Bloque titulo="⭐ Titulares" color="text-cyan" count={`${titulares.length}/11`}
+            <Bloque titulo="⭐ Titulares" color="text-cyan" count={`${titulares.length}/${MAX_TIT}`}
               ids={titulares} byId={byId} accion="→ banca" onAccion={aBanca} />
-            <Bloque titulo="🔄 Suplentes" color="text-azul" count={`${suplentes.length}/7`}
+            <Bloque titulo="🔄 Suplentes" color="text-azul" count={`${suplentes.length}/${MAX_SUP}`}
               ids={suplentes} byId={byId} accion="→ titular" onAccion={aTitular} />
           </div>
 

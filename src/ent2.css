@@ -1,0 +1,81 @@
+/* ===== ENTRENAMIENTOS ===== */
+
+/* Semana nav */
+.ent2-week-btn { font-size:12px; font-weight:700; padding:6px 12px; border-radius:8px; border:1px solid #27272a; background:#1c1c20; color:#a1a1aa; cursor:pointer; }
+.ent2-week-btn:hover { border-color:#3f3f46; color:#fff; }
+
+/* Tabs de días */
+.ent2-day-tabs { display:flex; gap:6px; overflow-x:auto; padding-bottom:4px; scroll-snap-type:x mandatory; }
+.ent2-day-tabs::-webkit-scrollbar { display:none; }
+.ent2-day-tab { flex-shrink:0; display:flex; flex-direction:column; align-items:center; gap:3px; padding:10px 12px 8px; background:#1c1c20; border:1.5px solid #27272a; border-radius:12px; cursor:pointer; position:relative; transition:all .15s; scroll-snap-align:start; min-width:56px; }
+.ent2-day-tab:hover { border-color:#3f3f46; }
+.ent2-day-tab.active { border-color:#2dd4bf; background:rgba(45,212,191,0.08); }
+.ent2-dt-dia { font-size:10px; font-weight:800; color:#a1a1aa; text-transform:uppercase; letter-spacing:.4px; }
+.ent2-day-tab.active .ent2-dt-dia { color:#2dd4bf; }
+.ent2-dt-num { font-size:16px; font-weight:900; color:#fff; line-height:1.1; }
+.ent2-dt-dot { width:5px; height:5px; border-radius:50%; background:#2dd4bf; position:absolute; bottom:5px; left:50%; transform:translateX(-50%); }
+
+/* Panel */
+.ent2-panel { background:#1c1c20; border:1px solid #27272a; border-radius:14px; padding:16px; }
+
+/* Inputs sesión */
+.ent2-obj-input { width:100%; background:#0f0f11; border:1px solid #27272a; border-radius:9px; padding:9px 12px; font-size:13px; color:#fff; outline:none; font-family:inherit; }
+.ent2-obj-input:focus { border-color:#2dd4bf; }
+.ent2-notas-input { width:100%; background:#0f0f11; border:1px solid #27272a; border-radius:9px; padding:9px 12px; font-size:12.5px; color:#d4d4d8; outline:none; font-family:inherit; resize:vertical; line-height:1.5; }
+.ent2-notas-input:focus { border-color:#3b82f6; }
+.ent2-empty { font-size:12px; color:#52525b; text-align:center; padding:20px 0; border:1.5px dashed #27272a; border-radius:10px; }
+
+/* Botones cabecera */
+.ent2-btn-ia  { font-size:11px; padding:5px 12px; border-radius:8px; border:1px solid rgba(139,92,246,.45); color:#a78bfa; background:rgba(139,92,246,.08); cursor:pointer; font-weight:700; }
+.ent2-btn-ia:hover { background:rgba(139,92,246,.18); }
+.ent2-btn-del { font-size:13px; padding:5px 10px; border-radius:8px; border:1px solid #27272a; color:#71717a; background:transparent; cursor:pointer; }
+.ent2-btn-del:hover { border-color:#ef4444; color:#ef4444; }
+.ent2-add-ej-btn { width:100%; padding:10px; border-radius:10px; border:1.5px dashed #27272a; color:#2dd4bf; background:rgba(45,212,191,.04); font-size:13px; font-weight:700; cursor:pointer; transition:all .15s; }
+.ent2-add-ej-btn:hover { background:rgba(45,212,191,.09); border-color:#2dd4bf; }
+
+/* Card ejercicio (en sesión) */
+.ent2-ej-card { background:#0f0f11; border:1px solid #27272a; border-radius:10px; padding:11px 12px; }
+.ent2-ej-card:hover { border-color:#3f3f46; }
+.ent2-ejc-top { display:flex; align-items:center; gap:7px; margin-bottom:5px; }
+.ent2-ejc-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+.ent2-ejc-cat { font-size:9px; font-weight:800; letter-spacing:.4px; text-transform:uppercase; padding:2px 7px; border-radius:5px; flex-shrink:0; }
+.ent2-ejc-nombre { font-size:13px; font-weight:700; color:#fff; flex:1; min-width:0; }
+.ent2-ejc-del { font-size:13px; color:#52525b; background:none; border:none; cursor:pointer; padding:0 2px; line-height:1; }
+.ent2-ejc-del:hover { color:#ef4444; }
+.ent2-ejc-desc { font-size:11.5px; color:#71717a; line-height:1.5; margin:0 0 5px; }
+.ent2-ejc-meta { display:flex; gap:12px; font-size:10.5px; color:#52525b; flex-wrap:wrap; }
+
+/* Fila biblioteca (en panel añadir) */
+.ent2-bib-row { display:flex; align-items:flex-start; gap:10px; padding:10px 12px; border:1px solid #27272a; border-radius:10px; cursor:pointer; transition:all .13s; }
+.ent2-bib-row:hover { border-color:#2dd4bf; background:rgba(45,212,191,.04); }
+
+/* IA semana */
+.ent2-ia { background:linear-gradient(160deg,rgba(139,92,246,0.10),rgba(59,130,246,0.05)); border:1px solid rgba(139,92,246,0.25); border-radius:12px; padding:14px; }
+.ent2-ia-h { font-size:12px; font-weight:800; color:#a78bfa; margin-bottom:8px; }
+.ent2-ia-reco { font-size:12px; color:#94a3b8; line-height:1.55; }
+
+/* Tabs biblioteca */
+.ent2-bib-tabs { display:flex; gap:6px; flex-wrap:wrap; }
+.ent2-bib-tab { font-size:11px; font-weight:600; padding:5px 12px; border-radius:7px; border:1px solid #27272a; background:transparent; color:#94a3b8; cursor:pointer; transition:all .13s; }
+.ent2-bib-tab.active { background:rgba(45,212,191,0.12); color:#2dd4bf; border-color:rgba(45,212,191,0.4); }
+
+/* Inputs en sesión */
+.ent2-desc-input { width:100%; background:#18181b; border:1px solid #27272a; border-radius:8px; padding:8px 10px; font-size:12px; color:#d4d4d8; outline:none; font-family:inherit; resize:vertical; line-height:1.55; }
+.ent2-desc-input:focus { border-color:#2dd4bf; }
+.ent2-dur-input { width:56px; background:#18181b; border:1px solid #27272a; border-radius:7px; padding:4px 8px; font-size:12px; color:#fff; outline:none; font-family:inherit; text-align:center; }
+.ent2-dur-input:focus { border-color:#2dd4bf; }
+.ent2-ejc-num { width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:900; color:#000; flex-shrink:0; }
+
+/* Gestión biblioteca */
+.ent2-btn-gestion { font-size:11px; padding:5px 10px; border-radius:8px; border:1px solid #27272a; color:#94a3b8; background:transparent; cursor:pointer; font-weight:600; }
+.ent2-btn-gestion:hover { border-color:#a1a1aa; color:#fff; }
+.ent2-gestion-modal { background:#18181b; border:1px solid #27272a; border-radius:16px 16px 0 0; width:100%; max-width:640px; padding:20px; max-height:90vh; overflow-y:auto; display:flex; flex-direction:column; }
+@media(min-width:640px){ .ent2-gestion-modal { border-radius:16px; max-height:80vh; } }
+.ent2-gestion-form { background:#0f0f11; border:1px solid #27272a; border-radius:12px; padding:14px; }
+.ent2-gestion-list { display:flex; flex-direction:column; gap:8px; }
+.ent2-gestion-row { display:flex; align-items:flex-start; gap:10px; padding:10px 12px; background:#0f0f11; border:1px solid #27272a; border-radius:10px; }
+.ent2-btn-edit { font-size:13px; padding:4px 8px; border-radius:7px; border:1px solid #27272a; color:#a1a1aa; background:transparent; cursor:pointer; }
+.ent2-btn-edit:hover { border-color:#3b82f6; color:#3b82f6; }
+.ent2-btn-del2 { font-size:13px; padding:4px 8px; border-radius:7px; border:1px solid #27272a; color:#a1a1aa; background:transparent; cursor:pointer; }
+.ent2-btn-del2:hover { border-color:#ef4444; color:#ef4444; }
+.line-clamp-1 { overflow:hidden; display:-webkit-box; -webkit-line-clamp:1; -webkit-box-orient:vertical; }

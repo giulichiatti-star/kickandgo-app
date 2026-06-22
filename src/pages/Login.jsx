@@ -5,11 +5,13 @@ import Logo from '../components/Logo'
 export default function Login() {
   const [email, setEmail] = useState('')
   const [pass, setPass] = useState('')
+  const [acepto, setAcepto] = useState(false)
   const [msg, setMsg] = useState('')
   const [cargando, setCargando] = useState(false)
 
   async function entrar(e) {
     e.preventDefault()
+    if (!acepto) { setMsg('⚠️ Debes aceptar la política de privacidad para continuar.'); return }
     setMsg(''); setCargando(true)
     try {
       const { error } = await supabase.auth.signInWithPassword({ email, password: pass })
@@ -39,7 +41,18 @@ export default function Login() {
               <input className="field mt-1" type="password" required value={pass}
                 onChange={(e) => setPass(e.target.value)} placeholder="••••••" />
             </div>
-            <button className="btn btn-primary w-full" disabled={cargando}>
+            {/* Consentimiento GDPR */}
+            <label className="flex items-start gap-2.5 cursor-pointer select-none">
+              <input type="checkbox" checked={acepto} onChange={(e) => setAcepto(e.target.checked)}
+                className="mt-0.5 flex-shrink-0 accent-cyan-400 w-4 h-4" />
+              <span className="text-[11px] text-muted leading-relaxed">
+                He leído y acepto la{' '}
+                <a href="/privacidad" target="_blank" rel="noopener noreferrer"
+                  className="text-cyan underline hover:text-white">política de privacidad</a>
+                {' '}y el tratamiento de mis datos según el RGPD.
+              </span>
+            </label>
+            <button className="btn btn-primary w-full" disabled={cargando || !acepto}>
               {cargando ? '...' : 'Entrar'}
             </button>
           </form>

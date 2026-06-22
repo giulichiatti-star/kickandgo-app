@@ -4,9 +4,9 @@ export default {
   theme: {
     extend: {
       colors: {
-        negro: '#0f0f11',
-        card: '#1c1c20',
-        borde: '#2e2e33',
+        negro: '#16161c',
+        card: '#202028',
+        borde: '#33333c',
         muted: '#a1a1aa',
         blanco: '#ffffff',
         cyan: { DEFAULT: '#2dd4bf', dark: '#14b8a6', neon: '#5eead4' },

@@ -12,7 +12,7 @@ export async function guardarPartido(p) {
     gc: p.gc || 0,
     estado: 'finalizado',
     notas: p.eventos || [],
-    analisis_ia: p.analisis_ia || '',
+    analisis_ia: p.notas_entrenador || p.analisis_ia || '',
   }
   const { data, error } = await supabase.from('partidos').insert(payload).select().single()
   if (error) throw error
@@ -24,4 +24,15 @@ export async function listarPartidos() {
     .from('partidos').select('*').order('fecha', { ascending: false })
   if (error) throw error
   return data
+}
+
+export async function borrarPartido(id) {
+  const { error } = await supabase.from('partidos').delete().eq('id', id)
+  if (error) throw error
+}
+
+export async function borrarTodosPartidos() {
+  const { data: u } = await supabase.auth.getUser()
+  const { error } = await supabase.from('partidos').delete().eq('user_id', u.user.id)
+  if (error) throw error
 }

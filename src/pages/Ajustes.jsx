@@ -1,9 +1,15 @@
 import { useEffect, useState } from 'react'
 import { getPerfil, updatePerfil } from '../lib/perfil'
+import { getCompeticion, guardarCompeticion, parseTabla, parseGoleadores, parseCalendario } from '../lib/competicion'
+import { listarJugadores, vaciarPlantilla } from '../lib/jugadores'
+import { borrarTodosPartidos } from '../lib/partidos'
+import { borrarTodasTarjetas } from '../lib/tarjetas'
+import { borrarTodosEntrenos } from '../lib/entrenamientos'
+import { supabase } from '../lib/supabase'
 
 export default function Ajustes() {
   const [form, setForm] = useState({
-    entrenador: '', club_nombre: '', descripcion: '', tipo_equipo: '11', escudo_url: '',
+    entrenador: '', club_nombre: '', descripcion: '', tipo_equipo: '11', escudo_url: '', temporada: '',
   })
   const [email, setEmail] = useState('')
   const [cargando, setCargando] = useState(true)
@@ -12,13 +18,14 @@ export default function Ajustes() {
   useEffect(() => {
     (async () => {
       try {
-        const p = await getPerfil()
+        const [p, comp] = await Promise.all([getPerfil(), getCompeticion()])
         setForm({
           entrenador: p.entrenador || '',
           club_nombre: p.club_nombre || '',
           descripcion: p.descripcion || '',
           tipo_equipo: p.tipo_equipo || '11',
           escudo_url: p.escudo_url || '',
+          temporada: comp?.temporada || '',
         })
         setEmail(p.email || '')
       } catch (e) { setMsg('⚠️ ' + e.message) }
@@ -37,7 +44,11 @@ export default function Ajustes() {
   async function guardar() {
     setMsg('')
     try {
-      await updatePerfil(form)
+      const { temporada, ...resto } = form
+      await updatePerfil(resto)
+      // temporada se guarda dentro de competicion para no necesitar migración
+      const comp = await getCompeticion()
+      await guardarCompeticion({ ...(comp||{}), temporada })
       setMsg('✅ Guardado')
     } catch (e) { setMsg('⚠️ ' + e.message) }
   }
@@ -70,13 +81,15 @@ export default function Ajustes() {
           onChange={(v) => setForm({ ...form, club_nombre: v })} placeholder="Ej: Llavaneres CF" />
         <Campo label="Descripción / categoría" value={form.descripcion}
           onChange={(v) => setForm({ ...form, descripcion: v })} placeholder="Ej: Llavaneres 3ª" />
+        <Campo label="Temporada" value={form.temporada}
+          onChange={(v) => setForm({ ...form, temporada: v })} placeholder="Ej: 2024/25" />
       </div>
 
       {/* Tipo de equipo */}
       <div className="card p-4">
         <div className="text-xs text-muted mb-2">Tipo de equipo</div>
         <div className="flex gap-2">
-          {['11', '7'].map((t) => (
+          {['11', '9', '7'].map((t) => (
             <button key={t} onClick={() => setForm({ ...form, tipo_equipo: t })}
               className={`flex-1 py-3 rounded-lg border text-sm font-bold transition ${
                 form.tipo_equipo === t ? 'border-cyan bg-cyan/10 text-cyan' : 'border-borde text-muted'}`}>
@@ -85,13 +98,289 @@ export default function Ajustes() {
           ))}
         </div>
         <div className="text-[10px] text-muted mt-2">
-          Define jugadores en campo, pizarra y formaciones. Conviene fijarlo al empezar.
+          Cada tipo tiene <b>su propia plantilla</b>. Cambiarlo aquí (o en Equipo) hace que toda la app
+          muestre los jugadores, formaciones y convocatoria de ese equipo.
         </div>
       </div>
 
       <div className="text-xs text-muted">Cuenta: {email}</div>
       {msg && <div className="text-xs text-zinc-300">{msg}</div>}
       <button className="btn btn-primary w-full" onClick={guardar}>💾 Guardar</button>
+
+      <LigaRivales />
+
+      <ContactoSoporte />
+
+      <ZonaPeligro />
+
+      {/* Privacidad / GDPR */}
+      <div className="card p-4 space-y-3">
+        <h2 className="text-sm font-bold">🔒 Privacidad y datos</h2>
+        <p className="text-[11px] text-muted leading-relaxed">
+          Tus datos se almacenan de forma segura y solo tú puedes acceder a ellos.
+          Puedes consultar nuestra{' '}
+          <a href="/privacidad" target="_blank" rel="noopener noreferrer" className="text-cyan underline">
+            política de privacidad
+          </a>{' '}
+          en cualquier momento.
+        </p>
+        <EliminarCuenta />
+      </div>
+    </div>
+  )
+}
+
+function EliminarCuenta() {
+  const [confirm, setConfirm] = useState(false)
+  const [msg, setMsg] = useState('')
+  const [cargando, setCargando] = useState(false)
+
+  async function eliminar() {
+    if (!confirm) { setConfirm(true); return }
+    setCargando(true)
+    try {
+      // Llamada a la función de Supabase que borra datos y desactiva la cuenta
+      const { error } = await supabase.rpc('eliminar_cuenta_usuario')
+      if (error) throw error
+      await supabase.auth.signOut()
+    } catch (e) {
+      setMsg('⚠️ ' + e.message + ' — Escríbenos a lopezlucas290@gmail.com para tramitarlo manualmente.')
+      setCargando(false); setConfirm(false)
+    }
+  }
+
+  return (
+    <div>
+      {!confirm ? (
+        <button className="btn btn-outline text-xs text-rojo border-rojo/30 hover:bg-rojo/10 w-full"
+          onClick={() => setConfirm(true)}>
+          🗑 Solicitar eliminación de mi cuenta y datos
+        </button>
+      ) : (
+        <div className="rounded-lg p-3 space-y-2" style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.25)' }}>
+          <p className="text-xs font-bold text-rojo">⚠️ Esta acción es irreversible</p>
+          <p className="text-[11px] text-muted">Se eliminarán tu cuenta, jugadores, partidos, entrenamientos y todos los datos asociados.</p>
+          <div className="flex gap-2">
+            <button className="btn btn-outline flex-1 text-xs" onClick={() => setConfirm(false)} disabled={cargando}>Cancelar</button>
+            <button className="btn btn-danger flex-1 text-xs" onClick={eliminar} disabled={cargando}>
+              {cargando ? 'Eliminando…' : 'Confirmar — eliminar todo'}
+            </button>
+          </div>
+        </div>
+      )}
+      {msg && <p className="text-[11px] text-muted mt-2">{msg}</p>}
+    </div>
+  )
+}
+
+function ZonaPeligro() {
+  const [tipoV, setTipoV] = useState('11')
+  const [conteo, setConteo] = useState({ 11: 0, 9: 0, 7: 0 })
+  const [msg, setMsg] = useState('')
+  const [borrándoStats, setBorrandoStats] = useState(false)
+
+  async function recontar() {
+    try {
+      const [a, b, c] = await Promise.all([listarJugadores('11'), listarJugadores('9'), listarJugadores('7')])
+      setConteo({ 11: a.length, 9: b.length, 7: c.length })
+    } catch { /* noop */ }
+  }
+  useEffect(() => { recontar() }, [])
+
+  const n = conteo[tipoV] || 0
+
+  async function vaciar() {
+    if (!n) return
+    if (!confirm(`¿Vaciar la plantilla de Fútbol ${tipoV} y todas las estadísticas (partidos, tarjetas, entrenamientos)? No se puede deshacer.`)) return
+    if (!confirm('Confirma: se borrará todo para empezar de cero.')) return
+    setMsg('')
+    try {
+      await Promise.all([
+        vaciarPlantilla(tipoV),
+        borrarTodosPartidos(),
+        borrarTodasTarjetas(),
+        borrarTodosEntrenos(),
+      ])
+      setMsg(`✅ Plantilla F${tipoV} y estadísticas borradas. App en cero.`)
+      await recontar()
+    } catch (e) { setMsg('⚠️ ' + e.message) }
+  }
+
+  async function borrarStats() {
+    if (!confirm('¿Borrar todos los partidos, tarjetas y entrenamientos? La plantilla no se toca.')) return
+    setBorrandoStats(true); setMsg('')
+    try {
+      await Promise.all([borrarTodosPartidos(), borrarTodasTarjetas(), borrarTodosEntrenos()])
+      setMsg('✅ Estadísticas borradas. La plantilla sigue intacta.')
+    } catch (e) { setMsg('⚠️ ' + e.message) }
+    finally { setBorrandoStats(false) }
+  }
+
+  return (
+    <div className="card p-4 space-y-3" style={{ borderColor: 'rgba(239,68,68,0.35)' }}>
+      <div>
+        <h2 className="text-base font-extrabold text-rojo">⚠️ Zona de peligro</h2>
+        <p className="text-[11px] text-muted mt-1">
+          Vacía la plantilla y borra <b className="text-white">todos los partidos, tarjetas y entrenamientos</b>. Úsalo para empezar una nueva temporada en blanco.
+        </p>
+      </div>
+      <div className="flex gap-2">
+        {['11', '9', '7'].map((t) => (
+          <button key={t} onClick={() => setTipoV(t)}
+            className={`flex-1 py-2 rounded-lg border text-xs font-bold transition ${tipoV === t ? 'border-rojo bg-rojo/10 text-rojo' : 'border-borde text-muted'}`}>
+            F{t} ({conteo[t] || 0})
+          </button>
+        ))}
+      </div>
+      {msg && <div className="text-xs text-zinc-300">{msg}</div>}
+      <button className="btn btn-danger w-full" onClick={vaciar} disabled={!n}>
+        🗑️ Vaciar plantilla de Fútbol {tipoV} {n ? `(${n})` : ''}
+      </button>
+      <div className="border-t border-borde pt-3">
+        <p className="text-[11px] text-muted mb-2">Solo borrar estadísticas (partidos, tarjetas, entrenamientos) sin tocar la plantilla.</p>
+        <button className="btn btn-danger w-full" onClick={borrarStats} disabled={borrándoStats}>
+          {borrándoStats ? 'Borrando…' : '📊 Borrar todas las estadísticas'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function LigaRivales() {
+  const [nombre, setNombre] = useState('')
+  const [tablaTxt, setTablaTxt] = useState('')
+  const [golesTxt, setGolesTxt] = useState('')
+  const [calTxt, setCalTxt] = useState('')
+  const [guard, setGuard] = useState(null) // {tabla, goleadores, calendario}
+  const [msg, setMsg] = useState('')
+  const [borrando, setBorrando] = useState(false)
+
+  useEffect(() => {
+    (async () => {
+      const c = await getCompeticion()
+      if (c) {
+        setNombre(c.nombre || ''); setGuard(c)
+      }
+    })()
+  }, [])
+
+  async function nuevaTemporada() {
+    if (!confirm('¿Iniciar nueva temporada? Se borrarán los rivales, la clasificación, el calendario Y todos los partidos registrados. No se puede deshacer.')) return
+    setBorrando(true); setMsg('')
+    try {
+      await Promise.all([
+        guardarCompeticion({}),
+        borrarTodosPartidos(),
+      ])
+      setGuard(null); setNombre(''); setTablaTxt(''); setGolesTxt(''); setCalTxt('')
+      setMsg('✅ Temporada reiniciada. Carga los nuevos datos de la liga.')
+    } catch (e) { setMsg('⚠️ ' + e.message) }
+    finally { setBorrando(false) }
+  }
+
+  const prevTabla = tablaTxt ? parseTabla(tablaTxt) : (guard?.tabla || [])
+  const prevGoles = golesTxt ? parseGoleadores(golesTxt) : (guard?.goleadores || [])
+  const prevCal = calTxt ? parseCalendario(calTxt) : (guard?.calendario || [])
+
+  async function guardarLiga() {
+    setMsg('')
+    const comp = {
+      nombre: nombre || 'Mi liga',
+      tabla: tablaTxt ? parseTabla(tablaTxt) : (guard?.tabla || []),
+      goleadores: golesTxt ? parseGoleadores(golesTxt) : (guard?.goleadores || []),
+      calendario: calTxt ? parseCalendario(calTxt) : (guard?.calendario || []),
+    }
+    try {
+      await guardarCompeticion(comp)
+      setGuard(comp); setTablaTxt(''); setGolesTxt(''); setCalTxt('')
+      setMsg('✅ Liga guardada. Rivales y el Asistente ya usan tus datos.')
+    } catch (e) {
+      setMsg(/column .*competicion/.test(e.message || '')
+        ? '⚠️ Falta crear la columna. Ejecuta supabase/migracion_competicion.sql en Supabase.'
+        : '⚠️ ' + e.message)
+    }
+  }
+
+  return (
+    <div className="card p-4 space-y-4 mt-2">
+      <div>
+        <h2 className="text-base font-extrabold">🛡️ Información de la liga (rivales)</h2>
+        <p className="text-[11px] text-muted mt-1">
+          Carga por bloques en CSV o texto (una fila por línea, separadas por coma, ; o tabulador).
+          Lo que pegues sustituye a los datos de ejemplo en <b className="text-cyan">Rivales</b> y el <b className="text-cyan">Asistente</b>.
+        </p>
+      </div>
+
+      <Campo label="Nombre de la competición" value={nombre} onChange={setNombre} placeholder="Ej: Tercera Catalana · Grup 6" />
+
+      <BloqueImport
+        titulo="📊 Clasificación"
+        hint={<>Columnas (separadas por coma, punto y coma o tabulador):<br/><b className="text-cyan">pos, equipo, PJ, PG, PE, PP, GF, GC, PTS</b><br/>También acepta formato FCF con columna DIF: <b className="text-cyan">pos, equipo, PJ, PG, PE, PP, GF, GC, DIF, PTS</b></>}
+        value={tablaTxt} onChange={setTablaTxt}
+        placeholder={"1, Vilassar Dalt, 29, 19, 5, 5, 68, 32, 36, 62\n2, Cabrils CE, 29, 18, 4, 7, 61, 38, 23, 58"}
+        prev={prevTabla.map((t) => `${t.pos}. ${t.nom} — ${t.pts} pts (${t.pg}V ${t.pe}E ${t.pp}D)`)} />
+
+      <BloqueImport
+        titulo="⚽ Goleadores"
+        hint={<>Columnas: <b className="text-cyan">nombre, club, goles, asistencias</b></>}
+        value={golesTxt} onChange={setGolesTxt}
+        placeholder={"Marc Roca, Vilassar Dalt, 18, 5\nJordi Casas, Cabrils CE, 16, 3"}
+        prev={prevGoles.map((g) => `${g.nom} (${g.club}) — ${g.goles} goles`)} />
+
+      <BloqueImport
+        titulo="📅 Calendario"
+        hint={<>Columnas: <b className="text-cyan">jornada, fecha, local, visitante, resultado</b> (jornada/fecha/resultado opcionales)</>}
+        value={calTxt} onChange={setCalTxt}
+        placeholder={"J1, 15/09, Arenys de Mar, Mataró CE\nJ2, 22/09, Cabrils CE, Arenys de Mar, 2-1"}
+        prev={prevCal.map((c) => `${c.jornada ? 'J' + c.jornada + ' · ' : ''}${c.local} vs ${c.visitante}${c.resultado ? ' (' + c.resultado + ')' : ''}`)} />
+
+      {msg && <div className="text-xs text-zinc-300">{msg}</div>}
+      <button className="btn btn-primary w-full" onClick={guardarLiga}>💾 Guardar información de la liga</button>
+      <p className="text-[10px] text-muted">El calendario automático desde fcf.cat necesitaría un servidor; por ahora se carga manual aquí.</p>
+
+      {/* Borrar torneo / nueva temporada */}
+      {guard && Object.keys(guard).filter(k=>k!=='temporada').some(k=>Array.isArray(guard[k])&&guard[k].length) && (
+        <div className="rounded-xl p-3 space-y-2 mt-2" style={{background:'rgba(239,68,68,0.06)',border:'1px solid rgba(239,68,68,0.2)'}}>
+          <div className="text-xs font-bold text-rojo">🔄 Iniciar nueva temporada</div>
+          <p className="text-[11px] text-muted">Borra los rivales, clasificación, calendario <b className="text-white">y todos los partidos</b> registrados. Úsalo al empezar una nueva temporada.</p>
+          <button className="btn btn-danger w-full text-xs" onClick={nuevaTemporada} disabled={borrando}>
+            {borrando ? 'Borrando…' : '🗑️ Borrar torneo y partidos — nueva temporada'}
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function BloqueImport({ titulo, hint, value, onChange, placeholder, prev }) {
+  function cargarCSV(e) {
+    const f = e.target.files?.[0]; if (!f) return
+    const reader = new FileReader()
+    reader.onload = ev => onChange(ev.target.result)
+    reader.readAsText(f, 'UTF-8')
+    e.target.value = ''
+  }
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-1">
+        <label className="text-sm font-bold">{titulo}</label>
+        <div className="flex items-center gap-2">
+          {prev.length > 0 && <span className="text-[10px] text-cyan">{prev.length} cargados</span>}
+          <label className="text-[10px] px-2 py-1 rounded-lg border border-borde text-muted hover:text-white hover:border-cyan transition cursor-pointer">
+            📎 CSV
+            <input type="file" accept=".csv,.txt" className="hidden" onChange={cargarCSV} />
+          </label>
+        </div>
+      </div>
+      <div className="text-[10px] text-muted mb-1.5 leading-relaxed">{hint}</div>
+      <textarea className="field h-24 font-mono text-[11px]" value={value}
+        onChange={(e) => onChange(e.target.value)} placeholder={placeholder} />
+      {prev.length > 0 && (
+        <div className="mt-2 max-h-28 overflow-y-auto space-y-0.5">
+          {prev.slice(0, 8).map((l, i) => <div key={i} className="text-[11px] text-muted">· {l}</div>)}
+          {prev.length > 8 && <div className="text-[10px] text-muted">…y {prev.length - 8} más</div>}
+        </div>
+      )}
     </div>
   )
 }
@@ -101,6 +390,83 @@ function Campo({ label, value, onChange, placeholder }) {
     <div>
       <label className="text-xs text-muted">{label}</label>
       <input className="field mt-1" value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} />
+    </div>
+  )
+}
+
+const MOTIVOS = ['Consulta general', 'Error / bug', 'Mejora o sugerencia', 'Otro']
+
+function ContactoSoporte() {
+  const [emailC, setEmailC] = useState('')
+  const [motivo, setMotivo] = useState(MOTIVOS[0])
+  const [texto, setTexto] = useState('')
+  const [img, setImg] = useState(null)
+  const [imgName, setImgName] = useState('')
+  const [enviado, setEnviado] = useState(false)
+
+  function selImg(e) {
+    const f = e.target.files?.[0]; if (!f) return
+    setImgName(f.name)
+    const reader = new FileReader()
+    reader.onload = ev => setImg(ev.target.result)
+    reader.readAsDataURL(f)
+  }
+
+  function enviar() {
+    const subject = encodeURIComponent(`[Kick&Go] ${motivo}`)
+    const body = encodeURIComponent(
+      `De: ${emailC || '(no indicado)'}\nMotivo: ${motivo}\n\n${texto}` +
+      (imgName ? `\n\n[Adjunto: ${imgName} — adjunta la imagen manualmente si tu cliente de correo no la incluye]` : '')
+    )
+    window.open(`mailto:kickandgoapp@gmail.com?subject=${subject}&body=${body}`, '_blank')
+    setEnviado(true)
+    setTimeout(() => setEnviado(false), 4000)
+  }
+
+  return (
+    <div className="card p-4 space-y-3">
+      <div>
+        <h2 className="text-base font-extrabold">💬 Contacto y soporte</h2>
+        <p className="text-[11px] text-muted mt-1">Consultas, dudas, mejoras, errores — escríbenos aquí.</p>
+      </div>
+
+      <div>
+        <label className="text-xs text-muted">Tu email (para responderte)</label>
+        <input className="field mt-1" type="email" placeholder="tu@email.com"
+          value={emailC} onChange={e => setEmailC(e.target.value)} />
+      </div>
+
+      <div>
+        <label className="text-xs text-muted">Motivo</label>
+        <select className="field mt-1" value={motivo} onChange={e => setMotivo(e.target.value)}>
+          {MOTIVOS.map(m => <option key={m}>{m}</option>)}
+        </select>
+      </div>
+
+      <div>
+        <label className="text-xs text-muted">Descripción</label>
+        <textarea className="field mt-1 h-24 resize-none" placeholder="Explícanos qué pasó o qué mejorarías…"
+          value={texto} onChange={e => setTexto(e.target.value)} />
+      </div>
+
+      <div>
+        <label className="text-xs text-muted block mb-1">Adjuntar imagen (opcional)</label>
+        <label className="btn btn-outline text-xs cursor-pointer">
+          📎 {imgName || 'Seleccionar imagen'}
+          <input type="file" accept="image/*" className="hidden" onChange={selImg} />
+        </label>
+        {img && <img src={img} alt="preview" className="mt-2 rounded-lg max-h-32 object-contain border border-borde" />}
+      </div>
+
+      {enviado && (
+        <div className="text-xs rounded-lg p-2.5" style={{background:'rgba(52,211,153,0.1)',border:'1px solid rgba(52,211,153,0.25)',color:'#34d399'}}>
+          ✅ Se abrió tu cliente de correo. Si adjuntaste imagen, añádela manualmente al email.
+        </div>
+      )}
+
+      <button className="btn btn-primary w-full" onClick={enviar} disabled={!texto.trim()}>
+        ✉️ Abrir correo y enviar
+      </button>
     </div>
   )
 }

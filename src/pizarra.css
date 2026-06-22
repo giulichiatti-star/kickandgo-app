@@ -1,0 +1,32 @@
+/* ===== PIZARRA ===== */
+.piz-wrap { display:grid; grid-template-columns:1fr 200px; gap:14px; align-items:start; }
+@media(max-width:700px){ .piz-wrap{ grid-template-columns:1fr; } }
+
+.piz-canvas-wrap { background:#0d0d0f; border-radius:12px; border:1px solid rgba(45,212,191,0.2); overflow:hidden; }
+.piz-canvas { display:block; width:100%; height:auto; }
+
+.piz-tools { background:#1c1c20; border:1px solid #27272a; border-radius:12px; padding:14px; display:flex; flex-direction:column; gap:12px; }
+@media(max-width:700px){ .piz-tools{ flex-direction:row; flex-wrap:wrap; } .piz-tools > div{ flex:1 1 45%; min-width:130px; } }
+
+.piz-lbl { font-size:9px; font-weight:700; color:#71717a; text-transform:uppercase; letter-spacing:1px; margin-bottom:5px; }
+
+.piz-select { width:100%; padding:7px 8px; border-radius:7px; border:1px solid #27272a; background:#1a2235; color:#fff; font-size:12px; font-family:inherit; cursor:pointer; outline:none; }
+.piz-select:focus { border-color:#2dd4bf; }
+
+.piz-tool-btn { width:100%; padding:7px 10px; border-radius:7px; border:1px solid #27272a; background:#18181b; color:#94a3b8; font-size:11.5px; font-weight:600; cursor:pointer; text-align:left; display:flex; align-items:center; gap:6px; transition:all .13s; }
+.piz-tool-btn:hover { background:#1a2235; color:#fff; }
+.piz-tool-btn.active { background:rgba(45,212,191,0.12); border-color:rgba(45,212,191,0.35); color:#2dd4bf; }
+
+.piz-swatch { width:22px; height:22px; border-radius:4px; cursor:pointer; border:2px solid transparent; transition:border-color .12s; padding:0; }
+.piz-swatch.active { border-color:#fff !important; }
+
+.piz-stroke-btn { flex:1; padding:5px; border-radius:5px; border:1px solid #27272a; background:#18181b; color:#94a3b8; font-size:10px; font-weight:700; cursor:pointer; text-align:center; transition:all .12s; }
+.piz-stroke-btn.active { background:rgba(45,212,191,0.1); border-color:rgba(45,212,191,0.35); color:#2dd4bf; }
+
+.piz-notas { width:100%; background:#0f0f11; border:1px solid #27272a; border-radius:8px; padding:8px 10px; font-size:11.5px; color:#d4d4d8; outline:none; font-family:inherit; resize:vertical; line-height:1.55; }
+.piz-notas:focus { border-color:#2dd4bf; }
+
+.piz-btn-sm { font-size:11px; font-weight:600; padding:6px 12px; border-radius:8px; border:1px solid #27272a; background:#1c1c20; color:#94a3b8; cursor:pointer; transition:all .13s; white-space:nowrap; }
+.piz-btn-sm:hover { border-color:#3f3f46; color:#fff; }
+.piz-btn-primary { background:rgba(45,212,191,0.12) !important; border-color:rgba(45,212,191,0.4) !important; color:#2dd4bf !important; }
+.piz-btn-primary:hover { background:rgba(45,212,191,0.2) !important; }
