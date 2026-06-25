@@ -30,11 +30,23 @@
 .dash2-hero-btn { background:#f59e0b; color:#3a2c00; font-weight:800; font-size:12px; padding:11px 20px; border:none; border-radius:9px; cursor:pointer; letter-spacing:.3px; transition:all .15s; }
 .dash2-hero-btn:hover { filter:brightness(1.08); transform:translateY(-1px); }
 
-.dash2-sug { display:flex; gap:11px; align-items:flex-start; padding:11px 0; border-top:1px solid #27272a; }
-.dash2-sug:first-child { border-top:none; padding-top:0; }
-.dash2-sug-ico { width:34px; height:34px; border-radius:9px; background:rgba(45,212,191,0.1); border:1px solid rgba(45,212,191,0.25); display:flex; align-items:center; justify-content:center; font-size:15px; flex-shrink:0; }
-.dash2-sug-t { font-size:12.5px; font-weight:700; color:#fff; }
-.dash2-sug-d { font-size:11px; color:#a1a1aa; margin-top:1px; }
+.dash2-sug {
+  display:flex; gap:12px; align-items:center;
+  padding:10px 11px; border-radius:11px; margin-bottom:5px;
+  border:1px solid rgba(255,255,255,0.04);
+  background:rgba(255,255,255,0.025);
+  cursor:pointer; transition:all .17s;
+}
+.dash2-sug:last-child { margin-bottom:0; }
+.dash2-sug:hover { border-color:rgba(45,212,191,0.3); background:rgba(45,212,191,0.06); transform:translateX(4px); }
+.dash2-sug-ico {
+  width:42px; height:42px; border-radius:12px; flex-shrink:0;
+  display:flex; align-items:center; justify-content:center;
+  transition:transform .17s;
+}
+.dash2-sug:hover .dash2-sug-ico { transform:scale(1.1) rotate(-4deg); }
+.dash2-sug-t { font-size:12.5px; font-weight:700; color:#fafafa; }
+.dash2-sug-d { font-size:11px; color:#a1a1aa; margin-top:1px; line-height:1.4; }
 
 /* Estado del equipo: aro principal con logo + aros secundarios */
 .dash2-estado { display:flex; gap:16px; align-items:center; flex-wrap:wrap; }
@@ -46,14 +58,22 @@
 .dash2-overall-lbl { position:absolute; left:0; right:0; bottom:14px; text-align:center; font-size:8.5px; font-weight:800; letter-spacing:.6px; text-transform:uppercase; color:#a1a1aa; }
 
 .dash2-gauges { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; flex:1; min-width:160px; }
-.dash2-gauge { text-align:center; }
+.dash2-gauge {
+  text-align:center; padding:10px 6px; border-radius:12px;
+  border:1px solid rgba(255,255,255,0.04);
+  background:rgba(255,255,255,0.025);
+  cursor:default; transition:all .18s;
+}
+.dash2-gauge:hover { border-color:rgba(45,212,191,0.2); background:rgba(45,212,191,0.04); transform:translateY(-2px); }
 .dash2-gauge-ring { width:74px; height:74px; margin:0 auto 6px; position:relative; }
 .dash2-gauge-ring svg { transform:rotate(-90deg); }
-.dash2-gauge-val { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:22px; font-weight:900; color:#fff; }
-.dash2-gauge-inner { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px; }
-.dash2-gauge-ico { font-size:17px; line-height:1; }
-.dash2-gauge-num { font-size:17px; font-weight:900; line-height:1; }
-.dash2-gauge-lbl { font-size:11px; color:#94a3b8; margin-top:2px; }
+.dash2-gauge-ring circle.track { stroke:#27272a; }
+.dash2-gauge-ring circle.fill { stroke-dasharray: var(--dash-total); stroke-dashoffset: var(--dash-total); animation: gauge-fill .9s ease forwards; }
+@keyframes gauge-fill { to { stroke-dashoffset: var(--dash-offset); } }
+.dash2-gauge-inner { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; }
+.dash2-gauge-ico { display:flex; align-items:center; justify-content:center; width:22px; height:22px; border-radius:6px; margin:0 auto 1px; }
+.dash2-gauge-num { font-size:16px; font-weight:900; line-height:1; }
+.dash2-gauge-lbl { font-size:10px; color:#94a3b8; margin-top:3px; font-weight:600; letter-spacing:.3px; }
 
 .dash2-last-score { display:flex; align-items:center; justify-content:center; gap:16px; margin:6px 0 10px; }
 .dash2-last-num { font-size:34px; font-weight:900; color:#fff; }
@@ -81,7 +101,7 @@
 .dash2-work-d { font-size:10.5px; color:#a1a1aa; }
 
 /* ---------- SIDEBAR ---------- */
-.kg-sidebar { position:fixed; top:0; left:0; bottom:0; width:224px; background:#121214; border-right:1px solid #27272a; display:flex; flex-direction:column; z-index:50; transition:transform .22s ease; }
+.kg-sidebar { position:fixed; top:0; left:0; bottom:0; width:224px; background:#121214; border-right:1px solid #27272a; display:flex; flex-direction:column; z-index:50; transition:transform .22s ease; padding-top:env(safe-area-inset-top); padding-bottom:env(safe-area-inset-bottom); }
 .kg-sidebar-head { padding:16px 16px 12px; border-bottom:1px solid #27272a; }
 .kg-nav { flex:1; padding:8px 0; overflow-y:auto; scrollbar-width:none; }
 .kg-nav::-webkit-scrollbar { display:none; }

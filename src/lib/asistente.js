@@ -76,6 +76,55 @@ export function responder(pregunta, ctx) {
     return `🏟️ Local: ${loc.length} PJ, ${b(loc)} pts. Visitante: ${vis.length} PJ, ${b(vis)} pts.`
   }
 
+  // ---- CREAR SESIÓN DE ENTRENAMIENTO ----
+  if (/crea|planifica|genera|diseña/.test(q) && /sesion|entrenamiento|entreno/.test(q)) {
+    const esDerrota  = /derrota/.test(q)
+    const esVictoria = /victoria/.test(q)
+    const rival = (() => { const m = pregunta.match(/vs\s+([^\.,(]+)/i); return m ? m[1].trim() : null })()
+    const resultado = (() => { const m = pregunta.match(/\d+\s*-\s*\d+/); return m ? m[0] : null })()
+    const tipo = esDerrota ? 'correctiva' : esVictoria ? 'de consolidación' : 'de mejora'
+    const contexto = rival ? ` post ${rival}${resultado ? ` (${resultado})` : ''}` : ''
+    const objetivo = `Sesión ${tipo}${contexto}`
+
+    const mañana = new Date(); mañana.setDate(mañana.getDate() + 1)
+    const fechaStr = mañana.toISOString().slice(0, 10)
+
+    const ejerciciosBase = [
+      { nombre: 'Calentamiento dinámico con balón', categoria: 'Calentamiento', duracion_min: 15, intensidad: 'Baja', zona_muscular: 'Todo el cuerpo', descripcion: 'Movilidad articular general, rondos de activación 4v2, carreras progresivas.' },
+    ]
+    if (esDerrota) {
+      ejerciciosBase.push(
+        { nombre: 'Bloque defensivo 4+4', categoria: 'Defensa', duracion_min: 25, intensidad: 'Media', zona_muscular: 'Pierna / Core', descripcion: 'Estructura defensiva en bloque medio. Coberturas y permutas por bandas. Balón parado defensivo.' },
+        { nombre: 'Repliegue y presión tras pérdida', categoria: 'Transiciones', duracion_min: 25, intensidad: 'Alta', zona_muscular: 'Cardio / Pierna', descripcion: 'Repliegue organizado tras pérdida. Presión en 5 segundos. Partido condicionado: +3 pts si recuperas en campo rival.' },
+      )
+    } else if (esVictoria) {
+      ejerciciosBase.push(
+        { nombre: 'Posesión y presión alta 5v2', categoria: 'Posesión', duracion_min: 25, intensidad: 'Media', zona_muscular: 'Pierna / Cardio', descripcion: 'Rondos 5v2, circulación en tres líneas con pressing, partido condicionado en superioridad.' },
+        { nombre: 'Transiciones ofensivas rápidas', categoria: 'Transiciones', duracion_min: 25, intensidad: 'Alta', zona_muscular: 'Pierna', descripcion: 'Continuidad táctica del partido ganado. Transiciones rápidas y finalización desde segunda línea.' },
+      )
+    } else {
+      ejerciciosBase.push(
+        { nombre: 'Definición y centros laterales', categoria: 'Finalización', duracion_min: 25, intensidad: 'Alta', zona_muscular: 'Pierna', descripcion: 'Centros laterales y remates. 1v1 con portero desde distintos ángulos. Faltas directas e indirectas.' },
+        { nombre: 'Gestión del partido — tiempo límite', categoria: 'Partido', duracion_min: 25, intensidad: 'Alta', zona_muscular: 'Todo el cuerpo', descripcion: 'Partido condicionado con tiempo límite. Situaciones de empate al 80\'. Balón parado ofensivo.' },
+      )
+    }
+    ejerciciosBase.push(
+      { nombre: 'Estiramientos y vuelta a la calma', categoria: 'Calentamiento', duracion_min: 10, intensidad: 'Baja', zona_muscular: 'Todo el cuerpo', descripcion: 'Cadena posterior, cuádriceps e isquiotibiales. Vuelta a la calma en grupo.' }
+    )
+
+    let plan = `📋 ${objetivo} — 90 min\n\n`
+    ejerciciosBase.forEach(e => {
+      plan += `${e.categoria === 'Calentamiento' && e.nombre.includes('Estir') ? '🧘' : e.categoria === 'Calentamiento' ? '⏱' : e.categoria === 'Finali' ? '🎯' : e.categoria === 'Posesión' ? '⚽' : '🛡️'} ${e.nombre} (${e.duracion_min} min)\n`
+      plan += `${e.descripcion}\n\n`
+    })
+    plan += `✅ Pulsa "Guardar como entreno" para añadirlo al calendario.`
+
+    return {
+      text: plan,
+      entreno: { fecha: fechaStr, objetivo, notas: 'Generado por Asistente IA', ejercicios: ejerciciosBase }
+    }
+  }
+
   // ---- ENTRENOS ----
   if (/entreno|entrenamiento|que trabaj|sesion|esta semana|asistencia/.test(q)) {
     if (!entrenos.length) return 'No hay entrenos guardados. Planifica uno en Entrenamientos.'

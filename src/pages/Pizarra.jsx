@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { getPerfil } from '../lib/perfil'
 import { listarJugadores } from '../lib/jugadores'
+import { useEquipo } from '../contexts/EquipoContext'
 import '../pizarra.css'
 
 /* ── Formaciones (cancha vertical, portería abajo) ── */
@@ -198,6 +199,8 @@ function dibujarRivales(ctx, puntos) {
 }
 
 export default function Pizarra() {
+  const { equipoActivo } = useEquipo()
+  const eid = equipoActivo?.id
   const canvasRef      = useRef(null)
   const trazos         = useRef([])
   const drawing        = useRef(false)
@@ -229,17 +232,16 @@ export default function Pizarra() {
   useEffect(() => {
     ;(async () => {
       try {
-        const p = await getPerfil()
-        const t = p?.tipo_equipo || '11'
+        const t = equipoActivo?.tipo_equipo || '11'
         setTipo(t)
         setForm(t === '7' ? '2-3-1' : t === '9' ? '3-3-2' : '4-3-3')
-        const js = await listarJugadores(t)
+        const js = await listarJugadores(eid)
         setJugadores(js)
       } catch {}
       const h = JSON.parse(localStorage.getItem('pizarra_hist') || '[]')
       setHistorial(h)
     })()
-  }, [])
+  }, [eid])
 
   /* calcular puntos según formación */
   useEffect(() => {

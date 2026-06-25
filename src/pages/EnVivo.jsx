@@ -2,7 +2,9 @@ import { useEffect, useRef, useState } from 'react'
 import '../ev2.css'
 import { ultimaConvocatoria } from '../lib/convocatorias'
 import { guardarPartido } from '../lib/partidos'
+import { getCompeticion, guardarCompeticion } from '../lib/competicion'
 import { getPerfil } from '../lib/perfil'
+import { useEquipo } from '../contexts/EquipoContext'
 import { clasificarVoz } from '../lib/voz'
 import { ordenarTitulares } from '../lib/formaciones'
 import Jersey from '../components/Jersey'
@@ -53,17 +55,21 @@ const RADIAL = [
   { tipo: 'roja', ico: '🟥', lbl: 'Roja' },
   { tipo: 'falta', ico: '⚠️', lbl: 'Falta' },
 ]
-const ICONO_MARCA = { gol: '⚽', asistencia: '🅰️', amarilla: '🟨', roja: '🟥', cambio: '🔄' }
+const ICONO_MARCA = { gol: '⚽', 'gol-rival': '⚽', asistencia: '🅰️', amarilla: '🟨', 'amarilla-rival': '🟨', roja: '🟥', 'roja-rival': '🟥', cambio: '🔄', 'cambio-rival': '🔄' }
 const META = {
   gol: { label: 'Gol' }, 'gol-rival': { label: 'Gol rival' }, asistencia: { label: 'Asistencia' },
-  amarilla: { label: 'Amarilla' }, roja: { label: 'Roja' }, tiro: { label: 'Tiro' },
+  amarilla: { label: 'Amarilla' }, 'amarilla-rival': { label: 'Amarilla rival' },
+  roja: { label: 'Roja' }, 'roja-rival': { label: 'Roja rival' },
+  tiro: { label: 'Tiro' }, 'tiro-rival': { label: 'Tiro rival' },
   corner: { label: 'Córner' }, 'corner-rival': { label: 'Córner rival' },
   'falta-favor': { label: 'Falta a favor' }, falta: { label: 'Falta en contra' },
-  robo: { label: 'Robo' }, perdida: { label: 'Pérdida' }, offside: { label: 'Fuera de juego' }, cambio: { label: 'Cambio' },
+  robo: { label: 'Robo' }, perdida: { label: 'Pérdida' }, offside: { label: 'Fuera de juego' }, cambio: { label: 'Cambio' }, 'cambio-rival': { label: 'Cambio rival' },
 }
 function mmss(s) { return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}` }
 
 export default function EnVivo() {
+  const { equipoActivo } = useEquipo()
+  const eid = equipoActivo?.id
   const [titulares, setTitulares] = useState([])
   const [suplentes, setSuplentes] = useState([])
   const [rival, setRival] = useState('Rival')
@@ -78,6 +84,7 @@ export default function EnVivo() {
   const [gc, setGc] = useState(0)
   const [seg, setSeg] = useState(0)
   const [corriendo, setCorriendo] = useState(false)
+  const [partidoRestaurado, setPartidoRestaurado] = useState(false)
   const [eventos, setEventos] = useState([])
   const [marks, setMarks] = useState({})
   const [sel, setSel] = useState(null) // {id,dorsal,nombre}
@@ -89,12 +96,37 @@ export default function EnVivo() {
   const [entraRival, setEntraRival] = useState('')
   const [notas, setNotas] = useState('')
   const [stats, setStats] = useState({ tiros: 0, corners: 0, faltas: 0, amarillas: 0 })
+  const [valorModal, setValorModal] = useState(false)
+  const [valoraciones, setValoraciones] = useState({})
   const timer = useRef(null), recRef = useRef(null), escRef = useRef(false), titRef = useRef([])
+  const clubRef = useRef(club), rivalRef = useRef(rival), lastVozRef = useRef({ txt: '', ts: 0 })
   titRef.current = titulares
+  clubRef.current = club
+  rivalRef.current = rival
 
   useEffect(() => {
-    (async () => {
-      const c = await ultimaConvocatoria()
+    // Restaurar partido en curso si existe en localStorage
+    try {
+      const saved = localStorage.getItem('kg_envivo')
+      if (saved) {
+        const s = JSON.parse(saved)
+        if (s.gf !== undefined) {
+          setGf(s.gf); setGc(s.gc); setSeg(s.seg || 0)
+          setEventos(s.eventos || []); setMarks(s.marks || {})
+          setNotas(s.notas || ''); setStats(s.stats || { tiros:0, corners:0, faltas:0, amarillas:0 })
+          setRival(s.rival || 'Rival'); setClub(s.club || 'Nuestro equipo')
+          if (s.titulares?.length) setTitulares(s.titulares)
+          if (s.suplentes?.length) setSuplentes(s.suplentes)
+          if (s.formacion) setFormacion(s.formacion)
+          if (s.tipo) setTipo(s.tipo)
+          setPartidoRestaurado(true)
+          return // no cargar convocatoria encima del partido guardado
+        }
+      }
+    } catch {}
+
+    ;(async () => {
+      const c = await ultimaConvocatoria(eid)
       if (c) {
         setTitulares((c.titulares || []).map((t) => ({ ...t })))
         setSuplentes((c.suplentes || []).map((t) => ({ ...t })))
@@ -102,14 +134,30 @@ export default function EnVivo() {
       }
       try {
         const p = await getPerfil()
-        if (p?.club_nombre) setClub(p.club_nombre)
-        if (p?.escudo_url) setEscudo(p.escudo_url)
-        const t = p?.tipo_equipo || '11'
+        if (equipoActivo?.nombre) setClub(equipoActivo.nombre)
+        else if (p?.club_nombre) setClub(p.club_nombre)
+        if (equipoActivo?.escudo_url) setEscudo(equipoActivo.escudo_url)
+        else if (p?.escudo_url) setEscudo(p.escudo_url)
+        const t = equipoActivo?.tipo_equipo || p?.tipo_equipo || '11'
         setTipo(t); setFormacion(c?.formacion?.includes('-') ? c.formacion : defForm(t))
         setFormacionRival(defFormRival(t))
       } catch {}
     })()
-  }, [])
+  }, [eid])
+
+  // Guardar estado del partido en localStorage cada 30 segundos
+  useEffect(() => {
+    const id = setInterval(() => {
+      try {
+        localStorage.setItem('kg_envivo', JSON.stringify({
+          gf, gc, seg, eventos, marks, notas, stats,
+          rival, club, titulares, suplentes, formacion, tipo,
+          ts: Date.now(),
+        }))
+      } catch {}
+    }, 30000)
+    return () => clearInterval(id)
+  }, [gf, gc, seg, eventos, marks, notas, stats, rival, club, titulares, suplentes, formacion, tipo])
 
   useEffect(() => {
     if (corriendo) timer.current = setInterval(() => setSeg((s) => s + 1), 1000)
@@ -164,17 +212,17 @@ export default function EnVivo() {
     setEventos((e) => [ev, ...e])
     if (tipoEv === 'gol') { setGf((g) => g + 1); bump('tiros') }
     if (tipoEv === 'gol-rival') setGc((g) => g + 1)
-    if (tipoEv === 'tiro') bump('tiros')
+    if (tipoEv === 'tiro' || tipoEv === 'tiro-rival') bump('tiros')
     if (tipoEv === 'corner') bump('corners')
     if (tipoEv === 'falta' || tipoEv === 'falta-favor') bump('faltas')
-    if (tipoEv === 'amarilla') bump('amarillas')
-    if (jug && ICONO_MARCA[tipoEv]) setMarks((m) => ({ ...m, [jug.dorsal]: [...(m[jug.dorsal] || []), ICONO_MARCA[tipoEv]] }))
+    if (tipoEv === 'amarilla' || tipoEv === 'amarilla-rival') bump('amarillas')
+    if (jug && ICONO_MARCA[tipoEv]) setMarks((m) => ({ ...m, [jug.id]: [...(m[jug.id] || []), ICONO_MARCA[tipoEv]] }))
     // doble amarilla = roja
     if (tipoEv === 'amarilla' && jug) {
       const ya = eventos.filter((x) => x.tipo === 'amarilla' && x.jugador === ev.jugador).length
       if (ya >= 1) {
         setEventos((e) => [{ min, tipo: 'roja', icon: '🟥', label: 'Roja (doble amarilla)', jugador: ev.jugador }, ...e])
-        setMarks((m) => ({ ...m, [jug.dorsal]: [...(m[jug.dorsal] || []), '🟥'] }))
+        setMarks((m) => ({ ...m, [jug.id]: [...(m[jug.id] || []), '🟥'] }))
       }
     }
     setSel(null)
@@ -187,7 +235,7 @@ export default function EnVivo() {
     setTitulares((t) => t.map((j) => (j.id === saleId ? entra : j)))
     setSuplentes((s) => s.map((j) => (j.id === entraId ? sale : j)))
     setEventos((e) => [{ min, tipo: 'cambio', icon: '🔄', label: 'Cambio', jugador: `Sale ${sale.nombre} · Entra ${entra.nombre}` }, ...e])
-    setMarks((m) => ({ ...m, [entra.dorsal]: [...(m[entra.dorsal] || []), '🔄'] }))
+    setMarks((m) => ({ ...m, [entra.id]: [...(m[entra.id] || []), '🔄'] }))
     setSaleId(''); setEntraId('')
   }
 
@@ -203,22 +251,50 @@ export default function EnVivo() {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition
     if (!SR) { alert('Tu navegador no soporta voz (usa Chrome/Android)'); return }
     const rec = new SR(); rec.lang = 'es-ES'; rec.continuous = true; rec.interimResults = false
-    rec.onresult = (e) => { for (let i = e.resultIndex; i < e.results.length; i++) if (e.results[i].isFinal) { const txt = e.results[i][0].transcript; setOido(txt); const r = clasificarVoz(txt, titRef.current, club, rival); if (r) registrar(r.tipo, r.jugador) } }
+    rec.onresult = (e) => { const i = e.resultIndex; if (e.results[i]?.isFinal) { const txt = e.results[i][0].transcript; const now = Date.now(); if (txt === lastVozRef.current.txt && now - lastVozRef.current.ts < 2000) return; lastVozRef.current = { txt, ts: now }; setOido(txt); const r = clasificarVoz(txt, titRef.current, clubRef.current, rivalRef.current); if (r) { const jug = r.dorsalRival != null ? (RIVAL_DEMO.find(j => j.dorsal === r.dorsalRival) || null) : r.jugador; registrar(r.tipo, jug) } } }
     rec.onend = () => { if (escRef.current) { try { rec.start() } catch {} } }
     recRef.current = rec; try { rec.start(); escRef.current = true; setEscuchando(true) } catch {}
   }
 
-  async function finalizar() {
-    if (!confirm('¿Finalizar y guardar el partido?')) return
+  async function guardarFinal(vals) {
     try {
-      await guardarPartido({ rival, gf, gc, formacion, notas_entrenador: notas, eventos: eventos.map((e) => ({ min: e.min, tipo: e.tipo, label: e.label, jugador: e.jugador })) })
-      setCorriendo(false); alert('✅ Partido guardado en Informes')
+      await guardarPartido({
+        rival, gf, gc, formacion,
+        notas_entrenador: notas,
+        eventos: eventos.map((e) => ({ min: e.min, tipo: e.tipo, label: e.label, jugador: e.jugador })),
+        valoraciones: vals,
+      }, eid)
+
+      try {
+        const comp = await getCompeticion(eid)
+        if (comp?.proximas_fechas?.length) {
+          const rivalNorm = (rival || '').toLowerCase()
+          const proximas = comp.proximas_fechas.filter(p =>
+            !p.local?.toLowerCase().includes(rivalNorm) &&
+            !p.visitante?.toLowerCase().includes(rivalNorm)
+          )
+          if (proximas.length !== comp.proximas_fechas.length) {
+            await guardarCompeticion({ ...comp, proximas_fechas: proximas }, eid)
+          }
+        }
+      } catch {}
+
+      localStorage.removeItem('kg_envivo')
+      setValorModal(false)
+      setCorriendo(false)
+      alert('✅ Partido guardado en Informes')
     } catch (e) { alert('⚠️ ' + e.message) }
+  }
+
+  async function finalizar() {
+    if (!confirm('¿Finalizar el partido?')) return
+    setCorriendo(false)
+    setValorModal(true)
   }
 
   const Player = ({ p }) => {
     const isSel = sel?.id === p.id
-    const ms = marks[p.dorsal] || []
+    const ms = marks[p.id] || []
     return (
       <div className={`ev2-player${isSel ? ' sel' : ''}`} style={{ left: `${p.x}%`, top: `${p.y}%` }}
         onClick={() => p.side === 'local' && setSel(isSel ? null : { id: p.id, dorsal: p.dorsal, nombre: p.nombre })}>
@@ -231,6 +307,24 @@ export default function EnVivo() {
 
   return (
     <div className="ev2-wrap" style={{ margin: '-20px -16px' }}>
+      {valorModal && (
+        <ValoracionModal
+          titulares={titulares}
+          gf={gf} gc={gc} rival={rival}
+          valoraciones={valoraciones}
+          onChange={setValoraciones}
+          onGuardar={() => guardarFinal(valoraciones)}
+          onSaltar={() => guardarFinal({})}
+        />
+      )}
+      {partidoRestaurado && (
+        <div className="flex items-center justify-between px-4 py-2 text-[11px] font-bold"
+          style={{ background: 'rgba(245,158,11,0.15)', borderBottom: '1px solid rgba(245,158,11,0.3)', color: '#fcd34d' }}>
+          <span>🔄 Partido restaurado — continúa donde lo dejaste</span>
+          <button onClick={() => { if (confirm('¿Descartar el partido guardado y empezar de cero?')) { localStorage.removeItem('kg_envivo'); window.location.reload() } }}
+            className="text-[10px] opacity-60 hover:opacity-100 ml-3">Descartar</button>
+        </div>
+      )}
       {/* TOPBAR */}
       <div className="ev2-topbar">
         <div className="ev2-logo"><div className="ev2-logo-mark">K</div><div className="ev2-logo-txt">KICK<br />AND <span>GO</span></div></div>
@@ -247,10 +341,45 @@ export default function EnVivo() {
         </div>
         <div className="ev2-actions">
           <button className="ev2-abtn" onClick={() => setCorriendo((c) => !c)}>{corriendo ? '⏸' : '▶'}<small>{corriendo ? 'PAUSA' : 'INICIAR'}</small></button>
-          <button className={`ev2-abtn voice${escuchando ? ' on' : ''}`} onClick={toggleVoz}>🎙️<small>VOZ</small></button>
+          <button className={`ev2-rec-btn${escuchando ? ' on' : ''}`} onClick={toggleVoz}>
+            <div className="ev2-rec-ico">
+              {escuchando ? (
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
+                  <rect x="4" y="3" width="4" height="11" rx="2"/><rect x="16" y="3" width="4" height="11" rx="2"/>
+                </svg>
+              ) : (
+                <svg width="14" height="18" viewBox="0 0 24 24" fill="none" stroke="#fca5a5" strokeWidth="2.2" strokeLinecap="round">
+                  <rect x="9" y="2" width="6" height="11" rx="3"/>
+                  <path d="M5 10a7 7 0 0014 0"/><line x1="12" y1="17" x2="12" y2="21"/><line x1="8" y1="21" x2="16" y2="21"/>
+                </svg>
+              )}
+            </div>
+            <div className="flex flex-col items-start leading-tight">
+              <span className="text-[11px] font-black tracking-wide">
+                {escuchando ? 'GRABANDO' : 'GRABAR'}
+              </span>
+              {escuchando
+                ? <span className="ev2-oido">{oido || 'Escuchando…'}</span>
+                : <span className="text-[9px] opacity-60 font-normal">toca para activar</span>
+              }
+            </div>
+            {escuchando && <div className="ev2-rec-dot ml-1" />}
+          </button>
           <button className="ev2-abtn danger" onClick={finalizar}>⏹<small>FIN</small></button>
         </div>
       </div>
+
+      {/* Aviso grabar partido */}
+      {corriendo && !escuchando && (
+        <button className="ev2-rec-hint" onClick={toggleVoz}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fca5a5" strokeWidth="2.2" strokeLinecap="round">
+            <rect x="9" y="2" width="6" height="11" rx="3"/>
+            <path d="M5 10a7 7 0 0014 0"/><line x1="12" y1="17" x2="12" y2="21"/><line x1="8" y1="21" x2="16" y2="21"/>
+          </svg>
+          <span>🔴 Graba el partido con tu voz — di "gol", "amarilla", "cambio"…</span>
+          <span className="ml-auto text-[10px] opacity-60 font-normal">Activar →</span>
+        </button>
+      )}
 
       {/* TABS */}
       <div className="ev2-tabbar">
@@ -323,8 +452,17 @@ export default function EnVivo() {
                     ))}
                   </div>
                   <div className="ev2-rail-h" style={{ marginTop: 14 }}>Modo voz</div>
-                  <button className={`ev2-abtn voice${escuchando ? ' on' : ''}`} style={{ width: '100%', flexDirection: 'row', gap: 8 }} onClick={toggleVoz}>🎙️ {escuchando ? 'Escuchando…' : 'Activar voz'}</button>
-                  {escuchando && oido && <div className="text-[11px] text-muted italic mt-2">"{oido}"</div>}
+                  <button className={`ev2-rec-btn w-full justify-center${escuchando ? ' on' : ''}`} onClick={toggleVoz}>
+                    <div className="ev2-rec-ico">
+                      <svg width="13" height="16" viewBox="0 0 24 24" fill="none" stroke={escuchando ? 'white' : '#fca5a5'} strokeWidth="2.2" strokeLinecap="round">
+                        <rect x="9" y="2" width="6" height="11" rx="3"/>
+                        <path d="M5 10a7 7 0 0014 0"/><line x1="12" y1="17" x2="12" y2="21"/><line x1="8" y1="21" x2="16" y2="21"/>
+                      </svg>
+                    </div>
+                    {escuchando ? 'GRABANDO' : 'Activar grabación'}
+                    {escuchando && <div className="ev2-rec-dot ml-auto" />}
+                  </button>
+                  {escuchando && oido && <div className="text-[10px] text-muted italic mt-1.5">"{oido}"</div>}
                 </div>
 
                 {/* Radial jugador */}
@@ -446,12 +584,95 @@ export default function EnVivo() {
                   <div key={i} className="flex items-center gap-2 text-sm">
                     <span className="text-xs text-muted w-8">{e.min}'</span><span>{e.icon}</span>
                     <span className="flex-1 text-xs">{e.label}{e.jugador ? ` · ${e.jugador}` : ''}</span>
-                    <button className="text-muted hover:text-rojo text-xs" onClick={() => setEventos((ev) => ev.filter((_, k) => k !== i))}>✕</button>
+                    <button className="text-muted hover:text-rojo text-xs" onClick={() => {
+                      // Revertir efecto en marcador y stats
+                      if (e.tipo === 'gol') setGf((g) => Math.max(0, g - 1))
+                      if (e.tipo === 'gol-rival') setGc((g) => Math.max(0, g - 1))
+                      if (e.tipo === 'tiro' || e.tipo === 'tiro-rival') setStats((s) => ({ ...s, tiros: Math.max(0, s.tiros - 1) }))
+                      if (e.tipo === 'corner') setStats((s) => ({ ...s, corners: Math.max(0, s.corners - 1) }))
+                      if (e.tipo === 'falta' || e.tipo === 'falta-favor') setStats((s) => ({ ...s, faltas: Math.max(0, s.faltas - 1) }))
+                      if (e.tipo === 'amarilla' || e.tipo === 'amarilla-rival') setStats((s) => ({ ...s, amarillas: Math.max(0, s.amarillas - 1) }))
+                      setEventos((ev) => ev.filter((_, k) => k !== i))
+                    }}>✕</button>
                   </div>
                 ))}
               </div>
             )}
           </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+const NOTAS_LABEL = { 10:'⭐ Sobresaliente', 9:'Excelente', 8:'Muy bien', 7:'Bien', 6:'Correcto', 5:'Regular', 4:'Mal', 3:'Muy mal', 2:'Pésimo', 1:'No jugó' }
+const NOTA_COLOR = (n) => n >= 8 ? '#34d399' : n >= 6 ? '#f59e0b' : '#f87171'
+
+function ValoracionModal({ titulares, gf, gc, rival, valoraciones, onChange, onGuardar, onSaltar }) {
+  function set(id, val) { onChange((prev) => ({ ...prev, [id]: val })) }
+  const completados = titulares.filter((j) => valoraciones[j.id] != null).length
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/80 flex items-end sm:items-center justify-center p-0 sm:p-4">
+      <div className="w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl overflow-hidden flex flex-col"
+        style={{ background: '#18181b', border: '1px solid #27272a', maxHeight: '92vh' }}>
+
+        {/* Cabecera */}
+        <div className="px-5 pt-5 pb-4 border-b border-borde flex-shrink-0">
+          <div className="text-sm font-extrabold mb-0.5">⭐ Valorar jugadores</div>
+          <div className="text-[11px] text-muted">
+            Partido finalizado · <span style={{ color: gf > gc ? '#34d399' : gf < gc ? '#f87171' : '#f59e0b', fontWeight: 700 }}>{gf}-{gc}</span> vs {rival}
+          </div>
+          <div className="mt-2 h-1 rounded-full bg-white/5 overflow-hidden">
+            <div style={{ width: `${(completados / titulares.length) * 100}%`, height: '100%', background: '#2dd4bf', transition: 'width .3s' }} />
+          </div>
+          <div className="text-[10px] text-muted mt-1">{completados}/{titulares.length} valorados</div>
+        </div>
+
+        {/* Lista jugadores */}
+        <div className="overflow-y-auto flex-1 px-5 py-3 space-y-2">
+          {titulares.map((j) => {
+            const nota = valoraciones[j.id]
+            return (
+              <div key={j.id} style={{ background: nota != null ? `${NOTA_COLOR(nota)}08` : '#131316', border: `1px solid ${nota != null ? NOTA_COLOR(nota) + '30' : '#27272a'}`, borderRadius: 10, padding: '10px 12px' }}>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-black"
+                      style={{ background: nota != null ? NOTA_COLOR(nota) + '20' : '#27272a', color: nota != null ? NOTA_COLOR(nota) : '#71717a' }}>
+                      {j.dorsal}
+                    </span>
+                    <span className="text-sm font-semibold">{j.nombre}</span>
+                  </div>
+                  {nota != null && (
+                    <span className="text-[11px] font-black" style={{ color: NOTA_COLOR(nota) }}>
+                      {nota} — {NOTAS_LABEL[nota]}
+                    </span>
+                  )}
+                </div>
+                <div className="flex gap-1 flex-wrap">
+                  {[1,2,3,4,5,6,7,8,9,10].map((n) => (
+                    <button key={n} onClick={() => set(j.id, nota === n ? undefined : n)}
+                      className="flex-1 min-w-[28px] py-1.5 rounded text-[12px] font-black transition"
+                      style={{
+                        background: nota === n ? NOTA_COLOR(n) : 'rgba(255,255,255,0.04)',
+                        color: nota === n ? '#000' : n >= 8 ? '#34d399' : n >= 6 ? '#f59e0b' : '#f87171',
+                        border: `1px solid ${nota === n ? NOTA_COLOR(n) : 'rgba(255,255,255,0.08)'}`,
+                      }}>
+                      {n}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Acciones */}
+        <div className="flex gap-2 px-5 pb-5 pt-3 border-t border-borde flex-shrink-0">
+          <button className="btn btn-outline flex-1 text-xs" onClick={onSaltar}>Saltar</button>
+          <button className="btn btn-primary flex-1 text-xs" onClick={onGuardar}>
+            💾 Guardar partido
+          </button>
         </div>
       </div>
     </div>

@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { Routes, Route, NavLink, Navigate, useNavigate } from 'react-router-dom'
 import { supabase, supabaseReady } from './lib/supabase'
+import { EquipoProvider, useEquipo } from './contexts/EquipoContext'
 import Logo from './components/Logo'
 import Login from './pages/Login'
 import Privacidad from './pages/Privacidad'
@@ -18,6 +19,7 @@ import Predicciones from './pages/Predicciones'
 import Clima from './pages/Clima'
 import Asistente from './pages/Asistente'
 import Rivales from './pages/Rivales'
+import PlanTemporada from './pages/PlanTemporada'
 
 function Centro({ children }) {
   return (
@@ -71,6 +73,7 @@ const IC = {
   predicciones:<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 3"/></svg>,
   clima:       <svg viewBox="0 0 24 24"><path d="M17.5 19H9a7 7 0 110-14 7 7 0 016.71 5H17.5a3.5 3.5 0 010 7z"/></svg>,
   asistente:   <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>,
+  temporada:   <svg viewBox="0 0 24 24"><path d="M12 2l3 6.5L22 9.3l-5 4.8 1.2 6.9L12 17.7l-6.2 3.3L7 14.1 2 9.3l7-0.8z"/></svg>,
 }
 
 const NAV_PRINCIPAL = [
@@ -80,6 +83,7 @@ const NAV_PRINCIPAL = [
   { to: '/entrenamientos',label: 'Entrenamientos',    svg: IC.entrenos },
   { to: '/estadisticas',  label: 'Estadísticas',      svg: IC.stats },
   { to: '/rivales',       label: 'Rivales',           svg: IC.rivales },
+  { to: '/temporada',     label: 'Plan Temporada',    svg: IC.temporada },
   { to: '/informes',      label: 'Informes',          svg: IC.informes },
   { to: '/ajustes',       label: 'Club y ajustes',    svg: IC.ajustes },
 ]
@@ -91,6 +95,142 @@ const NAV_MAS = [
   { to: '/clima',          label: 'Clima',             svg: IC.clima },
   { to: '/asistente',      label: 'Asistente IA',      svg: IC.asistente },
 ]
+
+// Evento global para que los lib files avisen cuando usan caché
+export function notificarModoCache() {
+  window.dispatchEvent(new CustomEvent('kg:cache-hit'))
+}
+
+function OfflineBanner() {
+  const [online, setOnline] = useState(navigator.onLine)
+  const [mostrarOk, setMostrarOk] = useState(false)
+  const [modoCache, setModoCache] = useState(false)
+
+  useEffect(() => {
+    const off = () => { setOnline(false); setModoCache(false) }
+    const on  = () => { setOnline(true); setModoCache(false); setMostrarOk(true); setTimeout(() => setMostrarOk(false), 3000) }
+    const cache = () => setModoCache(true)
+    window.addEventListener('offline', off)
+    window.addEventListener('online',  on)
+    window.addEventListener('kg:cache-hit', cache)
+    return () => {
+      window.removeEventListener('offline', off)
+      window.removeEventListener('online',  on)
+      window.removeEventListener('kg:cache-hit', cache)
+    }
+  }, [])
+
+  if (online && !mostrarOk && !modoCache) return null
+
+  const cfg = !online
+    ? { bg: 'rgba(239,68,68,0.95)', border: 'rgba(252,165,165,0.4)', msg: '⚠️ Sin conexión — los cambios no se guardarán hasta recuperar internet' }
+    : modoCache
+    ? { bg: 'rgba(245,158,11,0.95)', border: 'rgba(252,211,77,0.4)', msg: '🕐 Modo offline — mostrando datos de la última sesión' }
+    : { bg: 'rgba(16,185,129,0.95)', border: 'rgba(52,211,153,0.4)', msg: '✓ Conexión restaurada — los datos se están sincronizando' }
+
+  return (
+    <div
+      className="fixed top-0 left-0 right-0 z-[9999] flex items-center justify-center gap-2 py-2 text-[12px] font-bold"
+      style={{ background: cfg.bg, color: '#fff', backdropFilter: 'blur(8px)', borderBottom: `1px solid ${cfg.border}`, transition: 'background .3s' }}
+    >
+      {cfg.msg}
+      {modoCache && (
+        <button onClick={() => setModoCache(false)} className="ml-2 opacity-70 hover:opacity-100 text-[11px]">✕</button>
+      )}
+    </div>
+  )
+}
+
+function TeamSwitcher() {
+  const { equipos, equipoActivo, setEquipoActivo, crearEquipo } = useEquipo()
+  const [open, setOpen] = useState(false)
+  const [creando, setCreando] = useState(false)
+  const [form, setForm] = useState({ nombre: '', tipo_equipo: '11' })
+
+  async function handleCrear(e) {
+    e.preventDefault()
+    if (!form.nombre.trim()) return
+    try {
+      await crearEquipo({ nombre: form.nombre.trim(), tipo_equipo: form.tipo_equipo })
+      setCreando(false)
+      setForm({ nombre: '', tipo_equipo: '11' })
+      setOpen(false)
+    } catch {}
+  }
+
+  return (
+    <div style={{ borderBottom: '1px solid #27272a' }}>
+      {/* Equipo activo — siempre visible */}
+      <button onClick={() => setOpen(!open)} style={{
+        width: '100%', display: 'flex', alignItems: 'center', gap: 9, background: 'rgba(45,212,191,0.06)',
+        border: 'none', borderRadius: 0, padding: '10px 12px', cursor: 'pointer', transition: 'all .15s',
+      }}>
+        <div style={{ width: 28, height: 28, borderRadius: 8, background: '#253045', border: '1px solid #27272a', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, overflow: 'hidden' }}>
+          {equipoActivo?.escudo_url ? <img src={equipoActivo.escudo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : '🛡️'}
+        </div>
+        <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: '#fafafa', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {equipoActivo?.nombre || 'Sin equipo'}
+          </div>
+          <div style={{ fontSize: 10, color: '#2dd4bf', fontWeight: 600 }}>Fútbol {equipoActivo?.tipo_equipo || '11'}</div>
+        </div>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#71717a" strokeWidth="2.5" strokeLinecap="round" style={{ flexShrink: 0, transform: open ? 'rotate(180deg)' : 'none', transition: 'transform .15s' }}>
+          <polyline points="6 9 12 15 18 9"/>
+        </svg>
+      </button>
+
+      {/* Acordeón inline — sin z-index, no tapa el nav */}
+      {open && (
+        <div style={{ background: '#0f0f11', borderTop: '1px solid #27272a' }}>
+          {equipos.map((eq) => (
+            <button key={eq.id} onClick={() => { setEquipoActivo(eq); setOpen(false) }} style={{
+              width: '100%', display: 'flex', alignItems: 'center', gap: 9, padding: '8px 12px',
+              background: eq.id === equipoActivo?.id ? 'rgba(45,212,191,0.08)' : 'transparent',
+              border: 'none', borderBottom: '1px solid #1a1a1d', cursor: 'pointer',
+            }}>
+              <div style={{ width: 22, height: 22, borderRadius: 6, background: '#253045', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, overflow: 'hidden' }}>
+                {eq.escudo_url ? <img src={eq.escudo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : '🛡️'}
+              </div>
+              <div style={{ flex: 1, textAlign: 'left', minWidth: 0 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: eq.id === equipoActivo?.id ? '#2dd4bf' : '#d4d4d8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{eq.nombre}</div>
+              </div>
+              {eq.id === equipoActivo?.id && (
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#2dd4bf" strokeWidth="3" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+              )}
+            </button>
+          ))}
+          {!creando ? (
+            <button onClick={() => setCreando(true)} style={{ width: '100%', padding: '8px 12px', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 11, fontWeight: 700, color: '#2dd4bf', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ fontSize: 15, lineHeight: 1 }}>+</span> Nuevo equipo
+            </button>
+          ) : (
+            <form onSubmit={handleCrear} style={{ padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: 7 }}>
+              <input
+                autoFocus placeholder="Nombre del equipo"
+                value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })}
+                style={{ width: '100%', background: '#18181b', border: '1px solid #27272a', borderRadius: 8, padding: '6px 9px', color: '#fafafa', fontSize: 12, outline: 'none' }}
+              />
+              <div style={{ display: 'flex', gap: 6 }}>
+                {['11', '7'].map((t) => (
+                  <button key={t} type="button" onClick={() => setForm({ ...form, tipo_equipo: t })} style={{
+                    flex: 1, padding: '5px', borderRadius: 7, border: '1px solid', fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                    borderColor: form.tipo_equipo === t ? '#2dd4bf' : '#27272a',
+                    background: form.tipo_equipo === t ? 'rgba(45,212,191,0.12)' : 'transparent',
+                    color: form.tipo_equipo === t ? '#2dd4bf' : '#71717a',
+                  }}>F{t}</button>
+                ))}
+              </div>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button type="button" onClick={() => setCreando(false)} style={{ flex: 1, padding: '6px', borderRadius: 7, border: '1px solid #27272a', background: 'transparent', color: '#71717a', fontSize: 11, cursor: 'pointer' }}>Cancelar</button>
+                <button type="submit" style={{ flex: 1, padding: '6px', borderRadius: 7, border: 'none', background: '#2dd4bf', color: '#0f0f11', fontSize: 11, fontWeight: 800, cursor: 'pointer' }}>Crear</button>
+              </div>
+            </form>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
 
 function Shell({ children, onLogout }) {
   const [open, setOpen] = useState(false)
@@ -106,9 +246,11 @@ function Shell({ children, onLogout }) {
 
   return (
     <div className="min-h-screen">
+      <OfflineBanner />
       {/* Sidebar */}
       <aside className={`kg-sidebar ${open ? 'open' : ''}`}>
         <div className="kg-sidebar-head"><Logo /></div>
+        <TeamSwitcher />
         <nav className="kg-nav">
           {NAV_PRINCIPAL.map((n) => <Item key={n.to} to={n.to} label={n.label} svg={n.svg} />)}
           <div className="kg-nav-label">Más</div>
@@ -123,7 +265,7 @@ function Shell({ children, onLogout }) {
       {open && <div className="kg-backdrop lg:hidden" onClick={() => setOpen(false)} />}
 
       {/* Topbar móvil */}
-      <header className="lg:hidden sticky top-0 z-40 bg-negro/90 backdrop-blur border-b border-borde">
+      <header className="lg:hidden sticky top-0 z-40 bg-negro/90 backdrop-blur border-b border-borde" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
         <div className="px-4 h-14 flex items-center justify-between">
           <button className="text-2xl leading-none" onClick={() => setOpen(true)}>☰</button>
           <Logo />
@@ -131,7 +273,7 @@ function Shell({ children, onLogout }) {
         </div>
       </header>
 
-      <main className="lg:ml-[224px] px-4 lg:px-6 py-5 max-w-[1280px] mx-auto">{children}</main>
+      <main className="lg:ml-[224px] px-4 lg:px-6 py-5 max-w-[1280px] mx-auto" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>{children}</main>
     </div>
   )
 }
@@ -168,6 +310,7 @@ export default function App() {
   if (!activo) return <Pendiente onLogout={logout} />
 
   return (
+    <EquipoProvider>
     <Shell onLogout={logout}>
       <Routes>
         <Route path="/inicio" element={<Inicio />} />
@@ -178,6 +321,7 @@ export default function App() {
         <Route path="/entrenamientos" element={<Entrenamientos />} />
         <Route path="/estadisticas" element={<Estadisticas />} />
         <Route path="/rivales" element={<Rivales />} />
+        <Route path="/temporada" element={<PlanTemporada />} />
         <Route path="/pizarra" element={<Pizarra />} />
         <Route path="/amonestaciones" element={<Amonestaciones />} />
         <Route path="/predicciones" element={<Predicciones />} />
@@ -187,5 +331,6 @@ export default function App() {
         <Route path="*" element={<Navigate to="/inicio" replace />} />
       </Routes>
     </Shell>
+    </EquipoProvider>
   )
 }

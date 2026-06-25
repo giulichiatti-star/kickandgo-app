@@ -1,17 +1,28 @@
-/* ===== EQUIPO / PLANTILLA (portado de la demo) ===== */
-.equipo-header { display:flex; align-items:center; justify-content:space-between; gap:14px; background:#1c1c20; border:1px solid #27272a; border-radius:14px; padding:16px; margin-bottom:14px; flex-wrap:wrap; }
-.equipo-header-left { display:flex; align-items:center; gap:16px; flex:1; min-width:0; flex-wrap:wrap; }
+/* ===== EQUIPO / PLANTILLA ===== */
+.equipo-header { display:flex; align-items:center; justify-content:space-between; gap:12px; background:#1c1c20; border:1px solid #27272a; border-radius:14px; padding:16px; margin-bottom:14px; flex-wrap:wrap; }
+.equipo-header-left { display:flex; align-items:center; gap:14px; flex:1; min-width:0; flex-wrap:wrap; }
 .club-logo-eq { width:52px; height:52px; border-radius:13px; background:#0f0f11; border:1px solid #27272a; display:flex; align-items:center; justify-content:center; font-size:26px; overflow:hidden; flex-shrink:0; }
 .club-logo-eq img { width:100%; height:100%; object-fit:cover; }
 .club-info-eq h2 { font-size:17px; font-weight:800; color:#fff; letter-spacing:-.3px; margin:0 0 2px; }
 .club-info-eq span { font-size:11px; color:#a1a1aa; }
-.club-stats-eq { display:flex; gap:22px; margin-left:8px; flex-wrap:wrap; }
+.club-stats-eq { display:flex; gap:18px; margin-left:4px; flex-wrap:wrap; }
 .cs-item { display:flex; align-items:center; gap:7px; }
 .cs-icon { font-size:13px; }
 .cs-val { font-size:15px; font-weight:800; color:#fff; line-height:1; }
 .cs-lbl { font-size:10px; color:#a1a1aa; }
 .cs-item.verde .cs-val { color:#2dd4bf; }
 .cs-item.rojo .cs-val { color:#ef4444; }
+
+/* ── Mobile ── */
+@media (max-width: 560px) {
+  .equipo-header { flex-direction:column; align-items:stretch; gap:12px; padding:14px; }
+  .equipo-header-left { flex-wrap:nowrap; }
+  .club-stats-eq { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-left:0; width:100%; }
+  .cs-item { background:#0f0f11; border:1px solid #27272a; border-radius:10px; padding:8px 10px; gap:8px; }
+  .cs-val { font-size:17px; }
+  .equipo-header > .flex { width:100%; }
+  .equipo-header > .flex button { flex:1; }
+}
 
 .equipo-tabs { display:flex; border-bottom:1px solid #27272a; margin-bottom:14px; }
 .etab { font-size:12px; font-weight:700; letter-spacing:.4px; padding:10px 16px; color:#a1a1aa; cursor:pointer; border:none; background:none; border-bottom:2px solid transparent; }

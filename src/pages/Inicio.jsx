@@ -6,6 +6,8 @@ import { listarPartidos } from '../lib/partidos'
 import { ultimaConvocatoria } from '../lib/convocatorias'
 import { listarEntrenos, COLOR_CAT } from '../lib/entrenamientos'
 import { listarTarjetas } from '../lib/tarjetas'
+import { listarLesiones } from '../lib/lesiones'
+import { useEquipo } from '../contexts/EquipoContext'
 
 function fechaLarga(iso) {
   if (!iso) return ''
@@ -15,19 +17,63 @@ function iniciales(nom = '') {
   return nom.split(' ').filter(Boolean).map((x) => x[0]).join('').slice(0, 2).toUpperCase() || '·'
 }
 
-// Aro con icono dentro (arriba) y número dentro (abajo, en color) — como la demo
-function DashGauge({ value, color, label, icon }) {
-  const r = 32, c = 2 * Math.PI * r
-  const off = c * (1 - Math.max(0, Math.min(100, value)) / 100)
+function SugIA({ color, bg, icon, titulo, desc, onClick }) {
+  return (
+    <div className="dash2-sug" onClick={onClick}>
+      <div className="dash2-sug-ico" style={{ background: bg, color, border: `1px solid ${color}33` }}>
+        {icon}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="dash2-sug-t">{titulo}</div>
+        <div className="dash2-sug-d">{desc}</div>
+      </div>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" style={{ opacity: 0.5, flexShrink: 0 }}>
+        <polyline points="9 18 15 12 9 6"/>
+      </svg>
+    </div>
+  )
+}
+
+const GAUGE_ICONS = {
+  ataque: (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/><line x1="2" y1="12" x2="22" y2="12"/>
+    </svg>
+  ),
+  defensa: (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+    </svg>
+  ),
+  forma: (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+    </svg>
+  ),
+  efectividad: (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/>
+    </svg>
+  ),
+}
+
+function DashGauge({ value, color, label, iconKey }) {
+  const r = 32, total = 2 * Math.PI * r
+  const off = total * (1 - Math.max(0, Math.min(100, value)) / 100)
   return (
     <div className="dash2-gauge">
       <div className="dash2-gauge-ring">
-        <svg width="74" height="74" viewBox="0 0 74 74">
-          <circle cx="37" cy="37" r={r} fill="none" stroke="#27272a" strokeWidth="6" />
-          <circle cx="37" cy="37" r={r} fill="none" stroke={color} strokeWidth="6" strokeLinecap="round" strokeDasharray={c} strokeDashoffset={off} />
+        <svg width="74" height="74" viewBox="0 0 74 74"
+          style={{ '--dash-total': total, '--dash-offset': off }}>
+          <circle className="track" cx="37" cy="37" r={r} fill="none" strokeWidth="6" />
+          <circle className="fill" cx="37" cy="37" r={r} fill="none" stroke={color}
+            strokeWidth="6" strokeLinecap="round"
+            style={{ '--dash-total': total, '--dash-offset': off }} />
         </svg>
         <div className="dash2-gauge-inner">
-          <span className="dash2-gauge-ico">{icon}</span>
+          <div className="dash2-gauge-ico" style={{ background: color + '22', color }}>
+            {GAUGE_ICONS[iconKey]}
+          </div>
           <span className="dash2-gauge-num" style={{ color }}>{Math.round(value)}</span>
         </div>
       </div>
@@ -38,24 +84,28 @@ function DashGauge({ value, color, label, icon }) {
 
 export default function Inicio() {
   const nav = useNavigate()
+  const { equipoActivo, cargando: cargandoEquipo } = useEquipo()
+  const eid = equipoActivo?.id
   const [perfil, setPerfil] = useState(null)
   const [jugadores, setJugadores] = useState([])
   const [partidos, setPartidos] = useState([])
   const [conv, setConv] = useState(null)
   const [entrenos, setEntrenos] = useState([])
   const [tarjetas, setTarjetas] = useState([])
+  const [lesiones, setLesiones] = useState([])
 
   useEffect(() => {
     (async () => {
       try {
-        const [p, js, ps, c, en, tj] = await Promise.all([
-          getPerfil(), listarJugadores(), listarPartidos(), ultimaConvocatoria(),
-          listarEntrenos().catch(() => []), listarTarjetas().catch(() => []),
+        const [p, js, ps, c, en, tj, ls] = await Promise.all([
+          getPerfil(), listarJugadores(eid), listarPartidos(eid), ultimaConvocatoria(eid),
+          listarEntrenos(eid).catch(() => []), listarTarjetas(eid).catch(() => []),
+          listarLesiones(eid).catch(() => []),
         ])
-        setPerfil(p); setJugadores(js); setPartidos(ps); setConv(c); setEntrenos(en); setTarjetas(tj)
+        setPerfil(p); setJugadores(js); setPartidos(ps); setConv(c); setEntrenos(en); setTarjetas(tj); setLesiones(ls)
       } catch { /* noop */ }
     })()
-  }, [])
+  }, [eid])
   const nJug = jugadores.length
 
   const balance = partidos.reduce((a, p) => {
@@ -77,9 +127,9 @@ export default function Inicio() {
   const overall = pj ? Math.round((idxAtaque + idxDefensa + idxForma + idxEfect) / 4) : 0
 
   const nombre = (perfil?.entrenador || '').split(' ')[0] || 'entrenador'
-  const club = perfil?.club_nombre || 'Mi club'
-  const desc = perfil?.descripcion || ''
-  const escudo = perfil?.escudo_url
+  const club = equipoActivo?.nombre || perfil?.club_nombre || 'Mi club'
+  const desc = equipoActivo?.descripcion || perfil?.descripcion || ''
+  const escudo = equipoActivo?.escudo_url || perfil?.escudo_url
 
   const r = 50, c = 2 * Math.PI * r
   const overOff = c * (1 - overall / 100)
@@ -110,7 +160,17 @@ export default function Inicio() {
   }))
   const destacados = Object.entries(golCount).sort((a, b) => b[1] - a[1]).slice(0, 3)
 
+  // Fallback: si no hay eventos de goles, mostrar los 3 atacantes/extremos principales
+  const atacantes = jugadores
+    .filter((j) => /delantero|extremo|punta|forward|delantera/i.test(j.posicion || ''))
+    .slice(0, 3)
+  const showFallback = destacados.length === 0 && atacantes.length > 0
+
+  // Mapa nombre→jugador para buscar foto_url en destacados
+  const jugPorNombre = Object.fromEntries(jugadores.map((j) => [j.nombre, j]))
+
   // --- Alertas reales ---
+  const jugPorId = Object.fromEntries(jugadores.map((j) => [j.id, j]))
   const nombrePorId = Object.fromEntries(jugadores.map((j) => [j.id, j.nombre]))
   const amarPorJug = {}, rojas = []
   tarjetas.forEach((t) => {
@@ -119,11 +179,51 @@ export default function Inicio() {
   })
   const alertas = []
   Object.entries(amarPorJug).forEach(([id, n]) => {
-    if (n >= 4) alertas.push({ ico: '🟨', col: 'rgba(245,197,66,0.15)', t: `${nombrePorId[id] || 'Jugador'} en riesgo de sanción`, d: `${n} amarillas acumuladas` })
+    if (n >= 4) alertas.push({ jug: jugPorId[id], col: 'rgba(245,197,66,0.15)', border: '#f59e0b', t: `${nombrePorId[id] || 'Jugador'} en riesgo`, d: `${n} amarillas acumuladas` })
   })
-  rojas.slice(0, 2).forEach((t) => alertas.push({ ico: '🟥', col: 'rgba(239,68,68,0.15)', t: `${nombrePorId[t.jugador_id] || 'Jugador'} sancionado`, d: 'Tarjeta roja registrada' }))
-  if (!conv?.rival) alertas.push({ ico: '📋', col: 'rgba(45,212,191,0.15)', t: 'Sin convocatoria preparada', d: 'Prepara el próximo partido' })
-  if (entrenosSemana.length === 0) alertas.push({ ico: '🏋️', col: 'rgba(139,92,246,0.15)', t: 'Sin entrenos esta semana', d: 'Planifica una sesión' })
+  rojas.slice(0, 2).forEach((t) => alertas.push({ jug: jugPorId[t.jugador_id], col: 'rgba(239,68,68,0.15)', border: '#ef4444', t: `${nombrePorId[t.jugador_id] || 'Jugador'} sancionado`, d: 'Tarjeta roja registrada' }))
+  // Alertas de lesiones
+  const hoyMs = new Date().setHours(0,0,0,0)
+  lesiones.filter(l => !l.alta).forEach(l => {
+    const jug = jugPorId[l.jugador_id]
+    if (!jug) return
+    if (l.fecha_alta) {
+      const diasHasta = Math.ceil((new Date(l.fecha_alta) - hoyMs) / 86400000)
+      if (diasHasta >= 0 && diasHasta <= 7) {
+        alertas.push({ jug, col: 'rgba(16,185,129,0.15)', border: '#10b981', t: `${jug.nombre.split(' ')[0]} vuelve en ${diasHasta}d`, d: `Alta prevista: ${l.fecha_alta}` })
+      } else if (diasHasta < 0) {
+        alertas.push({ jug, col: 'rgba(239,68,68,0.15)', border: '#ef4444', t: `${jug.nombre.split(' ')[0]} — alta superada`, d: 'Revisar estado médico' })
+      }
+    }
+  })
+  if (!conv?.rival) alertas.push({ ico: '📋', col: 'rgba(45,212,191,0.15)', border: '#2dd4bf', t: 'Sin convocatoria preparada', d: 'Prepara el próximo partido' })
+  if (entrenosSemana.length === 0) alertas.push({ ico: '🏋️', col: 'rgba(139,92,246,0.15)', border: '#8b5cf6', t: 'Sin entrenos esta semana', d: 'Planifica una sesión' })
+
+  // Sin equipo: onboarding
+  if (!cargandoEquipo && !equipoActivo) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6 text-center px-4">
+        <div className="text-5xl">⚽</div>
+        <div>
+          <h1 className="text-2xl font-extrabold text-blanco mb-2">Bienvenido a KickAndGo</h1>
+          <p className="text-sm text-muted max-w-xs mx-auto">
+            Crea tu primer equipo para empezar a gestionar partidos, plantilla y entrenamientos.
+          </p>
+        </div>
+        <div className="space-y-3 w-full max-w-xs">
+          <button
+            className="btn btn-primary w-full"
+            onClick={() => nav('/ajustes')}
+          >
+            ✚ Crear mi equipo
+          </button>
+          <p className="text-[11px] text-muted">
+            También puedes ir a <b className="text-cyan">Club y ajustes</b> desde el menú lateral.
+          </p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div>
@@ -159,31 +259,28 @@ export default function Inicio() {
         <div className="dash2-panel">
           <div className="dash2-h">Sugerencias IA <span className="text-[10px] font-bold text-morado bg-morado/15 px-2 py-0.5 rounded normal-case tracking-normal">🤖 Auto</span></div>
           {pj === 0 ? <>
-            <div className="dash2-sug">
-              <div className="dash2-sug-ico" style={{ background: 'rgba(45,212,191,0.12)', borderColor: 'rgba(45,212,191,0.3)' }}>👥</div>
-              <div><div className="dash2-sug-t">Añade tu plantilla</div><div className="dash2-sug-d">Registra los jugadores en el módulo Plantilla.</div></div>
-            </div>
-            <div className="dash2-sug">
-              <div className="dash2-sug-ico" style={{ background: 'rgba(94,234,212,0.12)', borderColor: 'rgba(94,234,212,0.3)' }}>📋</div>
-              <div><div className="dash2-sug-t">Prepara una convocatoria</div><div className="dash2-sug-d">Crea tu primera alineación antes del partido.</div></div>
-            </div>
-            <div className="dash2-sug">
-              <div className="dash2-sug-ico" style={{ background: 'rgba(245,197,66,0.12)', borderColor: 'rgba(245,197,66,0.3)' }}>⚽</div>
-              <div><div className="dash2-sug-t">Registra partidos</div><div className="dash2-sug-d">Usa En Vivo para que el análisis IA funcione.</div></div>
-            </div>
+            <SugIA color="#2dd4bf" bg="rgba(45,212,191,0.12)" onClick={() => nav('/plantilla')}
+              icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="9" cy="7" r="4"/><path d="M3 20v-2a6 6 0 0112 0v2"/><circle cx="19" cy="7" r="2"/><path d="M21 20v-1a3 3 0 00-3-3"/></svg>}
+              titulo="Añade tu plantilla" desc="Registra los jugadores en el módulo Plantilla." />
+            <SugIA color="#5eead4" bg="rgba(94,234,212,0.10)" onClick={() => nav('/convocatoria')}
+              icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></svg>}
+              titulo="Prepara una convocatoria" desc="Crea tu primera alineación antes del partido." />
+            <SugIA color="#f59e0b" bg="rgba(245,158,11,0.10)" onClick={() => nav('/envivo')}
+              icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg>}
+              titulo="Registra partidos" desc="Usa En Vivo para que el análisis IA funcione." />
           </> : <>
-            <div className="dash2-sug">
-              <div className="dash2-sug-ico" style={{ background: 'rgba(45,212,191,0.12)', borderColor: 'rgba(45,212,191,0.3)' }}>🎯</div>
-              <div><div className="dash2-sug-t">Aprovecha tu fortaleza</div><div className="dash2-sug-d">{idxAtaque >= idxDefensa ? 'Tu ataque rinde bien, presiona alto' : 'Sé sólido atrás y juega al contragolpe'}</div></div>
-            </div>
-            <div className="dash2-sug">
-              <div className="dash2-sug-ico" style={{ background: 'rgba(94,234,212,0.12)', borderColor: 'rgba(94,234,212,0.3)' }}>📈</div>
-              <div><div className="dash2-sug-t">Forma reciente</div><div className="dash2-sug-d">{idxForma >= 60 ? 'Buena racha, mantén la dinámica' : 'Toca recuperar sensaciones'}</div></div>
-            </div>
-            <div className="dash2-sug">
-              <div className="dash2-sug-ico" style={{ background: 'rgba(245,197,66,0.12)', borderColor: 'rgba(245,197,66,0.3)' }}>🛡️</div>
-              <div><div className="dash2-sug-t">A trabajar</div><div className="dash2-sug-d">{idxDefensa < 60 ? 'Reforzar el trabajo defensivo' : 'Mantener concentración en defensa'}</div></div>
-            </div>
+            <SugIA color="#2dd4bf" bg="rgba(45,212,191,0.10)" onClick={() => nav('/informes')}
+              icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>}
+              titulo="Aprovecha tu fortaleza"
+              desc={idxAtaque >= idxDefensa ? 'Tu ataque rinde bien — presiona alto desde el inicio' : 'Sé sólido atrás y ejecuta al contragolpe'} />
+            <SugIA color="#5eead4" bg="rgba(94,234,212,0.08)" onClick={() => nav('/estadisticas')}
+              icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>}
+              titulo="Forma reciente"
+              desc={idxForma >= 60 ? 'Buena racha — mantén la dinámica y ritmo' : 'Toca recuperar sensaciones, trabaja la cohesión'} />
+            <SugIA color="#f59e0b" bg="rgba(245,158,11,0.08)" onClick={() => nav('/entrenamientos')}
+              icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>}
+              titulo="A trabajar esta semana"
+              desc={idxDefensa < 60 ? 'Refuerza el bloque defensivo en el próximo entreno' : 'Mantén concentración atrás, enfócate en finalización'} />
           </>}
         </div>
       </div>
@@ -209,10 +306,10 @@ export default function Inicio() {
                 <div className="dash2-overall-lbl">Global</div>
               </div>
               <div className="dash2-gauges">
-                <DashGauge value={idxAtaque} color="#2dd4bf" icon="⚽" label="Ataque" />
-                <DashGauge value={idxDefensa} color="#f5c542" icon="🛡️" label="Defensa" />
-                <DashGauge value={idxForma} color="#5eead4" icon="📈" label="Forma" />
-                <DashGauge value={idxEfect} color="#3b82f6" icon="🎯" label="Efectividad" />
+                <DashGauge value={idxAtaque} color="#2dd4bf" iconKey="ataque" label="Ataque" />
+                <DashGauge value={idxDefensa} color="#f5c542" iconKey="defensa" label="Defensa" />
+                <DashGauge value={idxForma} color="#5eead4" iconKey="forma" label="Forma" />
+                <DashGauge value={idxEfect} color="#3b82f6" iconKey="efectividad" label="Efectividad" />
               </div>
             </div>
           )}
@@ -278,20 +375,38 @@ export default function Inicio() {
           <div className="text-[11px] text-muted text-center mt-2">Goles: <span className="text-cyan font-bold">{gf}</span> a favor · <span className="text-rojo font-bold">{gc}</span> en contra</div>
         </div>
 
-        {/* Jugadores destacados (goles reales) */}
+        {/* Jugadores destacados (goles reales o fallback atacantes) */}
         <div className="dash2-panel">
           <div className="dash2-h">Jugadores destacados</div>
-          {destacados.length === 0 ? (
+          {destacados.length === 0 && !showFallback ? (
             <div className="text-sm text-muted py-4 text-center">Aún sin goleadores registrados.</div>
-          ) : (
+          ) : showFallback ? (
             <div className="dash2-pdest">
-              {destacados.map(([nom, n]) => (
-                <div key={nom} className="dash2-pdest-item">
-                  <div className="dash2-pdest-av">{iniciales(nom)}</div>
-                  <div className="dash2-pdest-name">{nom.split(' ')[0]}</div>
-                  <div className="dash2-pdest-val">{n} {n === 1 ? 'gol' : 'goles'}</div>
+              {atacantes.map((j) => (
+                <div key={j.id} className="dash2-pdest-item">
+                  <div className="dash2-pdest-av">
+                    {j.foto_url ? <img src={j.foto_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} /> : iniciales(j.nombre)}
+                  </div>
+                  <div className="dash2-pdest-name">{j.nombre.split(' ')[0]}</div>
+                  <div className="dash2-pdest-val" style={{ fontSize: 10, color: '#a1a1aa' }}>#{j.dorsal}</div>
                 </div>
               ))}
+              <div className="flex items-center text-cyan text-xl cursor-pointer" onClick={() => nav('/plantilla')}>›</div>
+            </div>
+          ) : (
+            <div className="dash2-pdest">
+              {destacados.map(([nom, n]) => {
+                const j = jugPorNombre[nom]
+                return (
+                  <div key={nom} className="dash2-pdest-item">
+                    <div className="dash2-pdest-av">
+                      {j?.foto_url ? <img src={j.foto_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} /> : iniciales(nom)}
+                    </div>
+                    <div className="dash2-pdest-name">{nom.split(' ')[0]}</div>
+                    <div className="dash2-pdest-val">{n} {n === 1 ? 'gol' : 'goles'}</div>
+                  </div>
+                )
+              })}
               <div className="flex items-center text-cyan text-xl cursor-pointer" onClick={() => nav('/estadisticas')}>›</div>
             </div>
           )}
@@ -305,7 +420,13 @@ export default function Inicio() {
           ) : (
             alertas.slice(0, 4).map((a, i) => (
               <div key={i} className="dash2-alerta">
-                <div className="dash2-alerta-ico" style={{ background: a.col }}>{a.ico}</div>
+                <div className="dash2-alerta-ico" style={{ background: a.col, border: `1px solid ${a.border}44`, padding: 0, overflow: 'hidden' }}>
+                  {a.jug?.foto_url
+                    ? <img src={a.jug.foto_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    : a.jug
+                      ? <span style={{ fontSize: 11, fontWeight: 800, color: '#fafafa' }}>{iniciales(a.jug.nombre)}</span>
+                      : a.ico}
+                </div>
                 <div><div className="dash2-alerta-t">{a.t}</div><div className="dash2-alerta-d">{a.d}</div></div>
               </div>
             ))

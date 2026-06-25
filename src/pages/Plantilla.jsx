@@ -7,6 +7,7 @@ import { getPerfil, updatePerfil } from '../lib/perfil'
 import { listarPartidos } from '../lib/partidos'
 import { listarTarjetas } from '../lib/tarjetas'
 import { listarEntrenos } from '../lib/entrenamientos'
+import { useEquipo } from '../contexts/EquipoContext'
 import '../equipo.css'
 
 const POSICIONES = [
@@ -23,6 +24,8 @@ function formaClase(r) {
 }
 
 export default function Plantilla() {
+  const { equipoActivo } = useEquipo()
+  const eid = equipoActivo?.id
   const [jugadores, setJugadores] = useState([])
   const [perfil, setPerfil] = useState(null)
   const [partidos, setPartidos] = useState([])
@@ -47,25 +50,21 @@ export default function Plantilla() {
     setCargando(true)
     try {
       const [js, p, ps, tj, en] = await Promise.all([
-        listarJugadores(t), getPerfil().catch(() => null), listarPartidos().catch(() => []),
-        listarTarjetas().catch(() => []), listarEntrenos().catch(() => []),
+        listarJugadores(eid), getPerfil().catch(() => null), listarPartidos(eid).catch(() => []),
+        listarTarjetas(eid).catch(() => []), listarEntrenos(eid).catch(() => []),
       ])
       setJugadores(js); setPerfil(p); setPartidos(ps); setTarjetas(tj); setEntrenos(en)
       if (p?.temporada) setTemporada({ nombre: p.temporada.nombre || '', total_partidos: p.temporada.total_partidos || '' })
     } catch (e) { setError(e.message) } finally { setCargando(false) }
   }
-  // Carga inicial: usa el tipo activo del perfil
   useEffect(() => {
-    (async () => {
-      const p = await getPerfil().catch(() => null)
-      const t = p?.tipo_equipo || '11'
-      setTipo(t); await refrescar(t)
-    })()
-  }, [])
+    const t = equipoActivo?.tipo_equipo || '11'
+    setTipo(t)
+    refrescar(t)
+  }, [eid])
 
   async function cambiarTipo(t) {
     setTipo(t)
-    try { await updatePerfil({ tipo_equipo: t }) } catch {}
     await refrescar(t)
   }
 
@@ -92,12 +91,32 @@ export default function Plantilla() {
       const a = e.asistencia || {}
       jugadores.forEach((j) => { if (j.id in a) { m[j.id].totEnt++; if (a[j.id]) m[j.id].asis++ } })
     })
+    // Media de valoraciones del entrenador por jugador (últimos 5 partidos)
+    const valPorJug = {}
+    partidos.slice(0, 5).forEach((p) => {
+      const vals = p.valoraciones || {}
+      Object.entries(vals).forEach(([id, nota]) => {
+        if (nota != null) {
+          if (!valPorJug[id]) valPorJug[id] = []
+          valPorJug[id].push(nota)
+        }
+      })
+    })
+
     const totEnt = entrenos.length
-    Object.values(m).forEach((s) => {
+    Object.entries(m).forEach(([id, s]) => {
       s.pctEnt = totEnt ? Math.round(s.asis / totEnt * 100) : null
       s.pct = s.totEnt ? Math.round(s.asis / s.totEnt * 100) : null
       s.pjsPct = totalCal ? Math.round(s.pjs / totalCal * 100) : null
-      s.rating = Math.max(3, Math.min(9.9, 6.3 + s.goles * 0.3 + s.asist * 0.2 - s.rojas * 0.6))
+      const notas = valPorJug[id]
+      if (notas?.length) {
+        const media = notas.reduce((a, n) => a + n, 0) / notas.length
+        s.rating = Math.round(media * 10) / 10
+        s.ratingFuente = 'entrenador'
+      } else {
+        s.rating = Math.max(3, Math.min(9.9, 6.3 + s.goles * 0.3 + s.asist * 0.2 - s.rojas * 0.6))
+        s.ratingFuente = 'auto'
+      }
     })
     return m
   }, [jugadores, partidos, tarjetas, entrenos, totalCal])
@@ -137,7 +156,7 @@ export default function Plantilla() {
     }
     try {
       if (editId) await actualizarJugador(editId, payload)
-      else await crearJugador({ ...payload, estado: 'activo', tipo_equipo: tipo })
+      else await crearJugador({ ...payload, estado: 'activo', tipo_equipo: tipo }, eid)
       setModal(false)
       await refrescar()
     } catch (e) { setError(e.message) }
@@ -157,7 +176,7 @@ export default function Plantilla() {
   async function confirmarImport() {
     if (!impPrev.length) { setImpMsg('Pega una lista primero'); return }
     try {
-      await crearJugadoresBulk(impPrev, tipo)
+      await crearJugadoresBulk(impPrev, eid, tipo)
       setImpOpen(false)
       await refrescar()
     } catch (e) { setImpMsg(e.message) }
@@ -171,7 +190,7 @@ export default function Plantilla() {
   const disponibles = jugadores.filter((j) => !j.estado || j.estado === 'activo').length
   const lesionados = jugadores.filter((j) => j.estado === 'lesionado').length
   const sancionados = jugadores.filter((j) => j.estado === 'sancionado').length
-  const club = perfil?.club_nombre || 'Mi club'
+  const club = equipoActivo?.nombre || perfil?.club_nombre || 'Mi club'
   const lista = jugadores
     .filter((j) => filtro === 'ALL' || posACat(j.posicion) === filtro)
     .sort((a, b) => (b.estado === 'lesionado' ? -1 : 0) - (a.estado === 'lesionado' ? -1 : 0) || (stats[b.id]?.rating || 0) - (stats[a.id]?.rating || 0))
@@ -221,7 +240,7 @@ export default function Plantilla() {
 
       {/* TABS */}
       <div className="equipo-tabs">
-        {[['plantilla', 'PLANTILLA'], ['stats', 'ESTADÍSTICAS GENERALES']].map(([id, lbl]) => (
+        {[['plantilla', 'PLANTILLA'], ['stats', 'GENERALES'], ['individual', 'INDIVIDUAL']].map(([id, lbl]) => (
           <button key={id} className={`etab ${tab === id ? 'active' : ''}`} onClick={() => setTab(id)}>{lbl}</button>
         ))}
       </div>
@@ -278,7 +297,12 @@ export default function Plantilla() {
                           </div>
                         </div>
                       </td>
-                      <td><div className="forma-badge"><span className={`fs ${fc}`}>{rating === null ? '—' : rating.toFixed(1)}</span></div></td>
+                      <td>
+                        <div className="forma-badge" title={s.ratingFuente === 'entrenador' ? 'Nota del entrenador (media últimos 5 partidos)' : 'Rating automático (goles/asist)'}>
+                          <span className={`fs ${fc}`}>{rating === null ? '—' : rating.toFixed(1)}</span>
+                          {s.ratingFuente === 'entrenador' && <span style={{fontSize:7,color:'#f59e0b',marginLeft:2}}>★</span>}
+                        </div>
+                      </td>
                       <td className="text-xs text-center">{totEnt ? `${s.asis}/${totEnt}` : '—'}</td>
                       <td>{s.pctEnt === null ? '—' : <span className={s.pctEnt >= 80 ? 'pct-per' : s.pctEnt >= 60 ? 'pct-ok' : 'pct-lo'}>{s.pctEnt}%</span>}</td>
                       <td className="text-xs text-center">{totalCal ? `${s.pjs}/${totalCal}` : `${s.pjs}`}</td>
@@ -298,7 +322,7 @@ export default function Plantilla() {
             </table>
           </div>
         </>
-      ) : (
+      ) : tab === 'stats' ? (
         /* TAB ESTADÍSTICAS GENERALES */
         <div className="grid sm:grid-cols-2 gap-3">
           <div className="ent2-panel" style={{ background: '#1c1c20', border: '1px solid #27272a', borderRadius: 12, padding: 14 }}>
@@ -327,6 +351,68 @@ export default function Plantilla() {
               Tarjetas: <b className="text-dorado"> {jugadores.reduce((a, j) => a + (stats[j.id]?.amar || 0), 0)}🟨</b> <b className="text-rojo">{jugadores.reduce((a, j) => a + (stats[j.id]?.rojas || 0), 0)}🟥</b>
             </div>
           </div>
+        </div>
+      ) : (
+        /* TAB ESTADÍSTICAS INDIVIDUALES */
+        <div className="space-y-2">
+          {[...jugadores]
+            .sort((a, b) => (stats[b.id]?.rating || 0) - (stats[a.id]?.rating || 0))
+            .map((j) => {
+              const s = stats[j.id] || {}
+              const fc = formaClase(j.estado === 'lesionado' ? null : s.rating)
+              const totEnt = entrenos.length
+              return (
+                <div key={j.id} style={{ background: '#18181b', border: '1px solid #27272a', borderRadius: 12, padding: '12px 14px' }}>
+                  {/* Cabecera jugador */}
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className={`eq-av f-${fc}`} style={{ width: 38, height: 38, fontSize: 13, flexShrink: 0 }}>
+                      {j.foto_url ? <img src={j.foto_url} alt="" /> : inicial(j.nombre)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-bold text-sm truncate">{j.nombre}
+                        {j.estado === 'sancionado' && <span className="eq-badge-san ml-1.5">SAN</span>}
+                        {j.estado === 'lesionado' && <span className="eq-badge-les ml-1.5">LES</span>}
+                      </div>
+                      <div className="text-[10px] text-muted">#{j.dorsal} · {j.posicion} · {j.pie || 'Derecho'}</div>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <div className={`fs ${fc} text-base font-black`}>{j.estado === 'lesionado' ? '—' : s.rating?.toFixed(1)}</div>
+                      <div className="text-[9px] text-muted uppercase">rating</div>
+                    </div>
+                  </div>
+                  {/* Stats grid */}
+                  <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-8">
+                    {[
+                      ['⚽', 'Goles', s.goles || 0, '#2dd4bf'],
+                      ['🅰️', 'Asist.', s.asist || 0, '#94a3b8'],
+                      ['🟨', 'Amaril.', s.amar || 0, s.amar >= 4 ? '#f59e0b' : '#94a3b8'],
+                      ['🟥', 'Rojas', s.rojas || 0, s.rojas ? '#ef4444' : '#94a3b8'],
+                      ['🏟️', 'Partidos', s.pjs || 0, '#94a3b8'],
+                      ['%', 'Part.%', s.pjsPct !== null ? `${s.pjsPct}%` : '—', s.pjsPct >= 80 ? '#10b981' : s.pjsPct >= 60 ? '#f59e0b' : '#94a3b8'],
+                      ['🏃', 'Entrenos', totEnt ? `${s.asis}/${totEnt}` : '—', '#94a3b8'],
+                      ['📊', 'Asist.%', s.pctEnt !== null ? `${s.pctEnt}%` : '—', s.pctEnt >= 80 ? '#10b981' : s.pctEnt >= 60 ? '#f59e0b' : '#94a3b8'],
+                    ].map(([icon, lbl, val, color]) => (
+                      <div key={lbl} style={{ background: '#1a2235', borderRadius: 8, padding: '7px 6px', textAlign: 'center' }}>
+                        <div className="text-[11px]">{icon}</div>
+                        <div className="font-black text-sm" style={{ color }}>{val}</div>
+                        <div className="text-[9px] text-muted uppercase tracking-wide leading-tight mt-0.5">{lbl}</div>
+                      </div>
+                    ))}
+                  </div>
+                  {/* Barra progreso asistencia */}
+                  {s.pctEnt !== null && (
+                    <div className="mt-2.5">
+                      <div className="flex justify-between text-[9px] text-muted mb-0.5">
+                        <span>Asistencia entrenos</span><span>{s.pctEnt}%</span>
+                      </div>
+                      <div style={{ background: '#27272a', borderRadius: 4, height: 4 }}>
+                        <div style={{ width: `${s.pctEnt}%`, height: 4, borderRadius: 4, background: s.pctEnt >= 80 ? '#10b981' : s.pctEnt >= 60 ? '#f59e0b' : '#ef4444', transition: 'width .4s' }} />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
         </div>
       )}
 

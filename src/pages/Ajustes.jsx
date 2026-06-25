@@ -1,13 +1,128 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { getPerfil, updatePerfil } from '../lib/perfil'
+import '../rivinf.css'
 import { getCompeticion, guardarCompeticion, parseTabla, parseGoleadores, parseCalendario } from '../lib/competicion'
 import { listarJugadores, vaciarPlantilla } from '../lib/jugadores'
 import { borrarTodosPartidos } from '../lib/partidos'
 import { borrarTodasTarjetas } from '../lib/tarjetas'
 import { borrarTodosEntrenos } from '../lib/entrenamientos'
 import { supabase } from '../lib/supabase'
+import { useEquipo } from '../contexts/EquipoContext'
+
+/* ── Guía rápida animada ── */
+const PASOS_GUIA = [
+  {
+    num: '01',
+    titulo: 'Nombre del club',
+    desc: 'Escribe el nombre de tu equipo, tu nombre como entrenador y la temporada actual.',
+    demo: () => (
+      <div style={{width:'100%'}}>
+        <div className="guia-field-label">Nombre del club</div>
+        <div className="guia-field-mock">
+          <span className="guia-typing-text">Llavaneres CF</span>
+        </div>
+        <div className="guia-field-label">Entrenador</div>
+        <div className="guia-field-mock">
+          <span className="guia-typing-text" style={{animationDelay:'.8s'}}>Borja Martínez</span>
+        </div>
+      </div>
+    ),
+  },
+  {
+    num: '02',
+    titulo: 'Sube el escudo',
+    desc: 'Pulsa "Subir escudo" y elige una imagen de tu dispositivo (máx ~600 KB). Se muestra en el inicio.',
+    demo: () => (
+      <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:10}}>
+        <div className="guia-shield-anim">🛡️</div>
+        <div className="guia-btn-mock cyan-pulse">📷 Subir escudo</div>
+      </div>
+    ),
+  },
+  {
+    num: '03',
+    titulo: 'Carga la clasificación',
+    desc: 'Pega los datos de tu liga en CSV (copia desde la web de tu federación) o carga el archivo directo.',
+    demo: () => (
+      <div style={{width:'100%',background:'#0f0f11',borderRadius:8,padding:'8px 10px',border:'1px solid #3f3f46'}}>
+        <div style={{fontSize:9,color:'#52525b',marginBottom:4,fontFamily:'monospace'}}>pos, equipo, PJ, PG, PE, PP, GF, GC, PTS</div>
+        {['1, Vilassar Dalt, 29, 19, 5, 5, 68, 32, 62','2, Cabrils CE, 29, 18, 4, 7, 61, 38, 58','3, Llavaneres CF, 29, 17, 4, 8, 55, 31, 55','4, Arenys de Mar, 29, 15, 3, 11, 48, 40, 48'].map((l,i)=>(
+          <div key={i} className="guia-csv-line">{l}</div>
+        ))}
+      </div>
+    ),
+  },
+  {
+    num: '04',
+    titulo: 'Guarda y listo',
+    desc: 'Pulsa "Guardar" — los datos aparecen al instante en Rivales, Clasificación y el Asistente IA.',
+    demo: () => (
+      <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:12}}>
+        <div className="guia-check-anim">✓</div>
+        <div style={{fontSize:10,color:'#34d399',fontWeight:700,textAlign:'center'}}>¡Datos guardados!</div>
+        <div style={{fontSize:9,color:'#52525b',textAlign:'center'}}>Rivales y Asistente<br/>ya usan tus datos</div>
+      </div>
+    ),
+  },
+]
+
+function GuiaRapida() {
+  const [paso, setPaso] = useState(0)
+  const [visible, setVisible] = useState(() => localStorage.getItem('guia_ajustes_ok') !== '1')
+  const timer = useRef(null)
+
+  useEffect(() => {
+    if (!visible) return
+    timer.current = setInterval(() => setPaso(p => (p + 1) % PASOS_GUIA.length), 4000)
+    return () => clearInterval(timer.current)
+  }, [visible])
+
+  function ir(i) { setPaso(i); clearInterval(timer.current) }
+  function cerrar() { setVisible(false); localStorage.setItem('guia_ajustes_ok','1') }
+
+  if (!visible) return null
+  const p = PASOS_GUIA[paso]
+  const Demo = p.demo
+
+  return (
+    <div className="guia-wrap">
+      <div className="guia-topbar"/>
+      <div className="guia-inner">
+        <div className="guia-header">
+          <div className="guia-title">⚡ Guía de inicio rápido</div>
+          <button className="guia-close" onClick={cerrar} title="Cerrar">×</button>
+        </div>
+        <div className="guia-content">
+          <div className="guia-left">
+            <div className="guia-paso-num">Paso {p.num} de 04</div>
+            <div className="guia-paso-titulo">{p.titulo}</div>
+            <div className="guia-paso-desc">{p.desc}</div>
+          </div>
+          <div className="guia-right">
+            <Demo key={paso}/>
+          </div>
+        </div>
+        <div className="guia-footer">
+          <div className="guia-dots">
+            {PASOS_GUIA.map((_,i) => (
+              <div key={i} className={`guia-dot${i===paso?' active':''}`} onClick={()=>ir(i)}/>
+            ))}
+          </div>
+          <div className="guia-nav">
+            {paso > 0 && <button className="guia-nav-btn" onClick={()=>ir(paso-1)}>← Atrás</button>}
+            {paso < PASOS_GUIA.length - 1
+              ? <button className="guia-nav-btn primary" onClick={()=>ir(paso+1)}>Siguiente →</button>
+              : <button className="guia-nav-btn primary" onClick={cerrar}>Entendido ✓</button>}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 export default function Ajustes() {
+  const { equipoActivo } = useEquipo()
+  const eid = equipoActivo?.id
   const [form, setForm] = useState({
     entrenador: '', club_nombre: '', descripcion: '', tipo_equipo: '11', escudo_url: '', temporada: '',
   })
@@ -18,7 +133,7 @@ export default function Ajustes() {
   useEffect(() => {
     (async () => {
       try {
-        const [p, comp] = await Promise.all([getPerfil(), getCompeticion()])
+        const [p, comp] = await Promise.all([getPerfil(), getCompeticion(eid)])
         setForm({
           entrenador: p.entrenador || '',
           club_nombre: p.club_nombre || '',
@@ -31,7 +146,7 @@ export default function Ajustes() {
       } catch (e) { setMsg('⚠️ ' + e.message) }
       finally { setCargando(false) }
     })()
-  }, [])
+  }, [eid])
 
   function subirEscudo(e) {
     const file = e.target.files?.[0]; if (!file) return
@@ -47,8 +162,8 @@ export default function Ajustes() {
       const { temporada, ...resto } = form
       await updatePerfil(resto)
       // temporada se guarda dentro de competicion para no necesitar migración
-      const comp = await getCompeticion()
-      await guardarCompeticion({ ...(comp||{}), temporada })
+      const comp = await getCompeticion(eid)
+      await guardarCompeticion({ ...(comp||{}), temporada }, eid)
       setMsg('✅ Guardado')
     } catch (e) { setMsg('⚠️ ' + e.message) }
   }
@@ -58,6 +173,7 @@ export default function Ajustes() {
   return (
     <div className="space-y-4">
       <h1 className="text-xl font-extrabold">Club y ajustes</h1>
+      <GuiaRapida />
 
       {/* Escudo */}
       <div className="card p-4 flex items-center gap-4">
@@ -174,34 +290,35 @@ function EliminarCuenta() {
 }
 
 function ZonaPeligro() {
-  const [tipoV, setTipoV] = useState('11')
-  const [conteo, setConteo] = useState({ 11: 0, 9: 0, 7: 0 })
+  const { equipoActivo } = useEquipo()
+  const eid = equipoActivo?.id
+  const [conteo, setConteo] = useState(0)
   const [msg, setMsg] = useState('')
   const [borrándoStats, setBorrandoStats] = useState(false)
 
   async function recontar() {
     try {
-      const [a, b, c] = await Promise.all([listarJugadores('11'), listarJugadores('9'), listarJugadores('7')])
-      setConteo({ 11: a.length, 9: b.length, 7: c.length })
+      const js = await listarJugadores(eid)
+      setConteo(js.length)
     } catch { /* noop */ }
   }
-  useEffect(() => { recontar() }, [])
+  useEffect(() => { recontar() }, [eid])
 
-  const n = conteo[tipoV] || 0
+  const n = conteo
 
   async function vaciar() {
     if (!n) return
-    if (!confirm(`¿Vaciar la plantilla de Fútbol ${tipoV} y todas las estadísticas (partidos, tarjetas, entrenamientos)? No se puede deshacer.`)) return
+    if (!confirm(`¿Vaciar la plantilla y todas las estadísticas (partidos, tarjetas, entrenamientos)? No se puede deshacer.`)) return
     if (!confirm('Confirma: se borrará todo para empezar de cero.')) return
     setMsg('')
     try {
       await Promise.all([
-        vaciarPlantilla(tipoV),
-        borrarTodosPartidos(),
-        borrarTodasTarjetas(),
-        borrarTodosEntrenos(),
+        vaciarPlantilla(eid),
+        borrarTodosPartidos(eid),
+        borrarTodasTarjetas(eid),
+        borrarTodosEntrenos(eid),
       ])
-      setMsg(`✅ Plantilla F${tipoV} y estadísticas borradas. App en cero.`)
+      setMsg('✅ Plantilla y estadísticas borradas. App en cero.')
       await recontar()
     } catch (e) { setMsg('⚠️ ' + e.message) }
   }
@@ -210,7 +327,7 @@ function ZonaPeligro() {
     if (!confirm('¿Borrar todos los partidos, tarjetas y entrenamientos? La plantilla no se toca.')) return
     setBorrandoStats(true); setMsg('')
     try {
-      await Promise.all([borrarTodosPartidos(), borrarTodasTarjetas(), borrarTodosEntrenos()])
+      await Promise.all([borrarTodosPartidos(eid), borrarTodasTarjetas(eid), borrarTodosEntrenos(eid)])
       setMsg('✅ Estadísticas borradas. La plantilla sigue intacta.')
     } catch (e) { setMsg('⚠️ ' + e.message) }
     finally { setBorrandoStats(false) }
@@ -224,17 +341,9 @@ function ZonaPeligro() {
           Vacía la plantilla y borra <b className="text-white">todos los partidos, tarjetas y entrenamientos</b>. Úsalo para empezar una nueva temporada en blanco.
         </p>
       </div>
-      <div className="flex gap-2">
-        {['11', '9', '7'].map((t) => (
-          <button key={t} onClick={() => setTipoV(t)}
-            className={`flex-1 py-2 rounded-lg border text-xs font-bold transition ${tipoV === t ? 'border-rojo bg-rojo/10 text-rojo' : 'border-borde text-muted'}`}>
-            F{t} ({conteo[t] || 0})
-          </button>
-        ))}
-      </div>
       {msg && <div className="text-xs text-zinc-300">{msg}</div>}
       <button className="btn btn-danger w-full" onClick={vaciar} disabled={!n}>
-        🗑️ Vaciar plantilla de Fútbol {tipoV} {n ? `(${n})` : ''}
+        🗑️ Vaciar equipo activo {n ? `(${n} jugadores)` : ''}
       </button>
       <div className="border-t border-borde pt-3">
         <p className="text-[11px] text-muted mb-2">Solo borrar estadísticas (partidos, tarjetas, entrenamientos) sin tocar la plantilla.</p>
@@ -247,6 +356,8 @@ function ZonaPeligro() {
 }
 
 function LigaRivales() {
+  const { equipoActivo } = useEquipo()
+  const eid = equipoActivo?.id
   const [nombre, setNombre] = useState('')
   const [tablaTxt, setTablaTxt] = useState('')
   const [golesTxt, setGolesTxt] = useState('')
@@ -257,20 +368,20 @@ function LigaRivales() {
 
   useEffect(() => {
     (async () => {
-      const c = await getCompeticion()
+      const c = await getCompeticion(eid)
       if (c) {
         setNombre(c.nombre || ''); setGuard(c)
       }
     })()
-  }, [])
+  }, [eid])
 
   async function nuevaTemporada() {
     if (!confirm('¿Iniciar nueva temporada? Se borrarán los rivales, la clasificación, el calendario Y todos los partidos registrados. No se puede deshacer.')) return
     setBorrando(true); setMsg('')
     try {
       await Promise.all([
-        guardarCompeticion({}),
-        borrarTodosPartidos(),
+        guardarCompeticion({}, eid),
+        borrarTodosPartidos(eid),
       ])
       setGuard(null); setNombre(''); setTablaTxt(''); setGolesTxt(''); setCalTxt('')
       setMsg('✅ Temporada reiniciada. Carga los nuevos datos de la liga.')
@@ -291,7 +402,7 @@ function LigaRivales() {
       calendario: calTxt ? parseCalendario(calTxt) : (guard?.calendario || []),
     }
     try {
-      await guardarCompeticion(comp)
+      await guardarCompeticion(comp, eid)
       setGuard(comp); setTablaTxt(''); setGolesTxt(''); setCalTxt('')
       setMsg('✅ Liga guardada. Rivales y el Asistente ya usan tus datos.')
     } catch (e) {

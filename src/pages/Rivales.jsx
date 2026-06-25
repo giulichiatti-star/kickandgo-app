@@ -2,7 +2,10 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import '../rivinf.css'
 import { getCompeticion, guardarCompeticion, resolverLiga, calcularTabla, parseJugados, parseProximas, parseCalendario } from '../lib/competicion'
+import { listarPartidos } from '../lib/partidos'
+import { getPerfil } from '../lib/perfil'
 import { supabase } from '../lib/supabase'
+import { useEquipo } from '../contexts/EquipoContext'
 
 const TABS = [
   { id: 'general', label: 'GENERAL' },
@@ -40,6 +43,8 @@ async function saveNotasRivales(obj) {
 
 export default function Rivales() {
   const nav = useNavigate()
+  const { equipoActivo } = useEquipo()
+  const eid = equipoActivo?.id
   const [tab, setTab] = useState('general')
   const [liga, setLiga] = useState(() => resolverLiga(null))
   const [sel, setSel] = useState(null)
@@ -47,7 +52,9 @@ export default function Rivales() {
   const [buscar, setBuscar] = useState('')
   const [notas, setNotas] = useState({})
   const [notasModal, setNotasModal] = useState(false)
-  const [compRaw, setCompRaw] = useState(null) // competicion original de Supabase
+  const [compRaw, setCompRaw] = useState(null)
+  const [nuestrosPartidos, setNuestrosPartidos] = useState([])
+  const [clubNombre, setClubNombre] = useState('')
   const [calTxt, setCalTxt] = useState('')
   const [calPrev, setCalPrev] = useState([])
   const [calMsg, setCalMsg] = useState('')
@@ -64,20 +71,28 @@ export default function Rivales() {
   const [proxMsg, setProxMsg] = useState('')
   const [proxGuardando, setProxGuardando] = useState(false)
   const [proxManual, setProxManual] = useState({ jornada:'', fecha:'', local:'', visitante:'', hora:'' })
+  const [proxAddOpen, setProxAddOpen] = useState(false)
+  const [proxCalView, setProxCalView] = useState(false)
+  const [prepFocus, setPrepFocus] = useState(null) // nombre del rival a mostrar en prep aunque no tenga notas
 
   useEffect(() => {
     (async () => {
-      const [comp, n] = await Promise.all([
-        getCompeticion(),
+      const [comp, n, partidos, perfil] = await Promise.all([
+        getCompeticion(eid),
         getNotasRivales(),
+        listarPartidos(eid),
+        getPerfil(),
       ])
-      const l = resolverLiga(comp)
+      const club = equipoActivo?.nombre || perfil?.club_nombre || ''
+      setClubNombre(club)
+      setNuestrosPartidos(partidos || [])
+      const l = resolverLiga(comp, { nuestrosPartidos: partidos || [], clubNombre: club })
       setCompRaw(comp)
       setLiga(l)
       if (l.tabla.length) setSel(l.tabla.find((t) => t.miEquipo) || l.tabla[0])
       setNotas(n)
     })()
-  }, [])
+  }, [eid])
 
   function analizarCal(txt) {
     setCalTxt(txt)
@@ -89,9 +104,9 @@ export default function Rivales() {
     setCalGuardando(true); setCalMsg('')
     try {
       const nuevo = { ...(compRaw || {}), calendario: calPrev }
-      await guardarCompeticion(nuevo)
+      await guardarCompeticion(nuevo, eid)
       setCompRaw(nuevo)
-      setLiga(resolverLiga(nuevo))
+      setLiga(resolverLiga(nuevo, { nuestrosPartidos, clubNombre }))
       setCalTxt(''); setCalPrev([])
       setCalMsg('✅ Calendario guardado.')
     } catch (e) { setCalMsg('⚠️ ' + e.message) }
@@ -103,9 +118,9 @@ export default function Rivales() {
     setCalGuardando(true); setCalMsg('')
     try {
       const nuevo = { ...(compRaw || {}), calendario: [] }
-      await guardarCompeticion(nuevo)
+      await guardarCompeticion(nuevo, eid)
       setCompRaw(nuevo)
-      setLiga(resolverLiga(nuevo))
+      setLiga(resolverLiga(nuevo, { nuestrosPartidos, clubNombre }))
       setCalMsg('🗑 Calendario borrado.')
     } catch (e) { setCalMsg('⚠️ ' + e.message) }
     finally { setCalGuardando(false) }
@@ -118,9 +133,9 @@ export default function Rivales() {
       const jugados = [...(compRaw?.calendario_jugado || []), match]
       const nuevaTabla = calcularTabla(jugados)
       const nuevo = { ...(compRaw || {}), calendario_jugado: jugados, tabla: nuevaTabla }
-      await guardarCompeticion(nuevo)
+      await guardarCompeticion(nuevo, eid)
       setCompRaw(nuevo)
-      setLiga(resolverLiga(nuevo))
+      setLiga(resolverLiga(nuevo, { nuestrosPartidos, clubNombre }))
       setJugMsg('✅ Resultado guardado. Clasificación actualizada.')
       setResultModal(null)
     } catch (e) { setJugMsg('⚠️ ' + e.message) }
@@ -132,9 +147,9 @@ export default function Rivales() {
     const jugados = (compRaw?.calendario_jugado || []).filter((_, i) => i !== idx)
     const nuevaTabla = calcularTabla(jugados)
     const nuevo = { ...(compRaw || {}), calendario_jugado: jugados, tabla: nuevaTabla }
-    await guardarCompeticion(nuevo)
+    await guardarCompeticion(nuevo, eid)
     setCompRaw(nuevo)
-    setLiga(resolverLiga(nuevo))
+    setLiga(resolverLiga(nuevo, { nuestrosPartidos, clubNombre }))
   }
 
   async function importarJugados() {
@@ -144,9 +159,9 @@ export default function Rivales() {
       const jugados = [...(compRaw?.calendario_jugado || []), ...jugPrev]
       const nuevaTabla = calcularTabla(jugados)
       const nuevo = { ...(compRaw || {}), calendario_jugado: jugados, tabla: nuevaTabla }
-      await guardarCompeticion(nuevo)
+      await guardarCompeticion(nuevo, eid)
       setCompRaw(nuevo)
-      setLiga(resolverLiga(nuevo))
+      setLiga(resolverLiga(nuevo, { nuestrosPartidos, clubNombre }))
       setJugTxt(''); setJugPrev([])
       setJugMsg(`✅ ${jugPrev.length} resultados importados. Clasificación actualizada.`)
     } catch (e) { setJugMsg('⚠️ ' + e.message) }
@@ -160,9 +175,9 @@ export default function Rivales() {
     try {
       const proximas = [...(compRaw?.proximas_fechas || []), proxManual]
       const nuevo = { ...(compRaw || {}), proximas_fechas: proximas }
-      await guardarCompeticion(nuevo)
+      await guardarCompeticion(nuevo, eid)
       setCompRaw(nuevo)
-      setLiga(resolverLiga(nuevo))
+      setLiga(resolverLiga(nuevo, { nuestrosPartidos, clubNombre }))
       setProxManual({ jornada:'', fecha:'', local:'', visitante:'', hora:'' })
       setProxMsg('✅ Partido añadido.')
     } catch (e) { setProxMsg('⚠️ ' + e.message) }
@@ -175,9 +190,9 @@ export default function Rivales() {
     try {
       const proximas = [...(compRaw?.proximas_fechas || []), ...proxPrev]
       const nuevo = { ...(compRaw || {}), proximas_fechas: proximas }
-      await guardarCompeticion(nuevo)
+      await guardarCompeticion(nuevo, eid)
       setCompRaw(nuevo)
-      setLiga(resolverLiga(nuevo))
+      setLiga(resolverLiga(nuevo, { nuestrosPartidos, clubNombre }))
       setProxTxt(''); setProxPrev([])
       setProxMsg(`✅ ${proxPrev.length} partidos añadidos.`)
     } catch (e) { setProxMsg('⚠️ ' + e.message) }
@@ -187,9 +202,9 @@ export default function Rivales() {
   async function eliminarProxima(idx) {
     const proximas = (compRaw?.proximas_fechas || []).filter((_, i) => i !== idx)
     const nuevo = { ...(compRaw || {}), proximas_fechas: proximas }
-    await guardarCompeticion(nuevo)
+    await guardarCompeticion(nuevo, eid)
     setCompRaw(nuevo)
-    setLiga(resolverLiga(nuevo))
+    setLiga(resolverLiga(nuevo, { nuestrosPartidos, clubNombre }))
   }
 
   // Mover partido próximo a jugados (registrar resultado)
@@ -458,7 +473,27 @@ export default function Rivales() {
       {/* ---------- PREPARACIÓN ---------- */}
       {tab === 'prep' && (
         <div className="space-y-3">
-          {Object.keys(notas).filter(k => notas[k]?.trim()).length === 0 ? (
+          {/* Si venimos de PRÓXIMAS y el rival no tiene notas todavía, mostramos su card con CTA */}
+          {prepFocus && !notas[prepFocus]?.trim() && (() => {
+            const eq = TABLA.find(t => t.nom === prepFocus)
+            return (
+              <div className="card p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-xl">{eq?.ico || '🛡️'}</span>
+                  <div>
+                    <div className="font-extrabold text-blanco text-sm">{prepFocus}</div>
+                    {eq && <div className="text-[10px] text-muted">{eq.pos}º · {eq.pts} pts · {eq.pg}V {eq.pe}E {eq.pp}D</div>}
+                  </div>
+                </div>
+                <p className="text-xs text-muted">Aún no tienes notas sobre este rival. Añádelas para activar el análisis IA.</p>
+                <button className="btn btn-primary w-full text-xs"
+                  onClick={() => { if (eq) setSel(eq); setNotasModal(true) }}>
+                  ✏ Añadir notas sobre {prepFocus.split(' ')[0]}
+                </button>
+              </div>
+            )
+          })()}
+          {Object.keys(notas).filter(k => notas[k]?.trim()).length === 0 && !prepFocus ? (
             <div className="card p-8 text-center space-y-2">
               <div className="text-3xl">📋</div>
               <div className="font-bold text-blanco">Sin partidos preparados</div>
@@ -479,10 +514,24 @@ export default function Rivales() {
                         {equipoInfo && <div className="text-[10px] text-muted">{equipoInfo.pos}º · {equipoInfo.pts} pts · {equipoInfo.pg}V {equipoInfo.pe}E {equipoInfo.pp}D</div>}
                       </div>
                     </div>
-                    <button className="text-[10px] text-cyan border border-cyan/30 rounded-lg px-2.5 py-1 hover:bg-cyan/10 transition"
-                      onClick={() => { setSel(equipoInfo || sel); setNotasModal(true) }}>
-                      ✏ Editar
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button className="text-[10px] text-cyan border border-cyan/30 rounded-lg px-2.5 py-1 hover:bg-cyan/10 transition"
+                        onClick={() => { setSel(equipoInfo || sel); setNotasModal(true) }}>
+                        ✏ Editar
+                      </button>
+                      <button
+                        className="text-[10px] rounded-lg px-2.5 py-1 transition"
+                        style={{ color:'#f87171', border:'1px solid rgba(239,68,68,0.25)' }}
+                        onClick={async () => {
+                          if (!confirm(`¿Eliminar toda la preparación de ${rival}?`)) return
+                          const n = { ...notas }
+                          delete n[rival]
+                          setNotas(n)
+                          await saveNotasRivales(n)
+                        }}>
+                        🗑 Borrar
+                      </button>
+                    </div>
                   </div>
 
                   {/* Notas del entrenador */}
@@ -614,116 +663,211 @@ export default function Rivales() {
       {/* ---------- PRÓXIMAS ---------- */}
       {tab === 'proximas' && (
         <div className="space-y-3">
-          <div>
-            <div className="text-[14px] font-extrabold text-blanco">Próximas fechas</div>
-            <div className="text-[11px] text-muted">
-              {liga.proximas_fechas.length ? `${liga.proximas_fechas.length} partidos programados` : 'Sin partidos programados'}
-            </div>
-          </div>
-
-          {liga.proximas_fechas.length > 0 && (
-            <div className="riv2-tabla-wrap">
-              <table className="riv2-tabla">
-                <thead>
-                  <tr>
-                    <th style={{ width:28 }}>J</th>
-                    <th style={{ width:64 }}>Fecha</th>
-                    <th>Local</th>
-                    <th style={{ width:40, textAlign:'center' }}>Hora</th>
-                    <th>Visitante</th>
-                    <th style={{ width:90 }}></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {liga.proximas_fechas.map((c, i) => (
-                    <tr key={i}>
-                      <td className="pos-num">{c.jornada || i + 1}</td>
-                      <td style={{ color:'#71717a', fontSize:11 }}>{c.fecha || '—'}</td>
-                      <td className="equipo-nombre">{c.local}</td>
-                      <td style={{ textAlign:'center', color:'#71717a', fontSize:11 }}>{c.hora || '—'}</td>
-                      <td className="equipo-nombre">{c.visitante}</td>
-                      <td>
-                        <div className="flex items-center gap-1.5">
-                          <button
-                            className="text-[10px] px-2 py-0.5 rounded border transition"
-                            style={{ borderColor:'rgba(45,212,191,0.4)', color:'#2dd4bf' }}
-                            onClick={() => moverAJugado(c)}
-                          >✏ Resultado</button>
-                          <button className="text-[11px] text-muted hover:text-red-400 transition" onClick={() => eliminarProxima(i)}>✕</button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          {/* Añadir manual */}
-          <div className="card p-4 space-y-3">
-            <div className="text-sm font-extrabold">➕ Añadir partido</div>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="text-[10px] text-muted uppercase tracking-wide block mb-1">Jornada</label>
-                <input className="field text-xs" placeholder="J8" value={proxManual.jornada}
-                  onChange={e => setProxManual(p => ({ ...p, jornada: e.target.value }))} />
-              </div>
-              <div>
-                <label className="text-[10px] text-muted uppercase tracking-wide block mb-1">Fecha</label>
-                <input className="field text-xs" placeholder="03/11" value={proxManual.fecha}
-                  onChange={e => setProxManual(p => ({ ...p, fecha: e.target.value }))} />
-              </div>
-              <div>
-                <label className="text-[10px] text-muted uppercase tracking-wide block mb-1">Local *</label>
-                <input className="field text-xs" placeholder="Mi equipo" value={proxManual.local}
-                  onChange={e => setProxManual(p => ({ ...p, local: e.target.value }))} />
-              </div>
-              <div>
-                <label className="text-[10px] text-muted uppercase tracking-wide block mb-1">Visitante *</label>
-                <input className="field text-xs" placeholder="Rival FC" value={proxManual.visitante}
-                  onChange={e => setProxManual(p => ({ ...p, visitante: e.target.value }))} />
-              </div>
-              <div>
-                <label className="text-[10px] text-muted uppercase tracking-wide block mb-1">Hora</label>
-                <input className="field text-xs" placeholder="11:00" value={proxManual.hora}
-                  onChange={e => setProxManual(p => ({ ...p, hora: e.target.value }))} />
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div>
+              <div className="text-[14px] font-extrabold text-blanco">Próximas fechas</div>
+              <div className="text-[11px] text-muted">
+                {liga.proximas_fechas.length ? `${liga.proximas_fechas.length} partidos programados` : 'Sin partidos cargados aún'}
               </div>
             </div>
-            {proxMsg && !proxTxt && (
-              <div className="text-[11px]" style={{ color: proxMsg.startsWith('⚠') ? '#ef4444' : '#34d399' }}>{proxMsg}</div>
-            )}
-            <button className="btn btn-primary w-full text-xs" onClick={guardarProxiManual} disabled={proxGuardando}>
-              {proxGuardando ? 'Guardando…' : '💾 Añadir partido'}
-            </button>
-          </div>
-
-          {/* Import CSV */}
-          <div className="card p-4 space-y-3">
-            <div className="text-sm font-extrabold">📥 Importar desde CSV</div>
-            <div className="rounded-lg p-3 text-[11px] leading-relaxed"
-              style={{ background:'rgba(45,212,191,0.06)', border:'1px solid rgba(45,212,191,0.15)' }}>
-              <div className="font-mono text-cyan">jornada, fecha, local, visitante, hora</div>
-              <div className="text-muted mt-1">Ejemplo: <span className="font-mono text-blanco">J8, 03/11, Cabrils CE, Arenys, 11:00</span></div>
-            </div>
-            <textarea
-              className="field font-mono text-xs h-24"
-              placeholder={"J8, 03/11, Cabrils CE, Arenys, 11:00\nJ9, 10/11, Rival FC, Cabrils CE, 17:00"}
-              value={proxTxt}
-              onChange={e => { setProxTxt(e.target.value); setProxPrev(e.target.value.trim() ? parseProximas(e.target.value) : []) }}
-            />
-            {proxPrev.length > 0 && (
-              <div className="text-[11px] font-bold text-cyan">{proxPrev.length} partidos detectados</div>
-            )}
-            {proxMsg && proxTxt && (
-              <div className="text-[11px]" style={{ color: proxMsg.startsWith('⚠') ? '#ef4444' : '#34d399' }}>{proxMsg}</div>
-            )}
             <div className="flex gap-2">
-              {proxTxt && <button className="btn btn-outline flex-1 text-xs" onClick={() => { setProxTxt(''); setProxPrev([]); setProxMsg('') }}>Limpiar</button>}
-              <button className="btn btn-primary flex-1 text-xs" onClick={importarProximas} disabled={!proxPrev.length || proxGuardando}>
-                {proxGuardando ? 'Importando…' : `💾 Añadir ${proxPrev.length || ''} partidos`}
+              <div className="flex rounded-lg overflow-hidden border border-borde">
+                <button className={`px-2.5 py-1.5 text-[11px] font-bold transition ${!proxCalView ? 'bg-cyan/15 text-cyan' : 'text-muted hover:text-blanco'}`}
+                  onClick={() => setProxCalView(false)}>☰ Lista</button>
+                <button className={`px-2.5 py-1.5 text-[11px] font-bold transition ${proxCalView ? 'bg-cyan/15 text-cyan' : 'text-muted hover:text-blanco'}`}
+                  onClick={() => setProxCalView(true)}>📅 Mes</button>
+              </div>
+              <button className="btn btn-outline text-xs" onClick={() => setProxAddOpen(o => !o)}>
+                {proxAddOpen ? '✕ Cerrar' : '＋ Añadir'}
               </button>
             </div>
           </div>
+
+          {/* Vista calendario mensual */}
+          {proxCalView && (
+            <CalendarioMes
+              partidos={liga.proximas_fechas}
+              onEliminar={eliminarProxima}
+              tabla={TABLA}
+              clubNombre={clubNombre}
+              nuestrosPartidos={nuestrosPartidos}
+            />
+          )}
+
+          {/* Hero card — próximo partido (vista lista) */}
+          {!proxCalView && liga.proximas_fechas.length > 0 && (() => {
+            const next = liga.proximas_fechas[0]
+            const resto = liga.proximas_fechas.slice(1)
+            return (
+              <>
+                {/* PRÓXIMO */}
+                <div style={{
+                  background: 'linear-gradient(135deg, #16213e 0%, #202028 60%, #1a2235 100%)',
+                  border: '1px solid rgba(45,212,191,0.25)',
+                  borderRadius: 16,
+                  overflow: 'hidden',
+                  position: 'relative',
+                }}>
+                  {/* barra top */}
+                  <div style={{ height: 3, background: 'linear-gradient(90deg,#2dd4bf,#3b82f6)', width: '100%' }} />
+                  <div style={{ padding: '14px 16px 16px' }}>
+                    {/* meta */}
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-[10px] font-black tracking-widest uppercase" style={{ color:'#2dd4bf' }}>
+                        ⚡ Próximo partido
+                      </span>
+                      <div className="flex items-center gap-2">
+                        {next.jornada && <span className="text-[10px] px-2 py-0.5 rounded-full font-bold" style={{ background:'rgba(45,212,191,0.12)', color:'#2dd4bf' }}>J{next.jornada}</span>}
+                        <button className="text-[11px] text-muted hover:text-red-400 transition" onClick={() => eliminarProxima(0)}>✕</button>
+                      </div>
+                    </div>
+
+                    {/* equipos */}
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex-1 text-center">
+                        <div style={{ fontSize:28, lineHeight:1, marginBottom:6 }}>🛡️</div>
+                        <div className="text-[13px] font-extrabold text-blanco leading-tight">{next.local}</div>
+                        <div className="text-[10px] text-muted mt-0.5">Local</div>
+                      </div>
+                      <div className="text-center flex-shrink-0">
+                        <div className="text-[11px] font-black tracking-widest text-muted mb-1">VS</div>
+                        {next.hora && <div className="text-[12px] font-black" style={{ color:'#f59e0b' }}>{next.hora}</div>}
+                        {next.fecha && <div className="text-[10px] text-muted mt-0.5">{next.fecha}</div>}
+                      </div>
+                      <div className="flex-1 text-center">
+                        <div style={{ fontSize:28, lineHeight:1, marginBottom:6 }}>⚔️</div>
+                        <div className="text-[13px] font-extrabold text-blanco leading-tight">{next.visitante}</div>
+                        <div className="text-[10px] text-muted mt-0.5">Visitante</div>
+                      </div>
+                    </div>
+
+                    {/* acciones */}
+                    <div className="flex gap-2 mt-4">
+                      <button className="flex-1 text-[11px] py-2 rounded-lg font-bold transition"
+                        style={{ background:'rgba(45,212,191,0.12)', color:'#2dd4bf', border:'1px solid rgba(45,212,191,0.25)' }}
+                        onClick={() => {
+                          const rivalNom = clubNombre && next.local?.toLowerCase().includes(clubNombre.toLowerCase().split(' ')[0]) ? next.visitante : next.local
+                          const eq = TABLA.find(t => t.nom === rivalNom) || TABLA.find(t => t.nom === next.visitante || t.nom === next.local) || sel
+                          setSel(eq); setPrepFocus(rivalNom || eq?.nom); setTab('prep')
+                        }}>
+                        📋 Preparar partido
+                      </button>
+                      <button className="flex-1 text-[11px] py-2 rounded-lg font-bold transition"
+                        style={{ background:'rgba(59,130,246,0.12)', color:'#60a5fa', border:'1px solid rgba(59,130,246,0.25)' }}
+                        onClick={() => moverAJugado(next)}>
+                        ⚽ Registrar resultado
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* RESTO del fixture */}
+                {resto.length > 0 && (
+                  <div className="space-y-1.5">
+                    <div className="text-[10px] font-black tracking-widest uppercase text-muted px-1 mt-2">Calendario</div>
+                    {resto.map((c, i) => (
+                      <div key={i} className="flex items-center gap-3 px-3 py-2.5 rounded-xl transition"
+                        style={{ background:'#202028', border:'1px solid #2e2e38' }}>
+                        {c.jornada && (
+                          <span className="text-[10px] font-black w-7 text-center flex-shrink-0" style={{ color:'#52525b' }}>J{c.jornada}</span>
+                        )}
+                        <div className="text-[11px] text-muted w-12 flex-shrink-0">{c.fecha || '—'}</div>
+                        <div className="flex-1 min-w-0">
+                          <span className="font-bold text-blanco text-[12px]">{c.local}</span>
+                          <span className="text-muted mx-1.5 text-[10px]">vs</span>
+                          <span className="font-bold text-blanco text-[12px]">{c.visitante}</span>
+                        </div>
+                        {c.hora && <div className="text-[10px] font-bold flex-shrink-0" style={{ color:'#f59e0b' }}>{c.hora}</div>}
+                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                          <button className="text-[10px] px-2 py-0.5 rounded border transition"
+                            style={{ borderColor:'rgba(45,212,191,0.3)', color:'#2dd4bf' }}
+                            onClick={() => moverAJugado(c)}>⚽</button>
+                          <button className="text-[11px] text-muted hover:text-red-400 transition" onClick={() => eliminarProxima(i + 1)}>✕</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )
+          })()}
+
+          {/* Sin datos (solo en lista) */}
+          {!proxCalView && liga.proximas_fechas.length === 0 && !proxAddOpen && (
+            <div className="card p-8 text-center space-y-2">
+              <div className="text-3xl">📅</div>
+              <div className="font-bold text-blanco">Sin partidos programados</div>
+              <p className="text-sm text-muted">Añade el fixture de la próxima jornada manualmente o importa desde CSV.</p>
+              <button className="btn btn-primary text-xs mx-auto" onClick={() => setProxAddOpen(true)}>＋ Añadir partido</button>
+            </div>
+          )}
+
+          {/* Panel añadir / importar */}
+          {proxAddOpen && (
+            <div className="space-y-3">
+              <div className="card p-4 space-y-3">
+                <div className="text-sm font-extrabold">➕ Añadir partido manualmente</div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[10px] text-muted uppercase tracking-wide block mb-1">Jornada</label>
+                    <input className="field text-xs" placeholder="J8" value={proxManual.jornada}
+                      onChange={e => setProxManual(p => ({ ...p, jornada: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-muted uppercase tracking-wide block mb-1">Fecha</label>
+                    <input className="field text-xs" placeholder="03/11" value={proxManual.fecha}
+                      onChange={e => setProxManual(p => ({ ...p, fecha: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-muted uppercase tracking-wide block mb-1">Local *</label>
+                    <input className="field text-xs" placeholder="Mi equipo" value={proxManual.local}
+                      onChange={e => setProxManual(p => ({ ...p, local: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-muted uppercase tracking-wide block mb-1">Visitante *</label>
+                    <input className="field text-xs" placeholder="Rival FC" value={proxManual.visitante}
+                      onChange={e => setProxManual(p => ({ ...p, visitante: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-muted uppercase tracking-wide block mb-1">Hora</label>
+                    <input className="field text-xs" placeholder="11:00" value={proxManual.hora}
+                      onChange={e => setProxManual(p => ({ ...p, hora: e.target.value }))} />
+                  </div>
+                </div>
+                {proxMsg && !proxTxt && (
+                  <div className="text-[11px]" style={{ color: proxMsg.startsWith('⚠') ? '#ef4444' : '#34d399' }}>{proxMsg}</div>
+                )}
+                <button className="btn btn-primary w-full text-xs" onClick={guardarProxiManual} disabled={proxGuardando}>
+                  {proxGuardando ? 'Guardando…' : '💾 Añadir partido'}
+                </button>
+              </div>
+
+              <div className="card p-4 space-y-3">
+                <div className="text-sm font-extrabold">📥 Importar desde CSV</div>
+                <div className="rounded-lg p-3 text-[11px] leading-relaxed"
+                  style={{ background:'rgba(45,212,191,0.06)', border:'1px solid rgba(45,212,191,0.15)' }}>
+                  <div className="font-mono text-cyan">jornada, fecha, local, visitante, hora</div>
+                  <div className="text-muted mt-1">Ej: <span className="font-mono text-blanco">J8, 03/11, Cabrils CE, Arenys, 11:00</span></div>
+                </div>
+                <textarea
+                  className="field font-mono text-xs h-24"
+                  placeholder={"J8, 03/11, Cabrils CE, Arenys, 11:00\nJ9, 10/11, Rival FC, Cabrils CE, 17:00"}
+                  value={proxTxt}
+                  onChange={e => { setProxTxt(e.target.value); setProxPrev(e.target.value.trim() ? parseProximas(e.target.value) : []) }}
+                />
+                {proxPrev.length > 0 && <div className="text-[11px] font-bold text-cyan">{proxPrev.length} partidos detectados</div>}
+                {proxMsg && proxTxt && (
+                  <div className="text-[11px]" style={{ color: proxMsg.startsWith('⚠') ? '#ef4444' : '#34d399' }}>{proxMsg}</div>
+                )}
+                <div className="flex gap-2">
+                  {proxTxt && <button className="btn btn-outline flex-1 text-xs" onClick={() => { setProxTxt(''); setProxPrev([]); setProxMsg('') }}>Limpiar</button>}
+                  <button className="btn btn-primary flex-1 text-xs" onClick={importarProximas} disabled={!proxPrev.length || proxGuardando}>
+                    {proxGuardando ? 'Importando…' : `💾 Añadir ${proxPrev.length || ''} partidos`}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
       {/* Modal registrar resultado */}
@@ -735,6 +879,211 @@ export default function Rivales() {
           guardando={jugGuardando}
         />
       )}
+    </div>
+  )
+}
+
+/* ══ Calendario mensual ══════════════════════════════════════ */
+function parseFecha(str) {
+  if (!str) return null
+  const m = str.match(/^(\d{1,2})[\/\-](\d{1,2})(?:[\/\-](\d{2,4}))?$/)
+  if (!m) return null
+  const day = parseInt(m[1], 10)
+  const mon = parseInt(m[2], 10) - 1
+  const yr = m[3] ? (m[3].length === 2 ? 2000 + parseInt(m[3]) : parseInt(m[3])) : new Date().getFullYear()
+  const d = new Date(yr, mon, day)
+  return isNaN(d.getTime()) ? null : d
+}
+
+function CalendarioMes({ partidos, onEliminar, tabla = [], clubNombre = '', nuestrosPartidos = [] }) {
+  const hoy = new Date()
+  const [mes, setMes] = useState(hoy.getMonth())
+  const [anio, setAnio] = useState(hoy.getFullYear())
+  const [sel, setSel] = useState(null)
+
+  const porDia = {}
+  partidos.forEach((p, idx) => {
+    const d = parseFecha(p.fecha)
+    if (d && d.getMonth() === mes && d.getFullYear() === anio) {
+      const key = d.getDate()
+      if (!porDia[key]) porDia[key] = []
+      porDia[key].push({ ...p, _idx: idx })
+    }
+  })
+
+  const primerDia = new Date(anio, mes, 1).getDay()
+  const diasMes = new Date(anio, mes + 1, 0).getDate()
+  const celdas = primerDia === 0 ? 6 : primerDia - 1
+
+  const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
+
+  function prev() { if (mes === 0) { setMes(11); setAnio(a => a - 1) } else setMes(m => m - 1); setSel(null) }
+  function next() { if (mes === 11) { setMes(0); setAnio(a => a + 1) } else setMes(m => m + 1); setSel(null) }
+
+  // Busca el último partido jugado contra un rival en nuestrosPartidos (Informes)
+  function ultimoVsRival(rivalNom) {
+    if (!rivalNom || !nuestrosPartidos.length) return null
+    const key = rivalNom.trim().toLowerCase().split(/\s+/)[0]
+    const matches = nuestrosPartidos.filter(p => (p.rival || '').toLowerCase().includes(key))
+    if (!matches.length) return null
+    return matches.sort((a, b) => new Date(b.fecha) - new Date(a.fecha))[0]
+  }
+
+  // Busca escudo/ico del equipo en la tabla
+  function icoEquipo(nom) {
+    if (!nom) return '🛡️'
+    const key = nom.trim().toLowerCase().split(/\s+/)[0]
+    const eq = tabla.find(t => t.nom.toLowerCase().includes(key))
+    return eq?.ico || '🛡️'
+  }
+
+  const selPartidos = sel ? (porDia[sel] || []) : []
+
+  return (
+    <div className="space-y-3">
+      {/* Cabecera mes */}
+      <div className="flex items-center justify-between px-1">
+        <button className="w-8 h-8 rounded-lg border border-borde text-muted hover:text-blanco hover:border-cyan transition text-sm font-bold" onClick={prev}>‹</button>
+        <div className="text-sm font-extrabold">{MESES[mes]} {anio}</div>
+        <button className="w-8 h-8 rounded-lg border border-borde text-muted hover:text-blanco hover:border-cyan transition text-sm font-bold" onClick={next}>›</button>
+      </div>
+
+      {/* Grid */}
+      <div style={{ background: '#18181b', border: '1px solid #27272a', borderRadius: 12, padding: 12 }}>
+        <div className="grid grid-cols-7 mb-1">
+          {['L','M','X','J','V','S','D'].map(d => (
+            <div key={d} className="text-center text-[10px] font-extrabold text-muted py-1">{d}</div>
+          ))}
+        </div>
+        <div className="grid grid-cols-7 gap-0.5">
+          {Array.from({ length: celdas }).map((_, i) => <div key={`e${i}`} />)}
+          {Array.from({ length: diasMes }).map((_, i) => {
+            const dia = i + 1
+            const tienePartido = !!porDia[dia]
+            const esHoy = dia === hoy.getDate() && mes === hoy.getMonth() && anio === hoy.getFullYear()
+            const esSel = sel === dia
+            return (
+              <button
+                key={dia}
+                onClick={() => setSel(esSel ? null : dia)}
+                className="relative flex flex-col items-center justify-center transition"
+                style={{
+                  height: 42,
+                  borderRadius: 8,
+                  background: esSel ? 'rgba(45,212,191,0.18)' : tienePartido ? 'rgba(45,212,191,0.06)' : 'transparent',
+                  border: esSel ? '1px solid rgba(45,212,191,0.5)' : esHoy ? '1px solid rgba(45,212,191,0.3)' : '1px solid transparent',
+                }}
+              >
+                <span className="text-[12px] font-bold leading-none"
+                  style={{ color: esHoy ? '#2dd4bf' : tienePartido ? '#fafafa' : '#52525b' }}>
+                  {dia}
+                </span>
+                {tienePartido && (
+                  <span style={{ fontSize: 10, lineHeight: 1, marginTop: 2 }}>⚽</span>
+                )}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Detalle día */}
+      {sel && (
+        <div className="space-y-3">
+          <div className="text-[10px] font-extrabold uppercase tracking-wide text-muted px-1">
+            {sel} de {MESES[mes]} · {selPartidos.length} partido{selPartidos.length !== 1 ? 's' : ''}
+          </div>
+          {selPartidos.length === 0 ? (
+            <div className="text-[12px] text-muted px-1">Sin partidos este día.</div>
+          ) : selPartidos.map((p, k) => {
+            const rivalNom = p.local?.toLowerCase().includes(clubNombre.toLowerCase().split(' ')[0]) ? p.visitante : p.local
+            const ultimo = ultimoVsRival(rivalNom)
+            const icoLocal = icoEquipo(p.local)
+            const icoVisitante = icoEquipo(p.visitante)
+            const esLocal = p.local?.toLowerCase().includes((clubNombre || '').toLowerCase().split(' ')[0])
+            let resUltimo = null
+            if (ultimo) {
+              const gl = ultimo.goles_favor ?? ultimo.gf ?? '?'
+              const gc = ultimo.goles_contra ?? ultimo.gc ?? '?'
+              resUltimo = `${gl} – ${gc}`
+            }
+            return (
+              <div key={k} style={{ background: 'linear-gradient(135deg,#16213e,#1a1a22)', border: '1px solid rgba(45,212,191,0.25)', borderRadius: 14, overflow: 'hidden' }}>
+                {/* Barra top */}
+                <div style={{ height: 3, background: 'linear-gradient(90deg,#2dd4bf,#3b82f6)' }} />
+                <div style={{ padding: '12px 14px 14px' }}>
+                  {/* Jornada + hora + eliminar */}
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      {p.jornada && (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full font-black"
+                          style={{ background: 'rgba(45,212,191,0.12)', color: '#2dd4bf' }}>
+                          J{p.jornada}
+                        </span>
+                      )}
+                      {p.hora && (
+                        <span className="text-[11px] font-black" style={{ color: '#f59e0b' }}>⏰ {p.hora}</span>
+                      )}
+                      <span className="text-[10px] text-muted">{p.fecha}</span>
+                    </div>
+                    <button className="text-muted hover:text-red-400 text-xs transition" onClick={() => onEliminar(p._idx)}>✕</button>
+                  </div>
+
+                  {/* Escudos + equipos */}
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex-1 text-center">
+                      <div style={{ fontSize: 32, lineHeight: 1, marginBottom: 6 }}>{icoLocal}</div>
+                      <div className="text-[12px] font-extrabold leading-tight" style={{ color: esLocal ? '#2dd4bf' : '#fafafa' }}>
+                        {p.local}
+                      </div>
+                      <div className="text-[9px] text-muted mt-0.5 uppercase tracking-wide">Local</div>
+                    </div>
+                    <div className="text-center flex-shrink-0 px-2">
+                      <div className="text-[10px] font-black tracking-widest text-muted">VS</div>
+                    </div>
+                    <div className="flex-1 text-center">
+                      <div style={{ fontSize: 32, lineHeight: 1, marginBottom: 6 }}>{icoVisitante}</div>
+                      <div className="text-[12px] font-extrabold leading-tight text-blanco">{p.visitante}</div>
+                      <div className="text-[9px] text-muted mt-0.5 uppercase tracking-wide">Visitante</div>
+                    </div>
+                  </div>
+
+                  {/* Último enfrentamiento */}
+                  {ultimo ? (
+                    <div className="mt-3 rounded-lg px-3 py-2 flex items-center gap-2"
+                      style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid #27272a' }}>
+                      <span className="text-[10px] text-muted flex-shrink-0">Último vs {rivalNom?.split(' ')[0] || 'ellos'}:</span>
+                      <span className="text-[11px] font-black text-blanco mx-1">{resUltimo}</span>
+                      {ultimo.fecha && <span className="text-[9px] text-muted">· {ultimo.fecha}</span>}
+                      {ultimo.local !== undefined && (
+                        <span className="text-[9px] ml-auto" style={{
+                          color: ultimo.resultado === 'victoria' ? '#34d399' : ultimo.resultado === 'derrota' ? '#f87171' : '#f59e0b'
+                        }}>
+                          {ultimo.resultado === 'victoria' ? '✓ Victoria' : ultimo.resultado === 'derrota' ? '✗ Derrota' : '= Empate'}
+                        </span>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="mt-3 rounded-lg px-3 py-2 text-[10px] text-muted text-center"
+                      style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid #27272a' }}>
+                      Sin historial previo contra {rivalNom?.split(' ')[0] || 'este rival'}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Leyenda */}
+      <div className="flex items-center gap-4 text-[10px] text-muted px-1">
+        <span className="flex items-center gap-1">⚽ Partido programado</span>
+        <span className="flex items-center gap-1.5">
+          <span style={{ width:8,height:8,borderRadius:3,border:'1px solid rgba(45,212,191,0.4)',display:'inline-block' }}/>
+          Hoy
+        </span>
+      </div>
     </div>
   )
 }

@@ -1,28 +1,77 @@
 import { supabase } from './supabase'
+import { cacheSet, cacheGet } from './cache'
 
-// Lee la competición guardada por el usuario (o null si no hay)
-export async function getCompeticion() {
+// Lee la competición del equipo activo (equipoId) — fallback a profiles para retrocompatibilidad
+export async function getCompeticion(equipoId) {
+  const key = 'competicion_' + (equipoId || 'default')
   try {
+    if (equipoId) {
+      const { data, error } = await supabase.from('equipos').select('competicion').eq('id', equipoId).single()
+      if (error) throw error
+      const c = data?.competicion
+      if (!c || (typeof c === 'object' && !Object.keys(c).length)) return null
+      cacheSet(key, c)
+      return c
+    }
+    // Fallback sin equipoId: leer de profiles
     const { data: u } = await supabase.auth.getUser()
     const { data, error } = await supabase.from('profiles').select('competicion').eq('id', u.user.id).single()
-    if (error) return null
+    if (error) return cacheGet(key)
     const c = data?.competicion
     if (!c || (typeof c === 'object' && !Object.keys(c).length)) return null
+    cacheSet(key, c)
     return c
-  } catch { return null }
+  } catch {
+    return cacheGet(key)
+  }
 }
 
-export async function guardarCompeticion(comp) {
-  const { data: u } = await supabase.auth.getUser()
-  const { error } = await supabase.from('profiles').update({ competicion: comp }).eq('id', u.user.id)
-  if (error) throw error
+export async function guardarCompeticion(comp, equipoId) {
+  if (equipoId) {
+    const { error } = await supabase.from('equipos').update({ competicion: comp }).eq('id', equipoId)
+    if (error) throw error
+  } else {
+    const { data: u } = await supabase.auth.getUser()
+    const { error } = await supabase.from('profiles').update({ competicion: comp }).eq('id', u.user.id)
+    if (error) throw error
+  }
   return comp
 }
 
-// Calcula la tabla de clasificación a partir de partidos jugados
-export function calcularTabla(jugados = []) {
+// Calcula la tabla. nuestrosPartidos (de Supabase `partidos`) tienen prioridad
+// sobre calendario_jugado para los partidos de nuestro equipo.
+export function calcularTabla(jugados = [], nuestrosPartidos = [], clubNombre = '') {
+  // Convertir nuestros partidos al mismo formato que jugados
+  const nuestros = nuestrosPartidos.map(p => {
+    const esLocal = p.local_visitante === 'local'
+    return {
+      local: esLocal ? clubNombre : p.rival,
+      visitante: esLocal ? p.rival : clubNombre,
+      golesLocal: esLocal ? Number(p.gf) : Number(p.gc),
+      golesVisitante: esLocal ? Number(p.gc) : Number(p.gf),
+      _nuestro: true,
+    }
+  }).filter(p => p.local && p.visitante)
+
+  // Para cada jugado del CSV, descartar si hay un partido nuestro contra el mismo rival
+  const nomClub = (clubNombre || '').toLowerCase()
+  const rivalesNuestros = new Set(
+    nuestros.map(p => (p.local.toLowerCase() === nomClub ? p.visitante : p.local).toLowerCase())
+  )
+  const jugadosFiltrados = jugados.filter(j => {
+    const involucraClub = nomClub && (
+      j.local?.toLowerCase().includes(nomClub) ||
+      j.visitante?.toLowerCase().includes(nomClub)
+    )
+    if (!involucraClub) return true
+    const rival = j.local?.toLowerCase().includes(nomClub) ? j.visitante?.toLowerCase() : j.local?.toLowerCase()
+    return !rivalesNuestros.has(rival)
+  })
+
+  const todos = [...jugadosFiltrados, ...nuestros]
+
   const eq = {}
-  jugados.forEach(({ local, visitante, golesLocal, golesVisitante }) => {
+  todos.forEach(({ local, visitante, golesLocal, golesVisitante }) => {
     const gl = Number(golesLocal), gv = Number(golesVisitante)
     if (!local || !visitante || isNaN(gl) || isNaN(gv)) return
     if (!eq[local]) eq[local] = { nom: local, pj:0, pg:0, pe:0, pp:0, gf:0, gc:0, pts:0, forma:[], ico:'🛡️' }
@@ -34,6 +83,10 @@ export function calcularTabla(jugados = []) {
     else if (gl === gv) { L.pe++; L.pts += 1; L.forma.push('E'); V.pe++; V.pts += 1; V.forma.push('E') }
     else { V.pg++; V.pts += 3; V.forma.push('V'); L.pp++; L.forma.push('D') }
   })
+
+  // Marcar nuestro equipo
+  if (clubNombre && eq[clubNombre]) eq[clubNombre].miEquipo = true
+
   const tabla = Object.values(eq)
     .map(t => ({ ...t, forma: t.forma.slice(-5), pos: 0 }))
     .sort((a, b) => b.pts - a.pts || (b.gf - b.gc) - (a.gf - a.gc) || b.gf - a.gf)
@@ -42,7 +95,7 @@ export function calcularTabla(jugados = []) {
 }
 
 // Devuelve tabla/goleadores/calendario del usuario (vacío si no tiene datos)
-export function resolverLiga(comp) {
+export function resolverLiga(comp, options = {}) {
   let jugados = comp?.calendario_jugado || []
   let proximas = comp?.proximas_fechas || []
 
@@ -60,14 +113,23 @@ export function resolverLiga(comp) {
     })
   }
 
-  // Tabla: auto-calculada si hay jugados, sino usar tabla manual importada
-  let tabla = jugados.length ? calcularTabla(jugados) : (comp?.tabla || [])
+  // Tabla: si hay calendario importado (jugados), auto-calcular siempre.
+  // Si no hay jugados pero sí tabla manual (importada o del seed), usar la manual.
+  // Solo auto-calcular desde nuestros partidos si no hay tabla manual de referencia.
+  const nuestrosPartidos = options?.nuestrosPartidos || []
+  const clubNombre = options?.clubNombre || ''
+  let tabla
+  if (jugados.length > 0) {
+    tabla = calcularTabla(jugados, nuestrosPartidos, clubNombre)
+  } else if (comp?.tabla?.length >= 4) {
+    // Tabla manual (importada o seed) — usarla directamente y marcar nuestro equipo
+    tabla = comp.tabla.map(t => ({ ...t, miEquipo: clubNombre ? t.nom === clubNombre : !!t.miEquipo }))
+  } else {
+    tabla = nuestrosPartidos.length ? calcularTabla([], nuestrosPartidos, clubNombre) : []
+  }
 
-  // Preservar flag miEquipo de la tabla manual si existe
-  if (comp?.miEquipo) {
-    const me = comp.miEquipo
-    tabla.forEach(t => { if (t.nom === me) t.miEquipo = true })
-  } else if (comp?.tabla?.length) {
+  // Si no hay clubNombre pero la tabla manual tenía miEquipo, preservarlo
+  if (!clubNombre && comp?.tabla?.length) {
     comp.tabla.forEach(orig => {
       if (orig.miEquipo) {
         const t = tabla.find(x => x.nom === orig.nom)

@@ -1,6 +1,15 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import {
+  LineChart, Line, RadarChart, Radar, PolarGrid, PolarAngleAxis,
+  BarChart, Bar, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend
+} from 'recharts'
 import { listarPartidos, borrarPartido } from '../lib/partidos'
 import { getPerfil } from '../lib/perfil'
+import { listarJugadores } from '../lib/jugadores'
+import { listarEntrenos } from '../lib/entrenamientos'
+import { getCompeticion, resolverLiga } from '../lib/competicion'
+import { useEquipo } from '../contexts/EquipoContext'
 import '../rivinf.css'
 
 /* ── helpers ── */
@@ -19,22 +28,27 @@ function resLabel(gf, gc) {
 }
 function derivar(p) {
   const ev = Array.isArray(p.notas) ? p.notas : []
-  const goles       = ev.filter(e => e.tipo === 'gol')
-  const golesRival  = ev.filter(e => e.tipo === 'gol-rival')
-  const amar        = ev.filter(e => (e.tipo||'').includes('amarilla'))
-  const rojas       = ev.filter(e => (e.tipo||'').includes('roja'))
-  const cambios     = ev.filter(e => (e.tipo||'').includes('cambio'))
-  const tiros       = ev.filter(e => (e.tipo||'').includes('tiro'))
-  const corners     = ev.filter(e => (e.tipo||'').includes('corner'))
-  const asistencias = ev.filter(e => (e.tipo||'').includes('asist'))
-  const momentos    = ev.filter(e => /gol|roja|amarilla|cambio/i.test(e.tipo||'')).slice(0,6)
+  const goles        = ev.filter(e => e.tipo === 'gol')
+  const golesRival   = ev.filter(e => e.tipo === 'gol-rival')
+  const amar         = ev.filter(e => e.tipo === 'amarilla')
+  const amarRival    = ev.filter(e => e.tipo === 'amarilla-rival')
+  const rojas        = ev.filter(e => e.tipo === 'roja')
+  const rojasRival   = ev.filter(e => e.tipo === 'roja-rival')
+  const cambios      = ev.filter(e => e.tipo === 'cambio')
+  const cambiosRival = ev.filter(e => e.tipo === 'cambio-rival')
+  const tiros        = ev.filter(e => e.tipo === 'tiro')
+  const tirosRival   = ev.filter(e => e.tipo === 'tiro-rival')
+  const corners      = ev.filter(e => e.tipo === 'corner')
+  const cornersRival = ev.filter(e => e.tipo === 'corner-rival')
+  const asistencias  = ev.filter(e => e.tipo === 'asistencia')
+  const momentos     = ev.filter(e => /gol|roja|amarilla|cambio/i.test(e.tipo||'')).slice(0,6)
   const cG = {}
   goles.forEach(g => { if (g.jugador) cG[g.jugador] = (cG[g.jugador]||0)+1 })
   const goleadores = Object.entries(cG).sort((a,b)=>b[1]-a[1]).slice(0,3)
   const cA = {}
   asistencias.forEach(g => { if (g.jugador) cA[g.jugador] = (cA[g.jugador]||0)+1 })
   const asistidores = Object.entries(cA).sort((a,b)=>b[1]-a[1])
-  return { ev, goles, golesRival, amar, rojas, cambios, tiros, corners, asistencias, momentos, goleadores, asistidores }
+  return { ev, goles, golesRival, amar, amarRival, rojas, rojasRival, cambios, cambiosRival, tiros, tirosRival, corners, cornersRival, asistencias, momentos, goleadores, asistidores }
 }
 function evIcon(tipo) {
   const t = (tipo||'').toLowerCase()
@@ -104,19 +118,23 @@ const IcoWarn = () => (
 )
 
 /* ── PlayerCard premium ── */
-function PlayerCard({ tipo, col, nom, rate, stat, sub }) {
+function PlayerCard({ tipo, col, nom, rate, stat, sub, foto_url }) {
   const initials = nom ? nom.split(' ').map(x=>x[0]).join('').slice(0,2).toUpperCase() : '—'
   return (
     <div className="flex flex-col items-center text-center p-5">
       <div style={{fontSize:8,fontWeight:900,letterSpacing:'2px',textTransform:'uppercase',color:col,marginBottom:10}}>{tipo}</div>
-      <div className="rounded-full flex items-center justify-center font-black mb-3"
+      <div className="rounded-full flex items-center justify-center font-black mb-3 overflow-hidden"
         style={{
           width:54,height:54,
-          background:`linear-gradient(135deg, ${col}33, ${col}11)`,
+          background: foto_url ? 'transparent' : `linear-gradient(135deg, ${col}33, ${col}11)`,
           border:`2px solid ${col}55`,
           color:col,fontSize:17,
           boxShadow:`0 0 16px ${col}30`
-        }}>{initials}</div>
+        }}>
+        {foto_url
+          ? <img src={foto_url} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}} />
+          : initials}
+      </div>
       <div style={{fontSize:30,fontWeight:900,color:col,lineHeight:1,textShadow:`0 0 20px ${col}60`}}>
         {rate>0?rate.toFixed(1):'—'}
       </div>
@@ -157,7 +175,283 @@ function StatRow({ label, left, right, isGoal, isWarn, maxVal=10 }) {
   )
 }
 
+/* ── helpers tooltip recharts ── */
+const TTip = ({ active, payload, label }) => {
+  if (!active || !payload?.length) return null
+  return (
+    <div style={{background:'#18181b',border:'1px solid #27272a',borderRadius:8,padding:'6px 10px',fontSize:11}}>
+      {label && <div style={{color:'#71717a',marginBottom:3}}>{label}</div>}
+      {payload.map((p,i) => (
+        <div key={i} style={{color:p.color,fontWeight:700}}>{p.name}: {p.value}</div>
+      ))}
+    </div>
+  )
+}
+
+/* ── Tab Análisis IA completo ── */
+function TabIA({ partidos, sel, entrenos, liga, rl, positivos, amejorar, d, navigate }) {
+
+  /* ── 1. Evolución mes a mes ── */
+  const evolucion = useMemo(() => {
+    const meses = {}
+    ;[...partidos].reverse().forEach(p => {
+      if (!p.fecha) return
+      const mes = p.fecha.slice(0,7) // 'YYYY-MM'
+      if (!meses[mes]) meses[mes] = { mes, pts:0, gf:0, gc:0, pj:0 }
+      meses[mes].pj++
+      meses[mes].gf += p.gf||0
+      meses[mes].gc += p.gc||0
+      meses[mes].pts += p.gf>p.gc?3:p.gf===p.gc?1:0
+    })
+    return Object.values(meses).map(m => ({
+      ...m,
+      label: new Date(m.mes+'-01').toLocaleDateString('es-ES',{month:'short',year:'2-digit'}),
+    }))
+  }, [partidos])
+
+  /* ── 2. Radar tu equipo vs rival ── */
+  const radarData = useMemo(() => {
+    if (!partidos.length) return []
+    const tot = partidos.length
+    const avgGF = partidos.reduce((a,p)=>a+(p.gf||0),0)/tot
+    const avgGC = partidos.reduce((a,p)=>a+(p.gc||0),0)/tot
+    const winPct = Math.round(partidos.filter(p=>p.gf>p.gc).length/tot*100)
+    const locales = partidos.filter(p=>p.local_visitante==='local')
+    const localW  = locales.length ? Math.round(locales.filter(p=>p.gf>p.gc).length/locales.length*100) : 50
+    const clean   = Math.round(partidos.filter(p=>p.gc===0).length/tot*100)
+
+    // Rival: stats del partido seleccionado invertidas
+    const rivalGF  = sel.gc
+    const rivalGC  = sel.gf
+    const rivalAtt = Math.min(99, Math.round(rivalGF * 18))
+    const rivalDef = Math.max(10, Math.round(100 - rivalGC * 20))
+
+    return [
+      { attr:'Ataque',    nos: Math.min(99,Math.round(avgGF*20)), rival: rivalAtt },
+      { attr:'Defensa',   nos: Math.min(99,Math.round(clean*0.7+30)), rival: rivalDef },
+      { attr:'Local',     nos: localW, rival: 50 },
+      { attr:'Efectividad', nos: winPct, rival: Math.max(10,100-winPct) },
+      { attr:'Goles/PJ',  nos: Math.min(99,Math.round(avgGF*18)), rival: Math.min(99,Math.round(avgGC*14)) },
+    ]
+  }, [partidos, sel])
+
+  /* ── 3. Correlación entreno → resultado ── */
+  const correlacion = useMemo(() => {
+    if (!partidos.length) return []
+    return [...partidos].reverse().slice(0,8).map((p,i) => {
+      const fechaPart = p.fecha ? new Date(p.fecha) : null
+      const tuvoEntreno = fechaPart ? entrenos.some(e => {
+        if (!e.fecha) return false
+        const fe = new Date(e.fecha)
+        const diff = (fechaPart - fe) / (1000*60*60*24)
+        return diff >= 0 && diff <= 7
+      }) : false
+      return {
+        label: `P${i+1}`,
+        rival: p.rival||'—',
+        gf: p.gf||0,
+        gc: p.gc||0,
+        pts: p.gf>p.gc?3:p.gf===p.gc?1:0,
+        entreno: tuvoEntreno ? 1 : 0,
+        color: p.gf>p.gc?'#34d399':p.gf===p.gc?'#f59e0b':'#f87171',
+      }
+    })
+  }, [partidos, entrenos])
+
+  /* ── 4. Predicción próximo partido ── */
+  const prediccion = useMemo(() => {
+    const u5 = partidos.slice(0,5)
+    if (!u5.length) return null
+    const forma = u5.filter(p=>p.gf>p.gc).length / u5.length
+    const avgGC = u5.reduce((a,p)=>a+(p.gc||0),0)/u5.length
+    const defensa = Math.max(0, 1 - avgGC/3)
+    const base = Math.round((forma*0.6 + defensa*0.4) * 100)
+    const proximo = liga?.proximas_fechas?.[0]
+    return {
+      rival: proximo ? (proximo.local || proximo.visitante || 'Próximo rival') : 'Próximo rival',
+      fecha: proximo?.fecha || null,
+      escenario_opt:  Math.min(99, base + 12),
+      escenario_norm: Math.min(95, base),
+      escenario_pes:  Math.max(10, base - 18),
+    }
+  }, [partidos, liga])
+
+  /* ── 5. Recomendación estratégica ── */
+  const recomendacion = useMemo(() => {
+    if (!partidos.length) return null
+    const u5 = partidos.slice(0,5)
+    const avgGC = u5.reduce((a,p)=>a+(p.gc||0),0)/Math.max(u5.length,1)
+    const avgGF = u5.reduce((a,p)=>a+(p.gf||0),0)/Math.max(u5.length,1)
+    const derrotas = u5.filter(p=>p.gc>p.gf).length
+    if (avgGC >= 2)    return { foco:'Defensa', desc:'Encajáis más de 2 goles por partido. Sesión de bloque defensivo y coberturas.', impacto:'+10% en solidez defensiva', col:'#60a5fa' }
+    if (avgGF < 1)     return { foco:'Finalización', desc:'Menos de 1 gol por partido. Trabajar definición y creación de ocasiones.', impacto:'+8% en efectividad ofensiva', col:'#f59e0b' }
+    if (derrotas >= 3) return { foco:'Trabajo conjunto', desc:'3+ derrotas en los últimos 5 partidos. Partido de entrenamiento interno para recuperar confianza.', impacto:'+15% en confianza grupal', col:'#a78bfa' }
+    return { foco:'Mantener nivel', desc:'Buenos resultados recientes. Sesión de mantenimiento con posesión y partido condicionado.', impacto:'Consolidar la racha positiva', col:'#34d399' }
+  }, [partidos])
+
+  const chartOpts = { style:{background:'transparent'} }
+
+  return (
+    <div className="space-y-4">
+      {/* Texto análisis */}
+      <div className="inf-box p-4">
+        <SecH col="#a78bfa">Resumen del partido</SecH>
+        <div style={{fontSize:12,color:'#71717a',lineHeight:1.7}}>
+          <p>Resultado: <b style={{color:rl.c}}>{sel.gf}-{sel.gc} ({rl.l.toLowerCase()})</b> vs <b style={{color:'#fff'}}>{sel.rival||'el rival'}</b> · {sel.local_visitante||'local'}.</p>
+          {d.goleadores.length>0&&<p style={{marginTop:6}}>Goleadores: {d.goleadores.map(([n,c])=>`${n} (${c})`).join(', ')}.</p>}
+          <div className="flex gap-4 mt-3 flex-wrap">
+            {positivos.slice(0,2).map((p,i)=>(
+              <div key={i} style={{fontSize:11,color:'#34d399'}}>✓ {p.t}</div>
+            ))}
+            {amejorar.filter(a=>a.t!=='Sin alertas').slice(0,2).map((p,i)=>(
+              <div key={i} style={{fontSize:11,color:'#f87171'}}>⚠ {p.t}</div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Grid 2 cols */}
+      <div className="grid gap-4" style={{gridTemplateColumns:'repeat(auto-fit,minmax(280px,1fr))'}}>
+
+        {/* ── Evolución mes a mes ── */}
+        <div className="inf-box p-4">
+          <SecH col="#2dd4bf">Evolución mes a mes</SecH>
+          {evolucion.length < 2
+            ? <p style={{fontSize:11,color:'#52525b'}}>Necesitas partidos de al menos 2 meses distintos.</p>
+            : <ResponsiveContainer width="100%" height={180}>
+                <LineChart data={evolucion} {...chartOpts}>
+                  <XAxis dataKey="label" tick={{fill:'#52525b',fontSize:10}} axisLine={false} tickLine={false}/>
+                  <YAxis tick={{fill:'#52525b',fontSize:10}} axisLine={false} tickLine={false}/>
+                  <Tooltip content={<TTip/>}/>
+                  <Legend wrapperStyle={{fontSize:10,color:'#71717a'}}/>
+                  <Line type="monotone" dataKey="pts" name="Puntos" stroke="#2dd4bf" strokeWidth={2} dot={{r:4,fill:'#2dd4bf'}}/>
+                  <Line type="monotone" dataKey="gf" name="Goles F" stroke="#34d399" strokeWidth={1.5} strokeDasharray="4 2" dot={false}/>
+                  <Line type="monotone" dataKey="gc" name="Goles C" stroke="#f87171" strokeWidth={1.5} strokeDasharray="4 2" dot={false}/>
+                </LineChart>
+              </ResponsiveContainer>
+          }
+        </div>
+
+        {/* ── Radar tu equipo vs rival ── */}
+        <div className="inf-box p-4">
+          <SecH col="#60a5fa">Tu equipo vs {sel.rival||'Rival'}</SecH>
+          {radarData.length < 2
+            ? <p style={{fontSize:11,color:'#52525b'}}>Sin datos suficientes.</p>
+            : <ResponsiveContainer width="100%" height={180}>
+                <RadarChart data={radarData} {...chartOpts}>
+                  <PolarGrid stroke="#27272a"/>
+                  <PolarAngleAxis dataKey="attr" tick={{fill:'#71717a',fontSize:9}}/>
+                  <Radar name="Nosotros" dataKey="nos" stroke="#2dd4bf" fill="#2dd4bf" fillOpacity={0.15} strokeWidth={2}/>
+                  <Radar name={sel.rival||'Rival'} dataKey="rival" stroke="#f87171" fill="#f87171" fillOpacity={0.1} strokeWidth={1.5}/>
+                  <Legend wrapperStyle={{fontSize:10,color:'#71717a'}}/>
+                  <Tooltip content={<TTip/>}/>
+                </RadarChart>
+              </ResponsiveContainer>
+          }
+        </div>
+
+        {/* ── Correlación entreno → resultado ── */}
+        <div className="inf-box p-4">
+          <SecH col="#f59e0b">Puntos por partido</SecH>
+          {correlacion.length === 0
+            ? <p style={{fontSize:11,color:'#52525b'}}>Sin partidos aún.</p>
+            : <>
+              <ResponsiveContainer width="100%" height={160}>
+                <BarChart data={correlacion} {...chartOpts} barSize={18}>
+                  <XAxis dataKey="label" tick={{fill:'#52525b',fontSize:10}} axisLine={false} tickLine={false}/>
+                  <YAxis domain={[0,3]} ticks={[0,1,2,3]} tick={{fill:'#52525b',fontSize:10}} axisLine={false} tickLine={false}/>
+                  <Tooltip content={({ active, payload }) => {
+                    if (!active||!payload?.length) return null
+                    const d = payload[0]?.payload
+                    return (
+                      <div style={{background:'#18181b',border:'1px solid #27272a',borderRadius:8,padding:'6px 10px',fontSize:11}}>
+                        <div style={{color:'#fff',fontWeight:700}}>{d.rival}</div>
+                        <div style={{color:'#71717a'}}>{d.gf}-{d.gc} · {d.pts} pts</div>
+                        {d.entreno ? <div style={{color:'#34d399',fontSize:10}}>✓ Entrenó esa semana</div> : <div style={{color:'#52525b',fontSize:10}}>Sin entreno previo</div>}
+                      </div>
+                    )
+                  }}/>
+                  <Bar dataKey="pts" name="Puntos" radius={[4,4,0,0]}>
+                    {correlacion.map((e,i)=>(
+                      <Cell key={i} fill={e.color}/>
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+              <div className="flex gap-3 mt-2 flex-wrap">
+                {[['#34d399','Victoria (3 pts)'],['#f59e0b','Empate (1 pt)'],['#f87171','Derrota (0 pts)']].map(([c,l])=>(
+                  <div key={l} className="flex items-center gap-1.5" style={{fontSize:10,color:'#71717a'}}>
+                    <span style={{width:8,height:8,borderRadius:2,background:c,display:'inline-block'}}/>
+                    {l}
+                  </div>
+                ))}
+              </div>
+            </>
+          }
+        </div>
+
+        {/* ── Predicción próximo partido ── */}
+        <div className="inf-box p-4">
+          <SecH col="#a78bfa">Predicción IA — Próximo partido</SecH>
+          {!prediccion
+            ? <p style={{fontSize:11,color:'#52525b'}}>Juega más partidos para generar predicciones.</p>
+            : <>
+              {prediccion.rival && (
+                <div style={{fontSize:11,color:'#52525b',marginBottom:12}}>
+                  {prediccion.rival}{prediccion.fecha ? ` · ${prediccion.fecha}` : ''}
+                </div>
+              )}
+              <div className="grid gap-2" style={{gridTemplateColumns:'repeat(3,1fr)'}}>
+                {[
+                  {label:'Óptimo', val:prediccion.escenario_opt, sub:'Con buen entreno previo', col:'#34d399'},
+                  {label:'Normal', val:prediccion.escenario_norm, sub:'Nivel actual', col:'#2dd4bf'},
+                  {label:'Pesimista', val:prediccion.escenario_pes, sub:'Sin preparación', col:'#f87171'},
+                ].map(sc=>(
+                  <div key={sc.label} style={{borderRadius:10,padding:'10px 8px',textAlign:'center',background:`${sc.col}08`,border:`1px solid ${sc.col}25`}}>
+                    <div style={{fontSize:9,fontWeight:900,letterSpacing:'1px',textTransform:'uppercase',color:sc.col,marginBottom:4}}>{sc.label}</div>
+                    <div style={{fontSize:26,fontWeight:900,color:sc.col,lineHeight:1}}>{sc.val}%</div>
+                    <div style={{fontSize:9,color:'#52525b',marginTop:4}}>Victoria</div>
+                    <div style={{fontSize:8,color:'#52525b',marginTop:3}}>{sc.sub}</div>
+                  </div>
+                ))}
+              </div>
+            </>
+          }
+        </div>
+      </div>
+
+      {/* ── Recomendación estratégica ── */}
+      {recomendacion && (
+        <div className="inf-box p-4" style={{borderColor:`${recomendacion.col}30`,borderLeftWidth:3,borderLeftColor:recomendacion.col}}>
+          <SecH col={recomendacion.col}>Recomendación estratégica</SecH>
+          <div style={{fontWeight:800,fontSize:14,color:'#fff',marginBottom:6}}>
+            ⚡ Sesión enfocada: {recomendacion.foco}
+          </div>
+          <div style={{fontSize:11,color:'#71717a',lineHeight:1.6,marginBottom:12}}>{recomendacion.desc}</div>
+          <div style={{fontSize:11,color:recomendacion.col,fontWeight:700,marginBottom:14}}>
+            Impacto esperado: {recomendacion.impacto}
+          </div>
+          <button
+            onClick={() => {
+              const msg = `Crea una sesión de entrenamiento con foco en ${recomendacion.foco}. ${recomendacion.desc} Duración: 90 minutos.`
+              navigate('/asistente', { state: { prompt: msg } })
+            }}
+            className="w-full rounded-xl py-2.5 text-[12px] font-black tracking-wide text-white border-0 cursor-pointer"
+            style={{background:`linear-gradient(135deg, ${recomendacion.col}cc, ${recomendacion.col}88)`}}>
+            ⚡ CREAR SESIÓN CON ASISTENTE IA
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function Informes() {
+  const navigate = useNavigate()
+  const { equipoActivo } = useEquipo()
+  const eid = equipoActivo?.id
+  const pdfRef = useRef(null)
+  const [exportando, setExportando] = useState(false)
   const [partidos,setPartidos] = useState([])
   const [cargando,setCargando] = useState(true)
   const [error,setError]       = useState('')
@@ -165,16 +459,55 @@ export default function Informes() {
   const [tab,setTab]           = useState('informe')
   const [perfil,setPerfil]     = useState(null)
   const [borrando,setBorrando] = useState(false)
+  const [jugadores,setJugadores] = useState([])
+  const [entrenos,setEntrenos]   = useState([])
+  const [liga,setLiga]           = useState(null)
 
   useEffect(()=>{
     ;(async()=>{
       try {
-        const [ps,p] = await Promise.all([listarPartidos(), getPerfil().catch(()=>null)])
-        setPartidos(ps); setPerfil(p)
+        const [ps,p,js,es,comp] = await Promise.all([
+          listarPartidos(eid), getPerfil().catch(()=>null), listarJugadores(eid).catch(()=>[]),
+          listarEntrenos(eid).catch(()=>[]), getCompeticion(eid).catch(()=>null)
+        ])
+        setPartidos(ps); setPerfil(p); setJugadores(js); setEntrenos(es)
+        const clubNom = equipoActivo?.nombre || p?.club_nombre || ''
+        setLiga(resolverLiga(comp, { nuestrosPartidos: ps, clubNombre: clubNom }))
         if (ps.length) setSelId(ps[0].id)
       } catch(e){ setError(e.message) } finally { setCargando(false) }
     })()
-  },[])
+  },[eid])
+
+  async function exportarPDF() {
+    if (!pdfRef.current) return
+    setExportando(true)
+    try {
+      const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
+        import('html2canvas'),
+        import('jspdf'),
+      ])
+      const canvas = await html2canvas(pdfRef.current, {
+        backgroundColor: '#0f0f11',
+        scale: 2,
+        useCORS: true,
+        logging: false,
+      })
+      const imgData = canvas.toDataURL('image/png')
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+      const pdfW = pdf.internal.pageSize.getWidth()
+      const pdfH = (canvas.height * pdfW) / canvas.width
+      const pageH = pdf.internal.pageSize.getHeight()
+      let y = 0
+      while (y < pdfH) {
+        if (y > 0) pdf.addPage()
+        pdf.addImage(imgData, 'PNG', 0, -y, pdfW, pdfH)
+        y += pageH
+      }
+      const nombre = `informe_${(sel.rival||'partido').replace(/\s+/g,'_')}_${sel.fecha||'hoy'}.pdf`
+      pdf.save(nombre)
+    } catch(e) { alert('Error al generar PDF: ' + e.message) }
+    finally { setExportando(false) }
+  }
 
   async function eliminar() {
     if (!sel||!confirm(`¿Borrar vs ${sel.rival||'Rival'} (${sel.gf}-${sel.gc})?`)) return
@@ -213,23 +546,35 @@ export default function Informes() {
   if (!positivos.length)   positivos.push({t:'Partido completado', d:'Registra eventos en En Vivo para análisis detallado.'})
 
   if (sel.gc>0)            amejorar.push({t:`${sel.gc} gol${sel.gc>1?'es':''} encajado${sel.gc>1?'s':''}`, d:'Revisar situaciones defensivas que derivaron en gol.'})
-  if (d.rojas.length)      amejorar.push({t:'Tarjeta roja', d:`${d.rojas.length} expulsión${d.rojas.length>1?'es':''}. Inferioridad numérica.`})
-  if (d.amar.length>=2)    amejorar.push({t:'Disciplina', d:`${d.amar.length} amarillas. Riesgo de sanciones.`})
+  if (d.rojas.length)      amejorar.push({t:'Tarjeta roja', d:`${d.rojas.length} expulsión${d.rojas.length>1?'es':''} nuestra${d.rojas.length>1?'s':''}. Inferioridad numérica.`})
+  if (d.amar.length>=2)    amejorar.push({t:'Disciplina', d:`${d.amar.length} amarillas nuestras. Riesgo de sanciones.`})
   if (sel.gf===0)          amejorar.push({t:'Sin goles marcados', d:'Faltó contundencia. Trabajar definición.'})
   if (!amejorar.length)    amejorar.push({t:'Sin alertas', d:'Partido sin incidencias disciplinarias ni goles en contra.'})
 
+  const fotoDeNom = (nom) => jugadores.find(j => j.nombre === nom)?.foto_url || null
+  // Valoraciones del entrenador para este partido
+  const vals = sel?.valoraciones || {}
+  const valsEntries = Object.entries(vals).filter(([,n]) => n != null)
+  const mejorVal = valsEntries.length ? valsEntries.reduce((a,b) => b[1]>a[1]?b:a) : null
+  const peorVal  = valsEntries.length ? valsEntries.reduce((a,b) => b[1]<a[1]?b:a) : null
+  const jugPorId = Object.fromEntries(jugadores.map(j => [j.id, j]))
+
   const jugCards = [
-    d.goleadores[0]
-      ? {tipo:'MEJOR RENDIMIENTO',col:'#34d399',nom:d.goleadores[0][0],rate:Math.min(9.9,7.5+d.goleadores[0][1]*0.5),stat:d.goleadores[0][1],sub:'goles'}
-      : {tipo:'MEJOR RENDIMIENTO',col:'#34d399',nom:null,rate:0,stat:'—',sub:'sin datos'},
+    mejorVal
+      ? {tipo:'MEJOR VALORADO',col:'#34d399',nom:jugPorId[mejorVal[0]]?.nombre||d.goleadores[0]?.[0]||'—',rate:mejorVal[1],stat:mejorVal[1],sub:'nota entrenador',foto_url:jugPorId[mejorVal[0]]?.foto_url||fotoDeNom(d.goleadores[0]?.[0])}
+      : d.goleadores[0]
+        ? {tipo:'MEJOR RENDIMIENTO',col:'#34d399',nom:d.goleadores[0][0],rate:Math.min(9.9,7.5+d.goleadores[0][1]*0.5),stat:d.goleadores[0][1],sub:'goles',foto_url:fotoDeNom(d.goleadores[0][0])}
+        : {tipo:'MEJOR RENDIMIENTO',col:'#34d399',nom:null,rate:0,stat:'—',sub:'sin datos'},
     d.asistidores[0]
-      ? {tipo:'A DESTACAR',col:'#60a5fa',nom:d.asistidores[0][0],rate:7.6,stat:d.asistidores[0][1],sub:'asist.'}
+      ? {tipo:'A DESTACAR',col:'#60a5fa',nom:d.asistidores[0][0],rate:7.6,stat:d.asistidores[0][1],sub:'asist.',foto_url:fotoDeNom(d.asistidores[0][0])}
       : {tipo:'A DESTACAR',col:'#60a5fa',nom:null,rate:0,stat:'—',sub:'sin datos'},
-    d.rojas[0]
-      ? {tipo:'A MEJORAR',col:'#f87171',nom:d.rojas[0].jugador||'—',rate:4.2,stat:'🟥',sub:'expulsado'}
-      : d.amar.length>=2
-        ? {tipo:'A MEJORAR',col:'#f59e0b',nom:d.amar[0]?.jugador||'—',rate:5.5,stat:d.amar.length,sub:'amarillas'}
-        : {tipo:'A MEJORAR',col:'#f87171',nom:null,rate:0,stat:'—',sub:'sin datos'},
+    peorVal && peorVal[1] <= 5
+      ? {tipo:'A MEJORAR',col:'#f87171',nom:jugPorId[peorVal[0]]?.nombre||'—',rate:peorVal[1],stat:peorVal[1],sub:'nota entrenador',foto_url:jugPorId[peorVal[0]]?.foto_url}
+      : d.rojas[0]
+        ? {tipo:'A MEJORAR',col:'#f87171',nom:d.rojas[0].jugador||'—',rate:4.2,stat:'🟥',sub:'expulsado (nuestro)',foto_url:fotoDeNom(d.rojas[0].jugador)}
+        : d.amar.length>=2
+          ? {tipo:'A MEJORAR',col:'#f59e0b',nom:d.amar[0]?.jugador||'—',rate:5.5,stat:d.amar.length,sub:'amarillas (nuestras)',foto_url:fotoDeNom(d.amar[0]?.jugador)}
+          : {tipo:'A MEJORAR',col:'#f87171',nom:null,rate:0,stat:'—',sub:'sin datos'},
   ]
 
   return (
@@ -254,17 +599,20 @@ export default function Informes() {
         </select>
       </div>
 
+      {/* ── Contenido exportable ── */}
+      <div ref={pdfRef}>
+
       {/* ── Scoreboard premium ── */}
       <div className="inf-scoreboard-wrap">
         <div className="inf-scoreboard-bar" style={{background:`linear-gradient(90deg, ${rl.c}80, ${rl.c}20, transparent)`}}/>
         <div className="inf-scoreboard-inner">
           {/* Equipo local */}
           <div className="flex items-center gap-3 flex-1 min-w-0">
-            {perfil?.escudo_url
-              ? <img src={perfil.escudo_url} alt="" className="rounded-xl flex-shrink-0" style={{width:44,height:44,objectFit:'cover'}}/>
+            {(equipoActivo?.escudo_url || perfil?.escudo_url)
+              ? <img src={equipoActivo?.escudo_url || perfil?.escudo_url} alt="" className="rounded-xl flex-shrink-0" style={{width:44,height:44,objectFit:'cover'}}/>
               : <div className="rounded-xl flex-shrink-0 flex items-center justify-center text-xl" style={{width:44,height:44,background:'rgba(45,212,191,0.12)',border:'1px solid rgba(45,212,191,0.2)'}}>🛡️</div>}
             <div>
-              <div style={{fontSize:16,fontWeight:800,color:'#fff',letterSpacing:'-.2px'}}>{perfil?.club_nombre||'Nuestro equipo'}</div>
+              <div style={{fontSize:16,fontWeight:800,color:'#fff',letterSpacing:'-.2px'}}>{equipoActivo?.nombre||perfil?.club_nombre||'Nuestro equipo'}</div>
               <div style={{fontSize:10,color:'#52525b'}}>{sel.formacion||sel.local_visitante||'local'}</div>
             </div>
           </div>
@@ -287,6 +635,11 @@ export default function Informes() {
               <div style={{fontSize:10,color:'#52525b'}}>{sel.local_visitante==='local'?'visitante':'local'}</div>
             </div>
           </div>
+          <button onClick={exportarPDF} disabled={exportando}
+            className="text-[11px] px-3 py-1.5 rounded-lg border transition flex-shrink-0 font-bold"
+            style={{borderColor:'rgba(45,212,191,0.3)',color:'#2dd4bf',background:'rgba(45,212,191,0.07)'}}>
+            {exportando ? '⏳' : '📄 PDF'}
+          </button>
           <button onClick={eliminar} disabled={borrando}
             className="text-[11px] px-3 py-1.5 rounded-lg border transition flex-shrink-0"
             style={{borderColor:'rgba(239,68,68,0.25)',color:'#f87171',background:'transparent'}}>
@@ -340,12 +693,12 @@ export default function Informes() {
               <span style={{fontSize:9,fontWeight:900,color:'#f87171',textAlign:'right'}}>ELLOS</span>
             </div>
             {[
-              [sel.gf,          'Goles',      sel.gc,  true,  false],
-              [d.tiros.length,  'Tiros',      '—',     false, false],
-              [d.amar.length,   'Amarillas',  '—',     false, true],
-              [d.rojas.length,  'Rojas',      '—',     false, true],
-              [d.cambios.length,'Cambios',    '—',     false, false],
-              [d.corners.length,'Córners',    '—',     false, false],
+              [sel.gf,            'Goles',      sel.gc,               true,  false],
+              [d.tiros.length,    'Tiros',      d.tirosRival.length,  false, false],
+              [d.amar.length,     'Amarillas',  d.amarRival.length,   false, true],
+              [d.rojas.length,    'Rojas',      d.rojasRival.length,  false, true],
+              [d.cambios.length,  'Cambios',    d.cambiosRival.length,false, false],
+              [d.corners.length,  'Córners',    d.cornersRival.length,false, false],
             ].map(([l,c,r,isG,isW],i)=>(
               <StatRow key={i} label={c} left={l} right={r} isGoal={isG} isWarn={isW}
                 maxVal={Math.max(typeof l==='number'?l:0,typeof r==='number'?r:0,1)}/>
@@ -504,6 +857,14 @@ export default function Informes() {
               ))}
             </div>
             <button className="mt-auto w-full rounded-xl py-2.5 text-[12px] font-black tracking-wide text-white border-0 cursor-pointer"
+              onClick={() => {
+                const objetivo = rl.l==='VICTORIA' ? 'consolidar lo que funcionó, mantener intensidad y dinámica de grupo'
+                  : rl.l==='DERROTA' ? `reforzar coberturas defensivas y revisar los ${sel.gc} goles concedidos`
+                  : 'mejorar la definición y la gestión del tiempo en los últimos minutos'
+                const debilidades = amejorar.filter(a=>a.t!=='Sin alertas').map(a=>a.t).join(', ') || 'sin alertas destacadas'
+                const msg = `Crea una sesión de entrenamiento ${rl.l==='VICTORIA'?'de consolidación':rl.l==='DERROTA'?'correctiva':'de mejora'} tras el partido ${sel.gf}-${sel.gc} (${rl.l.toLowerCase()}) vs ${sel.rival||'el rival'}. Objetivo: ${objetivo}. Puntos a trabajar: ${debilidades}. Incluye calentamiento, ejercicios específicos y estiramientos. Duración total: 90 minutos.`
+                navigate('/asistente', { state: { prompt: msg } })
+              }}
               style={{
                 background:rl.l==='VICTORIA'
                   ?'linear-gradient(135deg,#16a34a,#059669)'
@@ -514,7 +875,7 @@ export default function Informes() {
                   :rl.l==='DERROTA'?'0 4px 16px rgba(220,38,38,0.35)'
                   :'0 4px 16px rgba(217,119,6,0.35)'
               }}>
-              ⚡ CREAR SESIÓN CORRECTIVA CON IA
+              ⚡ CREAR SESIÓN CORRECTIVA CON ASISTENTE
             </button>
           </div>
         </div>
@@ -522,40 +883,58 @@ export default function Informes() {
 
       {/* ══ DATOS ══ */}
       {tab==='datos' && (
-        <div className="inf-box p-4" style={{maxWidth:540}}>
-          <SecH col="#60a5fa">Timeline de eventos · {d.ev.length} registros</SecH>
-          {d.ev.length===0
-            ? <p style={{fontSize:12,color:'#52525b',textAlign:'center',padding:'24px 0'}}>Sin eventos. Registra jugadas en En Vivo.</p>
-            : <div className="overflow-y-auto" style={{maxHeight:520}}>
-              {d.ev.map((e,i)=>{
-                const {ico,col}=evIcon(e.tipo)
-                return (
-                  <div key={i} className="flex items-center gap-2.5 py-2 border-t border-borde" style={{fontSize:12}}>
-                    <span style={{fontSize:10,color:'#52525b',fontWeight:700,minWidth:28}}>{e.min||'?'}'</span>
-                    <span style={{display:'inline-flex',alignItems:'center',justifyContent:'center',
-                      width:22,height:22,borderRadius:6,background:`${col}20`,fontSize:12}}>{ico}</span>
-                    <span style={{fontWeight:600,color:col,flex:1}}>{e.label||e.tipo}{e.jugador?` · ${e.jugador}`:''}</span>
-                  </div>
-                )
-              })}
-            </div>}
+        <div className="space-y-4" style={{maxWidth:540}}>
+          {/* Valoraciones del entrenador */}
+          {valsEntries.length > 0 && (
+            <div className="inf-box p-4">
+              <SecH col="#f59e0b">⭐ Valoraciones del entrenador</SecH>
+              <div className="space-y-1.5">
+                {[...valsEntries]
+                  .sort((a,b) => b[1]-a[1])
+                  .map(([id, nota]) => {
+                    const jug = jugPorId[id]
+                    const col = nota >= 8 ? '#34d399' : nota >= 6 ? '#f59e0b' : '#f87171'
+                    return (
+                      <div key={id} className="flex items-center gap-3 py-1.5 border-t border-borde">
+                        <span style={{fontSize:11,color:'#52525b',minWidth:28}}>#{jug?.dorsal||'—'}</span>
+                        <span style={{flex:1,fontSize:12,fontWeight:600}}>{jug?.nombre||id}</span>
+                        <div style={{width:80,height:4,background:'#27272a',borderRadius:2,overflow:'hidden'}}>
+                          <div style={{width:`${nota*10}%`,height:'100%',background:col,borderRadius:2}}/>
+                        </div>
+                        <span style={{fontSize:14,fontWeight:900,color:col,minWidth:24,textAlign:'right'}}>{nota}</span>
+                      </div>
+                    )
+                  })}
+              </div>
+            </div>
+          )}
+
+          {/* Timeline */}
+          <div className="inf-box p-4">
+            <SecH col="#60a5fa">Timeline de eventos · {d.ev.length} registros</SecH>
+            {d.ev.length===0
+              ? <p style={{fontSize:12,color:'#52525b',textAlign:'center',padding:'24px 0'}}>Sin eventos. Registra jugadas en En Vivo.</p>
+              : <div className="overflow-y-auto" style={{maxHeight:520}}>
+                {d.ev.map((e,i)=>{
+                  const {ico,col}=evIcon(e.tipo)
+                  return (
+                    <div key={i} className="flex items-center gap-2.5 py-2 border-t border-borde" style={{fontSize:12}}>
+                      <span style={{fontSize:10,color:'#52525b',fontWeight:700,minWidth:28}}>{e.min||'?'}'</span>
+                      <span style={{display:'inline-flex',alignItems:'center',justifyContent:'center',
+                        width:22,height:22,borderRadius:6,background:`${col}20`,fontSize:12}}>{ico}</span>
+                      <span style={{fontWeight:600,color:col,flex:1}}>{e.label||e.tipo}{e.jugador?` · ${e.jugador}`:''}</span>
+                    </div>
+                  )
+                })}
+              </div>}
+          </div>
         </div>
       )}
 
       {/* ══ IA ══ */}
-      {tab==='ia' && (
-        <div className="inf-box p-4" style={{maxWidth:600}}>
-          <SecH col="#a78bfa">Análisis completo IA</SecH>
-          <div style={{fontSize:12,color:'#71717a',lineHeight:1.7}}>
-            <p>Resultado: <b style={{color:rl.c}}>{sel.gf}-{sel.gc} ({rl.l.toLowerCase()})</b> vs <b style={{color:'#fff'}}>{sel.rival||'el rival'}</b> · {sel.local_visitante||'local'}.</p>
-            {d.goleadores.length>0&&<p style={{marginTop:8}}>Goleadores: {d.goleadores.map(([n,c])=>`${n} (${c})`).join(', ')}.</p>}
-            <div style={{marginTop:16,paddingTop:12,borderTop:'1px solid #2e2e38',fontSize:9,fontWeight:900,letterSpacing:'1px',color:'#34d399'}}>✓ LO POSITIVO</div>
-            {positivos.map((p,i)=><p key={i} style={{marginTop:6}}><b style={{color:'#fff'}}>{p.t}.</b> {p.d}</p>)}
-            <div style={{marginTop:16,paddingTop:12,borderTop:'1px solid #2e2e38',fontSize:9,fontWeight:900,letterSpacing:'1px',color:'#f87171'}}>⚠ A MEJORAR</div>
-            {amejorar.map((p,i)=><p key={i} style={{marginTop:6}}><b style={{color:'#fff'}}>{p.t}.</b> {p.d}</p>)}
-          </div>
-        </div>
-      )}
+      {tab==='ia' && <TabIA partidos={partidos} sel={sel} entrenos={entrenos} liga={liga} rl={rl} positivos={positivos} amejorar={amejorar} d={d} navigate={navigate} />}
+
+      </div>{/* fin pdfRef */}
     </div>
   )
 }

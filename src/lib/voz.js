@@ -34,22 +34,27 @@ export function clasificarVoz(texto, titulares = [], clubNombre = '', rivalNombr
 
   let tipo = null
   if (/\bgol|golazo|anoto|marco\b/.test(t) && !/sin gol|casi/.test(t)) tipo = contra ? 'gol-rival' : 'gol'
-  else if (/roja|expuls/.test(t)) tipo = 'roja'
-  else if (/amarilla|amonest/.test(t)) tipo = 'amarilla'
+  else if (/roja|expuls/.test(t)) tipo = contra ? 'roja-rival' : 'roja'
+  else if (/amarilla|amonest/.test(t)) tipo = contra ? 'amarilla-rival' : 'amarilla'
   else if (/asistenci|asist/.test(t)) tipo = 'asistencia'
-  else if (/corner|esquina/.test(t)) tipo = 'corner'
-  else if (/cambio|sustituc/.test(t)) tipo = 'cambio'
+  else if (/corner|esquina/.test(t)) tipo = contra ? 'corner-rival' : 'corner'
+  else if (/cambio|sustituc/.test(t)) tipo = contra ? 'cambio-rival' : 'cambio'
   else if (/falta.*(a favor|nos han|nos hicieron)/.test(t)) tipo = 'falta-favor'
-  else if (/falta/.test(t)) tipo = 'falta'
-  else if (/tiro|remate|disparo/.test(t)) tipo = 'tiro'
+  else if (/falta/.test(t)) tipo = contra ? 'falta-favor' : 'falta'
+  else if (/tiro|remate|disparo/.test(t)) tipo = contra ? 'tiro-rival' : 'tiro'
 
   if (!tipo) return null
 
-  // jugador por número (dígito o palabra)
-  let jugador = null
   const dorsal = extraerDorsal(t)
+
+  if (contra) {
+    // Acción rival: devolvemos dorsalRival para marcar en el mapa rival
+    return { tipo, jugador: null, dorsalRival: dorsal }
+  }
+
+  // Acción de nuestro equipo: buscar en titulares
+  let jugador = null
   if (dorsal != null) jugador = titulares.find((j) => Number(j.dorsal) === dorsal) || null
-  // jugador por nombre/apellido
   if (!jugador) {
     for (const j of titulares) {
       const partes = norm(j.nombre).split(/\s+/)

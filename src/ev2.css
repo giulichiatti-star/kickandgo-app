@@ -26,6 +26,44 @@
 .ev2-abtn.danger { border-color:#ef4444; background:#ef4444; color:#fff; }
 @keyframes ev2pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
 
+/* ── Botón grabación prominente ───────────────── */
+.ev2-rec-btn {
+  position:relative; display:flex; align-items:center; gap:8px;
+  padding:7px 14px 7px 9px; border-radius:11px;
+  border:1.5px solid rgba(239,68,68,0.35);
+  background:rgba(239,68,68,0.08); color:#fca5a5;
+  font-size:12px; font-weight:800; letter-spacing:.2px;
+  cursor:pointer; transition:all .15s; white-space:nowrap;
+}
+.ev2-rec-btn:hover { border-color:rgba(239,68,68,0.65); background:rgba(239,68,68,0.14); }
+.ev2-rec-btn.on { border-color:#ef4444; background:rgba(239,68,68,0.18); color:#fef2f2; }
+.ev2-rec-ico {
+  width:30px; height:30px; border-radius:50%;
+  background:rgba(239,68,68,0.15); border:1.5px solid rgba(239,68,68,0.45);
+  display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:all .15s;
+}
+.ev2-rec-btn.on .ev2-rec-ico { background:#ef4444; border-color:#ef4444; animation:rec-ring 1.4s ease-in-out infinite; }
+@keyframes rec-ring {
+  0%   { box-shadow:0 0 0 0 rgba(239,68,68,0.7); }
+  60%  { box-shadow:0 0 0 9px rgba(239,68,68,0); }
+  100% { box-shadow:0 0 0 0 rgba(239,68,68,0); }
+}
+.ev2-rec-dot { width:7px; height:7px; border-radius:50%; background:#ef4444; animation:rec-blink 1s step-start infinite; }
+@keyframes rec-blink { 0%,100%{opacity:1} 50%{opacity:0} }
+.ev2-oido { font-size:10px; font-weight:500; font-style:italic; color:#a1a1aa; max-width:90px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+/* Aviso "graba el partido" */
+.ev2-rec-hint {
+  display:flex; align-items:center; gap:8px;
+  padding:8px 14px; margin:8px 12px 0;
+  border-radius:10px; border:1px dashed rgba(239,68,68,0.4);
+  background:rgba(239,68,68,0.05); color:#fca5a5;
+  font-size:11px; font-weight:700; cursor:pointer; transition:all .15s;
+  animation:hint-fade .35s ease;
+}
+.ev2-rec-hint:hover { border-color:rgba(239,68,68,0.7); background:rgba(239,68,68,0.1); }
+@keyframes hint-fade { from{opacity:0;transform:translateY(-5px)} to{opacity:1;transform:translateY(0)} }
+
 /* TABS */
 .ev2-tabbar { display:flex; gap:2px; padding:0 12px; background:#121214; border-bottom:1px solid #27272a; overflow-x:auto; }
 .ev2-tab { font-size:11.5px; font-weight:700; letter-spacing:.4px; padding:12px 14px; color:#a1a1aa; cursor:pointer; border-bottom:2px solid transparent; white-space:nowrap; }

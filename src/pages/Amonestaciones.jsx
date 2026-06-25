@@ -3,11 +3,24 @@ import { listarJugadores } from '../lib/jugadores'
 import { listarTarjetas, crearTarjeta, borrarTarjeta } from '../lib/tarjetas'
 import { listarLesiones, crearLesion, darAlta, borrarLesion } from '../lib/lesiones'
 import { getPerfil } from '../lib/perfil'
+import { useEquipo } from '../contexts/EquipoContext'
 
 const LIMITE = 5
 
 /* ── helpers ── */
 const ini = (nombre = '') => nombre.split(' ').map((p) => p[0]).join('').slice(0, 2).toUpperCase()
+
+function Avatar({ j, size = 36, bg = 'rgba(39,39,42,1)', color = '#d4d4d8', children }) {
+  return (
+    <div className="flex-shrink-0 rounded-full overflow-hidden flex items-center justify-center font-black relative"
+      style={{ width: size, height: size, background: j?.foto_url ? 'transparent' : bg, color, fontSize: size * 0.3 }}>
+      {j?.foto_url
+        ? <img src={j.foto_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        : ini(j?.nombre)}
+      {children}
+    </div>
+  )
+}
 const fmtFecha = (d) => d ? new Date(d).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }) : '—'
 const diasDesde = (d) => d ? Math.floor((Date.now() - new Date(d)) / 86400000) : 0
 const diasHasta = (d) => d ? Math.ceil((new Date(d) - Date.now()) / 86400000) : null
@@ -71,6 +84,8 @@ function sugerenciasLesionesIA(lesiones, jugadores) {
 }
 
 export default function Disciplina() {
+  const { equipoActivo } = useEquipo()
+  const eid = equipoActivo?.id
   const [tab, setTab] = useState('disciplina')
   const [jugadores, setJugadores] = useState([])
   const [tarjetas, setTarjetas] = useState([])
@@ -87,16 +102,15 @@ export default function Disciplina() {
   async function refrescar() {
     setCargando(true)
     try {
-      const p = await getPerfil().catch(() => null)
       const [js, ts, ls] = await Promise.all([
-        listarJugadores(p?.tipo_equipo || '11'),
-        listarTarjetas(),
-        listarLesiones(),
+        listarJugadores(eid),
+        listarTarjetas(eid),
+        listarLesiones(eid),
       ])
       setJugadores(js); setTarjetas(ts); setLesiones(ls)
     } catch (e) { setMsg(e.message) } finally { setCargando(false) }
   }
-  useEffect(() => { refrescar() }, [])
+  useEffect(() => { refrescar() }, [eid])
 
   /* cuentas tarjetas */
   function cuentaT(jid) {
@@ -108,7 +122,7 @@ export default function Disciplina() {
   async function guardarTarjeta() {
     if (!formT.jugador_id) { setMsg('Elige un jugador'); return }
     try {
-      await crearTarjeta({ ...formT, minuto: formT.minuto ? parseInt(formT.minuto) : null })
+      await crearTarjeta({ ...formT, minuto: formT.minuto ? parseInt(formT.minuto) : null }, eid)
       setModalT(false); setFormT({ jugador_id: '', tipo: 'amarilla', minuto: '', motivo: '', fecha: '' })
       setMsg(''); await refrescar()
     } catch (e) { setMsg(e.message) }
@@ -118,7 +132,7 @@ export default function Disciplina() {
     if (!formL.jugador_id) { setMsg('Elige un jugador'); return }
     if (!formL.fecha_inicio) { setMsg('Indica la fecha de inicio'); return }
     try {
-      await crearLesion(formL)
+      await crearLesion(formL, eid)
       setModalL(false); setFormL({ jugador_id: '', tipo: '', zona: '', gravedad: 'leve', fecha_inicio: '', fecha_alta: '', notas: '' })
       setMsg(''); await refrescar()
     } catch (e) { setMsg(e.message) }
@@ -344,9 +358,7 @@ export default function Disciplina() {
                     const alta = l.fecha_alta ? diasHasta(l.fecha_alta) : null
                     return (
                       <div key={l.id} className="flex items-start gap-3 p-3 rounded-xl" style={{ background: 'rgba(239,68,68,0.04)', border: '1px solid rgba(239,68,68,0.12)' }}>
-                        <div className="w-9 h-9 rounded-full flex items-center justify-center text-[11px] font-black flex-shrink-0" style={{ background: `${g.color}22`, color: g.color }}>
-                          {ini(j?.nombre)}
-                        </div>
+                        <Avatar j={j} size={36} bg={`${g.color}22`} color={g.color} />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="text-sm font-bold">{j?.nombre || '—'}</span>
@@ -365,9 +377,9 @@ export default function Disciplina() {
                         </div>
                         <div className="flex flex-col gap-1 flex-shrink-0">
                           <button className="text-[10px] px-2 py-1 rounded bg-verde/10 text-verde border border-verde/20 font-semibold hover:bg-verde/20"
-                            onClick={async () => { await darAlta(l.id); refrescar() }}>Alta</button>
+                            onClick={async () => { await darAlta(l.id, l.jugador_id); refrescar() }}>Alta</button>
                           <button className="text-[10px] text-muted hover:text-rojo"
-                            onClick={async () => { await borrarLesion(l.id); refrescar() }}>✕</button>
+                            onClick={async () => { await borrarLesion(l.id, l.jugador_id); refrescar() }}>✕</button>
                         </div>
                       </div>
                     )
@@ -389,7 +401,7 @@ export default function Disciplina() {
                           <span className="font-semibold flex-1">{j?.nombre || '—'}</span>
                           <span className="text-muted">{l.zona || l.tipo || '—'}</span>
                           <span className="text-muted">{fmtFecha(l.fecha_inicio)} → {fmtFecha(l.fecha_alta)}</span>
-                          <button className="text-muted hover:text-rojo ml-1" onClick={async () => { await borrarLesion(l.id); refrescar() }}>✕</button>
+                          <button className="text-muted hover:text-rojo ml-1" onClick={async () => { await borrarLesion(l.id, l.jugador_id); refrescar() }}>✕</button>
                         </div>
                       )
                     })}
@@ -523,11 +535,14 @@ function JugadorRow({ x, limite, tipo }) {
   const posTag = x.j.posicion?.substring(0, 3).toUpperCase() || '—'
   return (
     <div className="flex items-center gap-3 py-2.5 border-b border-borde last:border-0 flex-wrap">
-      <div className="w-9 h-9 rounded-full flex items-center justify-center text-[10px] font-black flex-shrink-0 relative"
-        style={{ background: tipo === 'sancionado' ? 'rgba(239,68,68,0.1)' : tipo === 'riesgo' ? 'rgba(249,115,22,0.1)' : 'rgba(39,39,42,1)', color: tipo === 'sancionado' ? '#ef4444' : '#d4d4d8' }}>
-        {ini(x.j.nombre)}
+      <Avatar
+        j={x.j}
+        size={36}
+        bg={tipo === 'sancionado' ? 'rgba(239,68,68,0.1)' : tipo === 'riesgo' ? 'rgba(249,115,22,0.1)' : 'rgba(39,39,42,1)'}
+        color={tipo === 'sancionado' ? '#ef4444' : '#d4d4d8'}
+      >
         <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 text-[8px] bg-[#27272a] px-1 rounded font-bold text-muted">{posTag}</span>
-      </div>
+      </Avatar>
       <div className="flex-1 min-w-[100px]">
         <div className="text-sm font-semibold">{x.j.nombre}</div>
         <div className="text-[10px] text-muted">{x.j.posicion} · #{x.j.dorsal}</div>

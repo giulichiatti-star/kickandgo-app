@@ -7,6 +7,7 @@ import { listarPartidos } from '../lib/partidos'
 import { getPerfil } from '../lib/perfil'
 import { listarJugadores } from '../lib/jugadores'
 import { listarLesiones } from '../lib/lesiones'
+import { useEquipo } from '../contexts/EquipoContext'
 import '../ent2.css'
 
 /* ── Helpers ────────────────────────────────────────────── */
@@ -60,6 +61,8 @@ function norm(e) {
 
 /* ── Componente principal ───────────────────────────────── */
 export default function Entrenamientos() {
+  const { equipoActivo } = useEquipo()
+  const eid = equipoActivo?.id
   const [biblioteca, setBiblioteca] = useState([])
   const [entrenos, setEntrenos]     = useState([])
   const [partidos, setPartidos]     = useState([])
@@ -82,9 +85,9 @@ export default function Entrenamientos() {
       const [p, bib, en, ps, js, ls] = await Promise.all([
         getPerfil().catch(() => null),
         listarBiblioteca(),
-        listarEntrenos(),
-        listarPartidos().catch(() => []),
-        listarJugadores().catch(() => []),
+        listarEntrenos(eid),
+        listarPartidos(eid).catch(() => []),
+        listarJugadores(eid).catch(() => []),
         listarLesiones().catch(() => []),
       ])
       setPerfil(p)
@@ -95,7 +98,7 @@ export default function Entrenamientos() {
       setLesiones(ls)
     } catch (e) { setMsg(e.message) } finally { setCargando(false) }
   }
-  useEffect(() => { refrescar() }, [])
+  useEffect(() => { refrescar() }, [eid])
 
   /* Enriquecer ejercicio con descripción de biblioteca si le falta */
   function enriquecer(ej, bib) {
@@ -160,7 +163,7 @@ export default function Entrenamientos() {
   async function guardarDia() {
     if (!ses.ejercicios.length) { setMsg('Añade al menos un ejercicio.'); return }
     try {
-      await guardarEntreno({ id: ses.id, fecha: isoS, objetivo: ses.objetivo, notas: ses.notas, ejercicios: ses.ejercicios, asistencia: ses.asistencia })
+      await guardarEntreno({ id: ses.id, fecha: isoS, objetivo: ses.objetivo, notas: ses.notas, ejercicios: ses.ejercicios, asistencia: ses.asistencia }, eid)
       await refrescar(); setMsg('✅ Guardado.')
     } catch (e) { setMsg('⚠️ ' + e.message) }
   }
@@ -168,7 +171,7 @@ export default function Entrenamientos() {
     try {
       for (const d of isos) {
         const s = dias[d]
-        if (s?.ejercicios.length) await guardarEntreno({ id: s.id, fecha: d, objetivo: s.objetivo, notas: s.notas, ejercicios: s.ejercicios, asistencia: s.asistencia })
+        if (s?.ejercicios.length) await guardarEntreno({ id: s.id, fecha: d, objetivo: s.objetivo, notas: s.notas, ejercicios: s.ejercicios, asistencia: s.asistencia }, eid)
       }
       await refrescar(); setMsg('✅ Semana guardada.')
     } catch (e) { setMsg('⚠️ ' + e.message) }

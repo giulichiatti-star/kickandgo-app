@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { cacheSet, cacheGet } from './cache'
 
 // Biblioteca base local (fallback si Supabase falla o está vacía)
 export const BIBLIOTECA_BASE = [
@@ -62,18 +63,28 @@ export async function borrarEjercicio(id) {
 }
 
 // ── Entrenos ──────────────────────────────────────────────────
-export async function listarEntrenos() {
-  const { data, error } = await supabase
-    .from('entrenamientos').select('*').order('fecha', { ascending: true })
-  if (error) throw error
-  return data
+export async function listarEntrenos(equipoId) {
+  const key = 'entrenos_' + (equipoId || 'all')
+  try {
+    let q = supabase.from('entrenamientos').select('*').order('fecha', { ascending: true })
+    if (equipoId) q = q.eq('equipo_id', equipoId)
+    const { data, error } = await q
+    if (error) throw error
+    cacheSet(key, data)
+    return data
+  } catch (err) {
+    const cached = cacheGet(key)
+    if (cached !== null) return cached
+    throw err
+  }
 }
 
-export async function guardarEntreno(e) {
+export async function guardarEntreno(e, equipoId) {
   const { data: u } = await supabase.auth.getUser()
   const dur = (e.ejercicios || []).reduce((a, x) => a + (x.duracion_min || x.min || 0), 0)
   const payload = {
     user_id: u.user.id,
+    equipo_id: equipoId,
     fecha: e.fecha,
     objetivo: e.objetivo || '',
     notas: e.notas || '',
@@ -96,8 +107,8 @@ export async function borrarEntreno(id) {
   if (error) throw error
 }
 
-export async function borrarTodosEntrenos() {
-  const { data: u } = await supabase.auth.getUser()
-  const { error } = await supabase.from('entrenamientos').delete().eq('user_id', u.user.id)
+export async function borrarTodosEntrenos(equipoId) {
+  if (!equipoId) return
+  const { error } = await supabase.from('entrenamientos').delete().eq('equipo_id', equipoId)
   if (error) throw error
 }

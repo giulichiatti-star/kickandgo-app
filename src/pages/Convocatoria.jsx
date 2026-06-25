@@ -3,6 +3,8 @@ import { listarJugadores, posACat } from '../lib/jugadores'
 import { guardarConvocatoria, ultimaConvocatoria } from '../lib/convocatorias'
 import { getPerfil } from '../lib/perfil'
 import { nTitulares, nSuplentes } from '../lib/formaciones'
+import { useEquipo } from '../contexts/EquipoContext'
+import { listarLesiones } from '../lib/lesiones'
 
 const CAT_COLOR = {
   POR: 'bg-dorado/15 text-dorado',
@@ -12,6 +14,8 @@ const CAT_COLOR = {
 }
 
 export default function Convocatoria() {
+  const { equipoActivo } = useEquipo()
+  const eid = equipoActivo?.id
   const [jugadores, setJugadores] = useState([])
   const [titulares, setTitulares] = useState([]) // ids
   const [suplentes, setSuplentes] = useState([]) // ids
@@ -20,17 +24,20 @@ export default function Convocatoria() {
   const [cargando, setCargando] = useState(true)
   const [msg, setMsg] = useState('')
   const [tipo, setTipo] = useState('11')
+  const [club, setClub] = useState('')
+  const [lesActivas, setLesActivas] = useState([])
   const MAX_TIT = nTitulares(tipo)
   const MAX_SUP = nSuplentes(tipo)
 
   useEffect(() => {
     (async () => {
       try {
-        let t = '11'
-        try { const p = await getPerfil(); t = p?.tipo_equipo || '11'; setTipo(t) } catch {}
-        const js = await listarJugadores(t)
+        const t = equipoActivo?.tipo_equipo || '11'
+        setTipo(t); setClub(equipoActivo?.nombre || '')
+        const [js, les] = await Promise.all([listarJugadores(eid), listarLesiones(eid).catch(() => [])])
         setJugadores(js)
-        const ult = await ultimaConvocatoria()
+        setLesActivas(les.filter(l => !l.alta))
+        const ult = await ultimaConvocatoria(eid)
         if (ult) {
           setRival(ult.rival || '')
           setFecha(ult.fecha || '')
@@ -40,7 +47,7 @@ export default function Convocatoria() {
       } catch (e) { setMsg(e.message) }
       finally { setCargando(false) }
     })()
-  }, [])
+  }, [eid])
 
   const estaConvocado = (id) => titulares.includes(id) || suplentes.includes(id)
 
@@ -77,6 +84,44 @@ export default function Convocatoria() {
   const byId = (id) => jugadores.find((j) => j.id === id)
   const hayPortero = titulares.some((id) => posACat(byId(id)?.posicion) === 'POR')
 
+  function whatsapp() {
+    const fmt = (id) => {
+      const j = byId(id)
+      if (!j) return null
+      const cat = posACat(j.posicion)
+      const ico = cat === 'POR' ? '🧤' : cat === 'DEF' ? '🛡️' : cat === 'MED' ? '⚙️' : '⚡'
+      return `  ${ico} #${j.dorsal} ${j.nombre} (${cat})`
+    }
+    // Ordenar titulares por categoría: POR → DEF → MED → DEL
+    const orden = { POR: 0, DEF: 1, MED: 2, DEL: 3 }
+    const titOrdenados = [...titulares].sort((a, b) => {
+      const ja = byId(a); const jb = byId(b)
+      return (orden[posACat(ja?.posicion)] ?? 9) - (orden[posACat(jb?.posicion)] ?? 9)
+    })
+    const lineasTit = titOrdenados.map(fmt).filter(Boolean)
+    const lineasSup = suplentes.map(fmt).filter(Boolean)
+    const fechaFmt = fecha
+      ? new Date(fecha + 'T12:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })
+      : null
+    const lineas = [
+      `⚽ *CONVOCATORIA — FÚTBOL ${tipo}*${club ? `\n🏟️ ${club}` : ''}`,
+      rival ? `🆚 Rival: *${rival}*` : null,
+      fechaFmt ? `📅 ${fechaFmt}` : null,
+      '',
+      `⭐ *TITULARES (${lineasTit.length}/${MAX_TIT})*`,
+      ...lineasTit,
+      lineasSup.length ? '' : null,
+      lineasSup.length ? `🔄 *SUPLENTES (${lineasSup.length}/${MAX_SUP})*` : null,
+      ...lineasSup,
+      '',
+      `Total convocados: ${lineasTit.length + lineasSup.length} jugadores`,
+      '——————————————',
+      '_KickAndGo_ 🚀',
+    ].filter((l) => l !== null)
+    const texto = encodeURIComponent(lineas.join('\n'))
+    window.open(`https://wa.me/?text=${texto}`, '_blank')
+  }
+
   async function guardar() {
     setMsg('')
     if (titulares.length < MAX_TIT) { setMsg(`⚠️ Necesitas ${MAX_TIT} titulares`); return }
@@ -90,7 +135,7 @@ export default function Convocatoria() {
         rival, fecha, formacion: '433',
         titulares: titulares.map(empaqueta),
         suplentes: suplentes.map(empaqueta),
-      })
+      }, eid)
       setMsg('✅ Convocatoria guardada')
     } catch (e) { setMsg('⚠️ ' + e.message) }
   }
@@ -106,6 +151,11 @@ export default function Convocatoria() {
         </div>
         <div className="flex gap-2">
           <button className="btn btn-outline" onClick={limpiarTodo}>🧹 Limpiar</button>
+          <button className="btn btn-outline" onClick={whatsapp}
+            style={{ borderColor: '#25d366', color: '#25d366' }}
+            title="Compartir convocatoria por WhatsApp">
+            📲 WhatsApp
+          </button>
           <button className="btn btn-primary" onClick={guardar}>✓ Confirmar</button>
         </div>
       </div>
@@ -156,6 +206,7 @@ export default function Convocatoria() {
               {jugadores.map((j) => {
                 const cat = posACat(j.posicion)
                 const conv = estaConvocado(j.id)
+                const lesion = lesActivas.find(l => l.jugador_id === j.id)
                 return (
                   <button key={j.id} onClick={() => toggle(j.id)}
                     className={`w-full flex items-center gap-3 p-2 rounded-lg border text-left transition ${
@@ -163,6 +214,13 @@ export default function Convocatoria() {
                     <div className={`w-4 h-4 rounded border flex items-center justify-center text-[9px] font-black ${
                       conv ? 'bg-cyan border-cyan text-black' : 'border-borde'}`}>{conv ? '✓' : ''}</div>
                     <span className="flex-1 text-sm">#{j.dorsal} {j.nombre}</span>
+                    {lesion && (
+                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded"
+                        style={{ background: 'rgba(239,68,68,0.15)', color: '#fca5a5' }}
+                        title={`Lesión activa: ${lesion.zona || lesion.tipo || 'sin detalle'}`}>
+                        🩺 LES
+                      </span>
+                    )}
                     <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded ${CAT_COLOR[cat]}`}>{cat}</span>
                   </button>
                 )

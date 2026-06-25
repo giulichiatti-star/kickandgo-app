@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react'
 import { listarPartidos } from '../lib/partidos'
 import { ultimaConvocatoria } from '../lib/convocatorias'
+import { useEquipo } from '../contexts/EquipoContext'
 
 const clamp = (n, a = 0, b = 100) => Math.max(a, Math.min(b, n))
 
 export default function Predicciones() {
+  const { equipoActivo } = useEquipo()
+  const eid = equipoActivo?.id
   const [partidos, setPartidos] = useState([])
   const [rival, setRival] = useState('')
   const [cargando, setCargando] = useState(true)
@@ -12,11 +15,11 @@ export default function Predicciones() {
   useEffect(() => {
     (async () => {
       try {
-        const [ps, c] = await Promise.all([listarPartidos(), ultimaConvocatoria()])
+        const [ps, c] = await Promise.all([listarPartidos(eid), ultimaConvocatoria(eid)])
         setPartidos(ps); setRival(c?.rival || '')
       } finally { setCargando(false) }
     })()
-  }, [])
+  }, [eid])
 
   if (cargando) return <div className="text-sm text-muted py-10 text-center">Cargando…</div>
 
