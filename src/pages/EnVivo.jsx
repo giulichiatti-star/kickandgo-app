@@ -110,7 +110,10 @@ export default function EnVivo() {
       const saved = localStorage.getItem('kg_envivo')
       if (saved) {
         const s = JSON.parse(saved)
-        if (s.gf !== undefined) {
+        // Validar que el partido guardado pertenece al equipo activo
+        if (s.equipo_id && s.equipo_id !== eid) {
+          localStorage.removeItem('kg_envivo')
+        } else if (s.gf !== undefined) {
           setGf(s.gf); setGc(s.gc); setSeg(s.seg || 0)
           setEventos(s.eventos || []); setMarks(s.marks || {})
           setNotas(s.notas || ''); setStats(s.stats || { tiros:0, corners:0, faltas:0, amarillas:0 })
@@ -152,7 +155,7 @@ export default function EnVivo() {
         localStorage.setItem('kg_envivo', JSON.stringify({
           gf, gc, seg, eventos, marks, notas, stats,
           rival, club, titulares, suplentes, formacion, tipo,
-          ts: Date.now(),
+          equipo_id: eid, ts: Date.now(),
         }))
       } catch (err) { console.error("[EnVivo] localStorage save", err) }
     }, 30000)
