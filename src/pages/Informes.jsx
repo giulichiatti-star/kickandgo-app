@@ -4,7 +4,7 @@ import {
   LineChart, Line, RadarChart, Radar, PolarGrid, PolarAngleAxis,
   BarChart, Bar, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend
 } from 'recharts'
-import { listarPartidos, borrarPartido } from '../lib/partidos'
+import { listarPartidos, borrarPartido, guardarActa } from '../lib/partidos'
 import { getPerfil } from '../lib/perfil'
 import { listarJugadores } from '../lib/jugadores'
 import { listarEntrenos } from '../lib/entrenamientos'
@@ -457,6 +457,8 @@ export default function Informes() {
   const [error,setError]       = useState('')
   const [selId,setSelId]       = useState(null)
   const [tab,setTab]           = useState('informe')
+  const [acta,setActa]         = useState({ arbitro:'', numero_colegiado:'', incidencias:'', reclamar:false })
+  const [actaMsg,setActaMsg]   = useState('')
   const [perfil,setPerfil]     = useState(null)
   const [borrando,setBorrando] = useState(false)
   const [jugadores,setJugadores] = useState([])
@@ -586,7 +588,7 @@ export default function Informes() {
         <select
           className="input w-full"
           value={selId||''}
-          onChange={e=>{ setSelId(e.target.value); setTab('informe') }}
+          onChange={e=>{ setSelId(e.target.value); setTab('informe'); const p=partidos.find(x=>x.id===e.target.value); setActa(p?.acta || { arbitro:'', numero_colegiado:'', incidencias:'', reclamar:false }); setActaMsg('') }}
         >
           {partidos.map(p=>{
             const r=resLabel(p.gf,p.gc)
@@ -650,7 +652,7 @@ export default function Informes() {
 
       {/* Tabs */}
       <div className="inf2-tabs mb-4">
-        {[['informe','INFORME'],['datos','DATOS'],['ia','ANÁLISIS IA']].map(([id,lbl])=>(
+        {[['informe','INFORME'],['datos','DATOS'],['ia','ANÁLISIS IA'],['acta','ACTA']].map(([id,lbl])=>(
           <div key={id} className={`inf2-tab ${tab===id?'active':''}`} onClick={()=>setTab(id)}>{lbl}</div>
         ))}
         <span className="ml-auto text-[11px] text-muted self-center pr-1">{d.ev.length} eventos</span>
@@ -933,6 +935,69 @@ export default function Informes() {
 
       {/* ══ IA ══ */}
       {tab==='ia' && <TabIA partidos={partidos} sel={sel} entrenos={entrenos} liga={liga} rl={rl} positivos={positivos} amejorar={amejorar} d={d} navigate={navigate} />}
+
+      {tab==='acta' && sel && (
+        <div className="space-y-3">
+          <div className="card p-4 space-y-3">
+            <div className="text-xs font-bold text-muted uppercase tracking-wide">🧑‍⚖️ Árbitro</div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs text-muted">Nombre</label>
+                <input className="field mt-1" placeholder="Nombre del árbitro"
+                  value={acta.arbitro} onChange={e=>setActa(a=>({...a,arbitro:e.target.value}))} />
+              </div>
+              <div>
+                <label className="text-xs text-muted">Nº colegiado</label>
+                <input className="field mt-1" placeholder="Número de licencia"
+                  value={acta.numero_colegiado} onChange={e=>setActa(a=>({...a,numero_colegiado:e.target.value}))} />
+              </div>
+            </div>
+          </div>
+
+          <div className="card p-4 space-y-3">
+            <div className="text-xs font-bold text-muted uppercase tracking-wide">📋 Incidencias del acta</div>
+            <textarea className="field text-xs" rows={5}
+              placeholder="Describe las incidencias del acta: expulsiones, protestas, errores arbitrales, incidentes…"
+              value={acta.incidencias} onChange={e=>setActa(a=>({...a,incidencias:e.target.value}))}
+              style={{resize:'vertical',lineHeight:1.6}} />
+          </div>
+
+          <div className="card p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="text-xs font-bold text-muted uppercase tracking-wide">⚖️ Reclamación federativa</div>
+              <button onClick={()=>setActa(a=>({...a,reclamar:!a.reclamar}))}
+                className="text-xs px-3 py-1 rounded-lg font-bold transition"
+                style={{background:acta.reclamar?'rgba(239,68,68,0.15)':'rgba(255,255,255,0.05)', color:acta.reclamar?'#fca5a5':'#71717a', border:`1px solid ${acta.reclamar?'rgba(239,68,68,0.3)':'#27272a'}`}}>
+                {acta.reclamar ? '✓ Sí, voy a reclamar' : 'No reclamar'}
+              </button>
+            </div>
+            {acta.reclamar && (
+              <div className="space-y-2">
+                <div className="text-[11px] text-muted mb-2">Checklist protocolo federativo:</div>
+                {[
+                  'Plazo máximo: 48h desde el partido',
+                  'Solicitar copia del acta al árbitro antes de firmar',
+                  'Hacer constar la protesta en el acta (no firmar sin anotarla)',
+                  'Enviar escrito a la Delegación Territorial de la Federación',
+                  'Adjuntar copia del acta firmada y documentación del incidente',
+                  'Guardar copia de todo lo enviado',
+                ].map((item,i)=>(
+                  <div key={i} className="flex items-start gap-2 text-xs p-2 rounded-lg" style={{background:'rgba(239,68,68,0.06)',border:'1px solid rgba(239,68,68,0.15)'}}>
+                    <span style={{color:'#fca5a5',fontWeight:700,marginTop:1}}>•</span>
+                    <span>{item}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {actaMsg && <div className="text-xs text-zinc-300">{actaMsg}</div>}
+          <button className="btn btn-primary w-full" onClick={async()=>{
+            try { await guardarActa(sel.id, acta); setActaMsg('✅ Acta guardada') }
+            catch(e) { setActaMsg('⚠️ '+e.message) }
+          }}>💾 Guardar acta</button>
+        </div>
+      )}
 
       </div>{/* fin pdfRef */}
     </div>

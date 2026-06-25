@@ -38,6 +38,11 @@ export async function listarPartidos(equipoId) {
   }
 }
 
+export async function guardarActa(id, acta) {
+  const { error } = await supabase.from('partidos').update({ acta }).eq('id', id)
+  if (error) throw error
+}
+
 export async function borrarPartido(id) {
   const { error } = await supabase.from('partidos').delete().eq('id', id)
   if (error) throw error
