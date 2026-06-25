@@ -1,3 +1,22 @@
+// Push notifications
+self.addEventListener('push', (e) => {
+  const data = e.data?.json() || {}
+  e.waitUntil(
+    self.registration.showNotification(data.title || 'KickAndGo', {
+      body: data.body || '',
+      icon: '/icon.png',
+      badge: '/icon.png',
+      tag: data.tag || 'kg',
+      data: { url: data.url || '/' },
+    })
+  )
+})
+
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close()
+  e.waitUntil(clients.openWindow(e.notification.data?.url || '/'))
+})
+
 const CACHE = 'kickandgo-v1'
 const SHELL = ['/', '/index.html']
 

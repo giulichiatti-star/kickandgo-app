@@ -8,6 +8,7 @@ import { borrarTodasTarjetas } from '../lib/tarjetas'
 import { borrarTodosEntrenos } from '../lib/entrenamientos'
 import { supabase } from '../lib/supabase'
 import { useEquipo } from '../contexts/EquipoContext'
+import { suscribirPush, cancelarPush, tieneSuscripcion } from '../lib/push'
 
 /* ── Guía rápida animada ── */
 const PASOS_GUIA = [
@@ -225,6 +226,8 @@ export default function Ajustes() {
 
       <LigaRivales />
 
+      <NotificacionesPush />
+
       <ContactoSoporte />
 
       <ZonaPeligro />
@@ -242,6 +245,47 @@ export default function Ajustes() {
         </p>
         <EliminarCuenta />
       </div>
+    </div>
+  )
+}
+
+function NotificacionesPush() {
+  const [activo, setActivo] = useState(false)
+  const [cargando, setCargando] = useState(false)
+  const [msg, setMsg] = useState('')
+
+  useEffect(() => {
+    tieneSuscripcion().then(setActivo)
+  }, [])
+
+  async function toggle() {
+    setCargando(true); setMsg('')
+    if (activo) {
+      await cancelarPush()
+      setActivo(false)
+      setMsg('Notificaciones desactivadas')
+    } else {
+      const ok = await suscribirPush()
+      if (ok) { setActivo(true); setMsg('✅ Notificaciones activadas') }
+      else setMsg('⚠️ No se pudo activar. Revisa los permisos del navegador.')
+    }
+    setCargando(false)
+  }
+
+  return (
+    <div className="card p-4 space-y-3">
+      <h2 className="text-sm font-bold">🔔 Notificaciones push</h2>
+      <p className="text-[11px] text-muted leading-relaxed">
+        Recibe alertas en tu dispositivo: partido próximo, jugadores en riesgo de sanción, altas médicas.
+      </p>
+      <div className="flex items-center justify-between">
+        <span className="text-xs">{activo ? '✅ Activadas' : '❌ Desactivadas'}</span>
+        <button className={`btn text-xs ${activo ? 'btn-outline' : 'btn-primary'}`}
+          onClick={toggle} disabled={cargando}>
+          {cargando ? 'Procesando…' : activo ? 'Desactivar' : 'Activar notificaciones'}
+        </button>
+      </div>
+      {msg && <div className="text-[11px] text-muted">{msg}</div>}
     </div>
   )
 }
