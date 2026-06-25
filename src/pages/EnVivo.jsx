@@ -257,13 +257,16 @@ export default function EnVivo() {
   }
 
   async function guardarFinal(vals) {
+    const payload = {
+      rival, gf, gc, formacion,
+      notas_entrenador: notas,
+      eventos: eventos.map((e) => ({ min: e.min, tipo: e.tipo, label: e.label, jugador: e.jugador })),
+      valoraciones: vals,
+      _eid: eid,
+      _ts: Date.now(),
+    }
     try {
-      await guardarPartido({
-        rival, gf, gc, formacion,
-        notas_entrenador: notas,
-        eventos: eventos.map((e) => ({ min: e.min, tipo: e.tipo, label: e.label, jugador: e.jugador })),
-        valoraciones: vals,
-      }, eid)
+      await guardarPartido(payload, eid)
 
       try {
         const comp = await getCompeticion(eid)
@@ -283,7 +286,16 @@ export default function EnVivo() {
       setValorModal(false)
       setCorriendo(false)
       alert('✅ Partido guardado en Informes')
-    } catch (e) { alert('⚠️ ' + e.message) }
+    } catch {
+      // Sin conexión — guardar localmente como pendiente
+      const pendientes = JSON.parse(localStorage.getItem('kg_pendientes') || '[]')
+      pendientes.push(payload)
+      localStorage.setItem('kg_pendientes', JSON.stringify(pendientes))
+      localStorage.removeItem('kg_envivo')
+      setValorModal(false)
+      setCorriendo(false)
+      alert('📴 Sin conexión — el partido quedó guardado localmente. Se subirá automáticamente cuando recuperes internet.')
+    }
   }
 
   async function finalizar() {

@@ -8,6 +8,7 @@ import { listarEntrenos, COLOR_CAT } from '../lib/entrenamientos'
 import { listarTarjetas } from '../lib/tarjetas'
 import { listarLesiones } from '../lib/lesiones'
 import { useEquipo } from '../contexts/EquipoContext'
+import { useSyncPendientes } from '../hooks/useSyncPendientes'
 
 function fechaLarga(iso) {
   if (!iso) return ''
@@ -85,6 +86,7 @@ function DashGauge({ value, color, label, iconKey }) {
 export default function Inicio() {
   const nav = useNavigate()
   const { equipoActivo, cargando: cargandoEquipo } = useEquipo()
+  const { pendientes, sincronizar } = useSyncPendientes()
   const eid = equipoActivo?.id
   const [perfil, setPerfil] = useState(null)
   const [jugadores, setJugadores] = useState([])
@@ -196,6 +198,7 @@ export default function Inicio() {
       }
     }
   })
+  if (pendientes > 0) alertas.unshift({ ico: '📴', col: 'rgba(245,158,11,0.15)', border: '#f59e0b', t: `${pendientes} partido${pendientes > 1 ? 's' : ''} sin sincronizar`, d: 'Toca para subir ahora', onClick: sincronizar })
   if (!conv?.rival) alertas.push({ ico: '📋', col: 'rgba(45,212,191,0.15)', border: '#2dd4bf', t: 'Sin convocatoria preparada', d: 'Prepara el próximo partido' })
   if (entrenosSemana.length === 0) alertas.push({ ico: '🏋️', col: 'rgba(139,92,246,0.15)', border: '#8b5cf6', t: 'Sin entrenos esta semana', d: 'Planifica una sesión' })
 
@@ -419,7 +422,7 @@ export default function Inicio() {
             <div className="text-sm text-muted py-4 text-center">Todo en orden ✅</div>
           ) : (
             alertas.slice(0, 4).map((a, i) => (
-              <div key={i} className="dash2-alerta">
+              <div key={i} className="dash2-alerta" onClick={a.onClick} style={a.onClick ? { cursor: 'pointer' } : {}}>
                 <div className="dash2-alerta-ico" style={{ background: a.col, border: `1px solid ${a.border}44`, padding: 0, overflow: 'hidden' }}>
                   {a.jug?.foto_url
                     ? <img src={a.jug.foto_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
