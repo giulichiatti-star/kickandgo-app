@@ -208,7 +208,7 @@ export default function EnVivo() {
   function bump(s) { setStats((p) => ({ ...p, [s]: (p[s] || 0) + 1 })) }
 
   function registrar(tipoEv, jug) {
-    const ev = { min, tipo: tipoEv, icon: ICONO_MARCA[tipoEv] || '•', label: (META[tipoEv]?.label || tipoEv), jugador: jug ? `#${jug.dorsal} ${jug.nombre}` : null }
+    const ev = { min, tipo: tipoEv, icon: ICONO_MARCA[tipoEv] || '•', label: (META[tipoEv]?.label || tipoEv), jugador: jug ? `#${jug.dorsal} ${jug.nombre}` : null, jugador_id: jug?.id || null }
     setEventos((e) => [ev, ...e])
     if (tipoEv === 'gol') { setGf((g) => g + 1); bump('tiros') }
     if (tipoEv === 'gol-rival') setGc((g) => g + 1)
@@ -595,13 +595,12 @@ export default function EnVivo() {
                       if (e.tipo === 'amarilla' || e.tipo === 'amarilla-rival') setStats((s) => ({ ...s, amarillas: Math.max(0, s.amarillas - 1) }))
                       // Quitar marca del jugador (⚽ amarilla roja etc)
                       const ico = ICONO_MARCA[e.tipo]
-                      if (ico && e.jugador) {
-                        const jug = [...titulares, ...suplentes].find(j => e.jugador === `#${j.dorsal} ${j.nombre}`)
-                        if (jug) setMarks((m) => {
-                          const arr = [...(m[jug.id] || [])]
+                      if (ico && e.jugador_id) {
+                        setMarks((m) => {
+                          const arr = [...(m[e.jugador_id] || [])]
                           const idx = arr.lastIndexOf(ico)
                           if (idx !== -1) arr.splice(idx, 1)
-                          return { ...m, [jug.id]: arr }
+                          return { ...m, [e.jugador_id]: arr }
                         })
                       }
                       setEventos((ev) => ev.filter((_, k) => k !== i))
