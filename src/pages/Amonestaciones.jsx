@@ -4,6 +4,7 @@ import { listarTarjetas, crearTarjeta, borrarTarjeta } from '../lib/tarjetas'
 import { listarLesiones, crearLesion, darAlta, borrarLesion } from '../lib/lesiones'
 import { getPerfil } from '../lib/perfil'
 import { useEquipo } from '../contexts/EquipoContext'
+import { notificarRiesgoSancion } from '../lib/push'
 
 const LIMITE = 5
 
@@ -125,6 +126,13 @@ export default function Disciplina() {
       await crearTarjeta({ ...formT, minuto: formT.minuto ? parseInt(formT.minuto) : null }, eid)
       setModalT(false); setFormT({ jugador_id: '', tipo: 'amarilla', minuto: '', motivo: '', fecha: '' })
       setMsg(''); await refrescar()
+      // Notificar si el jugador queda en riesgo de sanción
+      if (formT.tipo === 'amarilla') {
+        const nuevasCuentas = contarTarjetas(formT.jugador_id)
+        if (nuevasCuentas.am >= LIMITE - 1) {
+          notificarRiesgoSancion(nombreJ(formT.jugador_id), nuevasCuentas.am + 1).catch(() => {})
+        }
+      }
     } catch (e) { setMsg(e.message) }
   }
 

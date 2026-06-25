@@ -41,6 +41,24 @@ export async function tieneSuscripcion() {
   } catch { return false }
 }
 
+async function enviarNotificacion(title, body, url = '/') {
+  try {
+    const { data: u } = await supabase.auth.getUser()
+    const { data: sub } = await supabase
+      .from('push_subscriptions').select('subscription').eq('user_id', u.user.id).single()
+    if (!sub) return
+    await supabase.functions.invoke('send-push', { body: { subscription: sub.subscription, title, body, url } })
+  } catch {}
+}
+
+export async function notificarRiesgoSancion(nombre, totalAmarillas) {
+  await enviarNotificacion(
+    '🟨 Riesgo de sanción',
+    `${nombre} acumula ${totalAmarillas} amarillas. Próxima = suspensión.`,
+    '/amonestaciones'
+  )
+}
+
 export async function cancelarPush() {
   try {
     const reg = await navigator.serviceWorker.ready
