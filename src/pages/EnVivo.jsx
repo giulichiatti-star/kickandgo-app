@@ -585,13 +585,25 @@ export default function EnVivo() {
                     <span className="text-xs text-muted w-8">{e.min}'</span><span>{e.icon}</span>
                     <span className="flex-1 text-xs">{e.label}{e.jugador ? ` · ${e.jugador}` : ''}</span>
                     <button className="text-muted hover:text-rojo text-xs" onClick={() => {
-                      // Revertir efecto en marcador y stats
+                      // Revertir marcador
                       if (e.tipo === 'gol') setGf((g) => Math.max(0, g - 1))
                       if (e.tipo === 'gol-rival') setGc((g) => Math.max(0, g - 1))
+                      // Revertir stats
                       if (e.tipo === 'tiro' || e.tipo === 'tiro-rival') setStats((s) => ({ ...s, tiros: Math.max(0, s.tiros - 1) }))
                       if (e.tipo === 'corner') setStats((s) => ({ ...s, corners: Math.max(0, s.corners - 1) }))
                       if (e.tipo === 'falta' || e.tipo === 'falta-favor') setStats((s) => ({ ...s, faltas: Math.max(0, s.faltas - 1) }))
                       if (e.tipo === 'amarilla' || e.tipo === 'amarilla-rival') setStats((s) => ({ ...s, amarillas: Math.max(0, s.amarillas - 1) }))
+                      // Quitar marca del jugador (⚽ amarilla roja etc)
+                      const ico = ICONO_MARCA[e.tipo]
+                      if (ico && e.jugador) {
+                        const jug = [...titulares, ...suplentes].find(j => e.jugador === `#${j.dorsal} ${j.nombre}`)
+                        if (jug) setMarks((m) => {
+                          const arr = [...(m[jug.id] || [])]
+                          const idx = arr.lastIndexOf(ico)
+                          if (idx !== -1) arr.splice(idx, 1)
+                          return { ...m, [jug.id]: arr }
+                        })
+                      }
                       setEventos((ev) => ev.filter((_, k) => k !== i))
                     }}>✕</button>
                   </div>
