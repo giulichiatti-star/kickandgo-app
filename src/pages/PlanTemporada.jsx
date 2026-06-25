@@ -67,7 +67,7 @@ export default function PlanTemporada() {
         } else {
           setEditando(true)
         }
-      } catch {}
+      } catch (err) { console.error('[PlanTemporada] carga', err) }
       finally { setCargando(false) }
     })()
   }, [eid])

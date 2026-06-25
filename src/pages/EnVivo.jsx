@@ -123,7 +123,7 @@ export default function EnVivo() {
           return // no cargar convocatoria encima del partido guardado
         }
       }
-    } catch {}
+    } catch (err) { console.error("[EnVivo] restaurar localStorage", err) }
 
     ;(async () => {
       const c = await ultimaConvocatoria(eid)
@@ -141,7 +141,7 @@ export default function EnVivo() {
         const t = equipoActivo?.tipo_equipo || p?.tipo_equipo || '11'
         setTipo(t); setFormacion(c?.formacion?.includes('-') ? c.formacion : defForm(t))
         setFormacionRival(defFormRival(t))
-      } catch {}
+      } catch (err) { console.error("[EnVivo] cargar perfil", err) }
     })()
   }, [eid])
 
@@ -154,7 +154,7 @@ export default function EnVivo() {
           rival, club, titulares, suplentes, formacion, tipo,
           ts: Date.now(),
         }))
-      } catch {}
+      } catch (err) { console.error("[EnVivo] localStorage save", err) }
     }, 30000)
     return () => clearInterval(id)
   }, [gf, gc, seg, eventos, marks, notas, stats, rival, club, titulares, suplentes, formacion, tipo])
@@ -280,7 +280,7 @@ export default function EnVivo() {
             await guardarCompeticion({ ...comp, proximas_fechas: proximas }, eid)
           }
         }
-      } catch {}
+      } catch (err) { console.error("[EnVivo] guardarFinal comp", err) }
 
       localStorage.removeItem('kg_envivo')
       setValorModal(false)

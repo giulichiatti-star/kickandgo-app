@@ -155,7 +155,7 @@ function TeamSwitcher() {
       setCreando(false)
       setForm({ nombre: '', tipo_equipo: '11' })
       setOpen(false)
-    } catch {}
+    } catch (err) { console.error('[crearEquipo]', err) }
   }
 
   return (

@@ -25,7 +25,7 @@ export async function guardarPartido(p, equipoId) {
 export async function listarPartidos(equipoId) {
   const key = 'partidos_' + (equipoId || 'all')
   try {
-    let q = supabase.from('partidos').select('*').order('fecha', { ascending: false })
+    let q = supabase.from('partidos').select('*').eq('activo', true).order('fecha', { ascending: false })
     if (equipoId) q = q.eq('equipo_id', equipoId)
     const { data, error } = await q
     if (error) throw error
@@ -44,7 +44,8 @@ export async function guardarActa(id, acta) {
 }
 
 export async function borrarPartido(id) {
-  const { error } = await supabase.from('partidos').delete().eq('id', id)
+  // Soft delete — mantiene el registro para recovery
+  const { error } = await supabase.from('partidos').update({ activo: false }).eq('id', id)
   if (error) throw error
 }
 
