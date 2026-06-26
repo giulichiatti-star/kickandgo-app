@@ -5,6 +5,8 @@ import { getPerfil } from '../lib/perfil'
 import { nTitulares, nSuplentes, formacionesPara, formacionDefecto } from '../lib/formaciones'
 import { useEquipo } from '../contexts/EquipoContext'
 import { listarLesiones } from '../lib/lesiones'
+import { useOnboarding } from '../hooks/useOnboarding'
+import OnboardingBanner from '../components/OnboardingBanner'
 
 const CAT_COLOR = {
   POR: 'bg-dorado/15 text-dorado',
@@ -14,6 +16,7 @@ const CAT_COLOR = {
 }
 
 export default function Convocatoria() {
+  const { paso, avanzar, saltar } = useOnboarding()
   const { equipoActivo } = useEquipo()
   const eid = equipoActivo?.id
   const [jugadores, setJugadores] = useState([])
@@ -147,6 +150,15 @@ export default function Convocatoria() {
 
   return (
     <div>
+      {paso === 2 && (
+        <OnboardingBanner
+          paso={2}
+          titulo="Selecciona titulares y guarda la convocatoria"
+          descripcion="Con la convocatoria guardada, el mapa del partido en vivo cargará automáticamente a tus jugadores."
+          onAvanzar={() => avanzar(3)}
+          onSaltar={saltar}
+        />
+      )}
       <div className="flex items-center justify-between mb-4">
         <div>
           <h1 className="text-xl font-extrabold">Convocatoria</h1>

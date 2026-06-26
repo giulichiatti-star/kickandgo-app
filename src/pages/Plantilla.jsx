@@ -8,6 +8,8 @@ import { listarPartidos } from '../lib/partidos'
 import { listarTarjetas } from '../lib/tarjetas'
 import { listarEntrenos } from '../lib/entrenamientos'
 import { useEquipo } from '../contexts/EquipoContext'
+import { useOnboarding } from '../hooks/useOnboarding'
+import OnboardingBanner from '../components/OnboardingBanner'
 import '../equipo.css'
 
 const POSICIONES = [
@@ -24,6 +26,7 @@ function formaClase(r) {
 }
 
 export default function Plantilla() {
+  const { paso, avanzar, saltar } = useOnboarding()
   const { equipoActivo } = useEquipo()
   const eid = equipoActivo?.id
   const [jugadores, setJugadores] = useState([])
@@ -217,6 +220,15 @@ export default function Plantilla() {
 
   return (
     <div>
+      {paso === 1 && (
+        <OnboardingBanner
+          paso={1}
+          titulo="Añade tus jugadores para empezar"
+          descripcion="La plantilla es la base de todo. Agrega al menos los titulares habituales antes de crear una convocatoria."
+          onAvanzar={() => avanzar(2)}
+          onSaltar={saltar}
+        />
+      )}
       {/* HEADER club */}
       <div className="equipo-header">
         <div className="equipo-header-left">

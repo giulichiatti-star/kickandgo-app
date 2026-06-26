@@ -8,6 +8,10 @@ import { listarEntrenos, COLOR_CAT } from '../lib/entrenamientos'
 import { listarTarjetas } from '../lib/tarjetas'
 import { listarLesiones } from '../lib/lesiones'
 import { useEquipo } from '../contexts/EquipoContext'
+import { useOnboarding } from '../hooks/useOnboarding'
+import OnboardingBanner from '../components/OnboardingBanner'
+import PWAInstallBanner from '../components/PWAInstallBanner'
+import { usePWAInstall } from '../hooks/usePWAInstall'
 import { useSyncPendientes } from '../hooks/useSyncPendientes'
 
 function fechaLarga(iso) {
@@ -84,6 +88,8 @@ function DashGauge({ value, color, label, iconKey }) {
 }
 
 export default function Inicio() {
+  const { paso, avanzar, saltar } = useOnboarding()
+  const { mostrar: mostrarPWA, instalar, descartar } = usePWAInstall()
   const nav = useNavigate()
   const { equipoActivo, cargando: cargandoEquipo } = useEquipo()
   const { pendientes, sincronizar } = useSyncPendientes()
@@ -230,6 +236,16 @@ export default function Inicio() {
 
   return (
     <div>
+      {paso === 4 && (
+        <OnboardingBanner
+          paso={4}
+          titulo="El dashboard se llena con cada partido"
+          descripcion="Registra tu primer partido en vivo y aquí verás estadísticas, racha y predicciones actualizadas al instante."
+          onAvanzar={() => avanzar(5)}
+          onSaltar={saltar}
+        />
+      )}
+      {mostrarPWA && <PWAInstallBanner onInstalar={instalar} onDescartar={descartar} />}
       {/* TOP BAR */}
       <div className="dash2-top">
         <div className="flex items-center gap-3.5">

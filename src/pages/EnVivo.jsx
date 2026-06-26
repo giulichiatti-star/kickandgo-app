@@ -11,6 +11,8 @@ import { useEquipo } from '../contexts/EquipoContext'
 import { clasificarVoz } from '../lib/voz'
 import { ordenarTitulares } from '../lib/formaciones'
 import Jersey from '../components/Jersey'
+import { useOnboarding } from '../hooks/useOnboarding'
+import OnboardingBanner from '../components/OnboardingBanner'
 
 // Formaciones HORIZONTALES (x = profundidad, nuestra portería a la izquierda)
 const FORM_H_11 = {
@@ -91,6 +93,7 @@ const META = {
 function mmss(s) { return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}` }
 
 export default function EnVivo() {
+  const { paso, avanzar, saltar } = useOnboarding()
   const { equipoActivo } = useEquipo()
   const eid = equipoActivo?.id
   const navigate = useNavigate()
@@ -419,6 +422,18 @@ export default function EnVivo() {
   }
 
   return (
+    <>
+      {paso === 3 && (
+        <div style={{ margin: '0 0 16px' }}>
+          <OnboardingBanner
+            paso={3}
+            titulo="Aquí controlas el partido en directo"
+            descripcion="El mapa carga tu última convocatoria. Pulsa Iniciar y registra goles, cambios y tarjetas en tiempo real."
+            onAvanzar={() => avanzar(4)}
+            onSaltar={saltar}
+          />
+        </div>
+      )}
     <div className="ev2-wrap" style={{ margin: '-20px -16px' }}>
       {valorModal && (
         <ValoracionModal
@@ -797,6 +812,7 @@ export default function EnVivo() {
         </div>
       )}
     </div>
+    </>
   )
 }
 
