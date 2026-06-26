@@ -656,12 +656,7 @@ export default function EnVivo() {
         {/* RAIL DERECHO */}
         <div>
           {/* CONTROL MANUAL */}
-          <ManualControls
-            club={club} rival={rival}
-            titulares={titulares}
-            min={min}
-            onRegistrar={registrar}
-          />
+          <ManualControls rival={rival} onRegistrar={registrar} />
 
           {/* Vista */}
           <div className="ev2-rail-card">
@@ -764,35 +759,20 @@ export default function EnVivo() {
   )
 }
 
-function ManualControls({ club, rival, titulares, min, onRegistrar }) {
-  const [jugSel, setJugSel] = useState('')
+function ManualControls({ rival, onRegistrar }) {
   const [jugRivalDorsal, setJugRivalDorsal] = useState('')
 
-  const accionesNuestras = [
-    { tipo: 'gol', ico: '⚽', lbl: 'Gol', color: '#10b981', needsPlayer: true },
-    { tipo: 'asistencia', ico: '🅰️', lbl: 'Asistencia', color: '#3b82f6', needsPlayer: true },
-    { tipo: 'tiro', ico: '🎯', lbl: 'Tiro', color: '#3b82f6' },
-    { tipo: 'corner', ico: '⛳', lbl: 'Córner', color: '#2dd4bf' },
-    { tipo: 'falta-favor', ico: '🟢', lbl: 'Falta a favor', color: '#10b981' },
-    { tipo: 'robo', ico: '🔄', lbl: 'Robo', color: '#8b5cf6' },
-    { tipo: 'amarilla', ico: '🟨', lbl: 'Amarilla', color: '#f59e0b', needsPlayer: true },
-    { tipo: 'roja', ico: '🟥', lbl: 'Roja', color: '#ef4444', needsPlayer: true },
-  ]
   const accionesRival = [
-    { tipo: 'gol-rival', ico: '⚽', lbl: 'Gol rival', color: '#ef4444' },
-    { tipo: 'tiro-rival', ico: '🎯', lbl: 'Tiro rival', color: '#f59e0b' },
-    { tipo: 'corner-rival', ico: '🚩', lbl: 'Córner rival', color: '#f59e0b' },
-    { tipo: 'falta', ico: '🔴', lbl: 'Falta en contra', color: '#ef4444' },
-    { tipo: 'amarilla-rival', ico: '🟨', lbl: 'Amarilla rival', color: '#f59e0b', needsDorsal: true },
-    { tipo: 'roja-rival', ico: '🟥', lbl: 'Roja rival', color: '#ef4444', needsDorsal: true },
-    { tipo: 'offside', ico: '🚩', lbl: 'F. juego rival', color: '#94a3b8' },
-    { tipo: 'perdida', ico: '📤', lbl: 'Pérdida nuestra', color: '#94a3b8' },
+    { tipo: 'gol-rival',      ico: '⚽', lbl: 'Gol',        color: '#ef4444' },
+    { tipo: 'tiro-rival',     ico: '🎯', lbl: 'Tiro',        color: '#f59e0b' },
+    { tipo: 'corner-rival',   ico: '⛳', lbl: 'Córner',      color: '#f59e0b' },
+    { tipo: 'falta',          ico: '🔴', lbl: 'Falta',       color: '#ef4444' },
+    { tipo: 'amarilla-rival', ico: '🟨', lbl: 'Amarilla',    color: '#f59e0b', needsDorsal: true },
+    { tipo: 'roja-rival',     ico: '🟥', lbl: 'Roja',        color: '#ef4444', needsDorsal: true },
+    { tipo: 'offside',        ico: '🚩', lbl: 'F. juego',    color: '#94a3b8' },
+    { tipo: 'cambio-rival',   ico: '🔄', lbl: 'Cambio',      color: '#60a5fa' },
   ]
 
-  function handleNuestra(a) {
-    const jug = a.needsPlayer ? titulares.find(j => j.id === jugSel) || null : null
-    onRegistrar(a.tipo, jug)
-  }
   function handleRival(a) {
     const jug = a.needsDorsal && jugRivalDorsal
       ? { id: 'r-' + jugRivalDorsal, dorsal: jugRivalDorsal, nombre: `Rival #${jugRivalDorsal}` }
@@ -801,32 +781,11 @@ function ManualControls({ club, rival, titulares, min, onRegistrar }) {
   }
 
   return (
-    <div className="ev2-rail-card" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
-      <div className="ev2-rail-h" style={{ fontWeight: 700, fontSize: 11 }}>🎮 Control Manual</div>
-
-      {/* Nuestro equipo */}
-      <div className="text-[10px] font-black mb-1.5 tracking-wide" style={{ color: '#2dd4bf' }}>
-        {club.toUpperCase()}
-      </div>
-      <select className="field mb-2 text-xs" value={jugSel} onChange={e => setJugSel(e.target.value)}>
-        <option value="">— jugador (opcional para gol/tarjeta) —</option>
-        {titulares.map(j => <option key={j.id} value={j.id}>#{j.dorsal} {j.nombre}</option>)}
-      </select>
-      <div className="grid grid-cols-4 gap-1 mb-3">
-        {accionesNuestras.map(a => (
-          <button key={a.tipo} onClick={() => handleNuestra(a)}
-            className="flex flex-col items-center gap-0.5 py-2 px-1 rounded-lg text-center transition active:scale-95"
-            style={{ background: `${a.color}12`, border: `1px solid ${a.color}40`, color: a.color }}>
-            <span style={{ fontSize: 15 }}>{a.ico}</span>
-            <span style={{ fontSize: 9, fontWeight: 700, lineHeight: 1.2 }}>{a.lbl}</span>
-          </button>
-        ))}
+    <div className="ev2-rail-card" style={{ borderColor: 'rgba(239,68,68,0.2)', background: 'rgba(239,68,68,0.04)' }}>
+      <div className="ev2-rail-h" style={{ fontWeight: 800, fontSize: 11, color: '#f87171' }}>
+        ⚫ Acciones {rival}
       </div>
 
-      {/* Rival */}
-      <div className="text-[10px] font-black mb-1.5 tracking-wide" style={{ color: '#f87171' }}>
-        {rival.toUpperCase()}
-      </div>
       <input className="field mb-2 text-xs" type="number" min={1} max={99}
         placeholder="Dorsal rival (para amarilla/roja)"
         value={jugRivalDorsal} onChange={e => setJugRivalDorsal(e.target.value)} />
