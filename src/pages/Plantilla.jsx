@@ -75,16 +75,33 @@ export default function Plantilla() {
     const m = {}
     jugadores.forEach((j) => { m[j.id] = { goles: 0, asist: 0, amar: 0, rojas: 0, asis: 0, totEnt: 0, pjs: 0 } })
     const porDorsal = {}; jugadores.forEach((j) => { porDorsal[j.dorsal] = j.id })
+    const porNombre = {}; jugadores.forEach((j) => { porNombre[j.nombre?.toLowerCase()] = j.id })
     partidos.forEach((p) => {
-      const aparecidos = new Set()
+      const jugados = new Set()
+      // 1. Valoraciones del entrenador → titulares confirmados
+      Object.keys(p.valoraciones || {}).forEach((id) => { if (m[id]) jugados.add(id) })
+      // 2. Eventos individuales (gol, asistencia, amarilla, roja, tiro → llevaba dorsal)
       ;(Array.isArray(p.notas) ? p.notas : []).forEach((ev) => {
-        const md = (ev.jugador || '').match(/#(\d+)/); const id = md && porDorsal[+md[1]]
-        if (!id || !m[id]) return
-        if (/gol/i.test(ev.tipo || '')) m[id].goles++
-        if (/asist/i.test(ev.tipo || '')) m[id].asist++
-        aparecidos.add(id)
+        const tipo = ev.tipo || ''
+        if (/gol(?!.*rival)/i.test(tipo)) {
+          const md = (ev.jugador || '').match(/#(\d+)/); const id = md && porDorsal[+md[1]]
+          if (id && m[id]) { m[id].goles++; jugados.add(id) }
+        }
+        if (/asist/i.test(tipo)) {
+          const md = (ev.jugador || '').match(/#(\d+)/); const id = md && porDorsal[+md[1]]
+          if (id && m[id]) { m[id].asist++; jugados.add(id) }
+        }
+        // Cambios: "Sale Nombre · Entra Nombre" → el que entra también jugó
+        if (tipo === 'cambio') {
+          const partes = (ev.jugador || '').split('·')
+          partes.forEach((parte) => {
+            const nom = parte.replace(/sale|entra/gi, '').trim().toLowerCase()
+            const id = porNombre[nom]
+            if (id && m[id]) jugados.add(id)
+          })
+        }
       })
-      aparecidos.forEach((id) => { if (m[id]) m[id].pjs++ })
+      jugados.forEach((id) => { m[id].pjs++ })
     })
     tarjetas.forEach((t) => { if (m[t.jugador_id]) { if (t.tipo === 'roja') m[t.jugador_id].rojas++; else m[t.jugador_id].amar++ } })
     entrenos.forEach((e) => {
