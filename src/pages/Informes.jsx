@@ -652,8 +652,8 @@ export default function Informes() {
                   textShadow:`0 0 12px ${rl.c}80`}}>{rl.l}</div>
                 <div style={{fontSize:9,color:'#52525b',marginTop:3}}>{fechaCorta(sel.fecha)} · {sel.local_visitante==='visitante'?'Fuera':'En casa'}</div>
                 <button onClick={()=>{setEditGf(sel.gf);setEditGc(sel.gc);setEditando(true)}}
-                  className="text-[9px] mt-1 opacity-40 hover:opacity-80 transition"
-                  style={{color:'#a1a1aa'}}>✏️ editar</button>
+                  className="text-[10px] mt-2 px-2 py-0.5 rounded border font-bold transition"
+                  style={{color:'#a1a1aa',borderColor:'#3f3f46',background:'rgba(255,255,255,0.04)'}}>✏️ editar resultado</button>
               </>
             )}
           </div>
