@@ -295,10 +295,10 @@ export default function EnVivo() {
     setEventos((e) => [ev, ...e])
     if (tipoEv === 'gol') { setGf((g) => g + 1); bump('tiros') }
     if (tipoEv === 'gol-rival') setGc((g) => g + 1)
-    if (tipoEv === 'tiro' || tipoEv === 'tiro-rival') bump('tiros')
+    if (tipoEv === 'tiro') bump('tiros')
     if (tipoEv === 'corner') bump('corners')
     if (tipoEv === 'falta' || tipoEv === 'falta-favor') bump('faltas')
-    if (tipoEv === 'amarilla' || tipoEv === 'amarilla-rival') bump('amarillas')
+    if (tipoEv === 'amarilla') bump('amarillas')
     if (jug && ICONO_MARCA[tipoEv]) setMarks((m) => ({ ...m, [jug.id]: [...(m[jug.id] || []), ICONO_MARCA[tipoEv]] }))
     // doble amarilla = roja
     if (tipoEv === 'amarilla' && jug) {
