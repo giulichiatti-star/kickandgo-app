@@ -83,6 +83,8 @@ export default function EnVivo() {
   const [gf, setGf] = useState(0)
   const [gc, setGc] = useState(0)
   const [seg, setSeg] = useState(0)
+  const [tiempo, setTiempo] = useState(1) // 1 = primer tiempo, 2 = segundo tiempo
+  const [descanso, setDescanso] = useState(false)
   const [corriendo, setCorriendo] = useState(false)
   const [partidoRestaurado, setPartidoRestaurado] = useState(false)
   const [eventos, setEventos] = useState([])
@@ -115,6 +117,8 @@ export default function EnVivo() {
           localStorage.removeItem('kg_envivo')
         } else if (s.gf !== undefined) {
           setGf(s.gf); setGc(s.gc); setSeg(s.seg || 0)
+          if (s.tiempo) setTiempo(s.tiempo)
+          if (s.descanso) setDescanso(s.descanso)
           setEventos(s.eventos || []); setMarks(s.marks || {})
           setNotas(s.notas || ''); setStats(s.stats || { tiros:0, corners:0, faltas:0, amarillas:0 })
           setRival(s.rival || 'Rival'); setClub(s.club || 'Nuestro equipo')
@@ -153,7 +157,7 @@ export default function EnVivo() {
     const id = setInterval(() => {
       try {
         localStorage.setItem('kg_envivo', JSON.stringify({
-          gf, gc, seg, eventos, marks, notas, stats,
+          gf, gc, seg, tiempo, descanso, eventos, marks, notas, stats,
           rival, club, titulares, suplentes, formacion, tipo,
           equipo_id: eid, ts: Date.now(),
         }))
@@ -162,11 +166,27 @@ export default function EnVivo() {
     return () => clearInterval(id)
   }, [gf, gc, seg, eventos, marks, notas, stats, rival, club, titulares, suplentes, formacion, tipo])
 
+  // Duración del primer tiempo según tipo de equipo (en segundos)
+  const durT1 = tipo === '7' ? 35 * 60 : tipo === '9' ? 40 * 60 : 45 * 60
+
   useEffect(() => {
-    if (corriendo) timer.current = setInterval(() => setSeg((s) => s + 1), 1000)
-    else clearInterval(timer.current)
+    if (corriendo) {
+      timer.current = setInterval(() => {
+        setSeg((s) => {
+          // Al llegar al final del 1T, parar y activar descanso
+          if (tiempo === 1 && s + 1 >= durT1) {
+            setCorriendo(false)
+            setDescanso(true)
+            return durT1
+          }
+          return s + 1
+        })
+      }, 1000)
+    } else {
+      clearInterval(timer.current)
+    }
     return () => clearInterval(timer.current)
-  }, [corriendo])
+  }, [corriendo, tiempo, durT1])
   useEffect(() => () => { try { recRef.current?.stop() } catch {} }, [])
 
   /* Auto-activar voz cuando se conecta un micrófono o auriculares con mic */
@@ -197,6 +217,23 @@ export default function EnVivo() {
   }, [])
 
   const min = Math.floor(seg / 60)
+
+  // Minuto real mostrado (2T arranca desde durT1)
+  const minMostrado = tiempo === 2 ? Math.floor(durT1 / 60) + Math.floor(seg / 60) : min
+
+  function iniciarSegundoTiempo() {
+    setDescanso(false)
+    setTiempo(2)
+    setSeg(0)
+    setCorriendo(true)
+  }
+
+  function textoperiodo() {
+    if (descanso) return 'Descanso'
+    if (!corriendo && seg === 0) return 'No iniciado'
+    if (!corriendo) return tiempo === 1 ? 'Pausado 1T' : 'Pausado 2T'
+    return tiempo === 1 ? '1er Tiempo' : '2º Tiempo'
+  }
 
   // Posiciones de cancha
   const coords = formsDe(tipo)[formacion] || Object.values(formsDe(tipo))[0]
@@ -348,14 +385,22 @@ export default function EnVivo() {
           <div className="ev2-shield">{escudo ? <img src={escudo} alt="" /> : '🛡️'}</div>
           <div className="ev2-score-center">
             <div className="ev2-score-big">{gf} - {gc}</div>
-            <div className="ev2-clock2">{mmss(seg)}</div>
-            <div className="ev2-period">{corriendo ? 'En juego' : seg ? 'Pausado' : 'No iniciado'}</div>
+            <div className="ev2-clock2" style={{ color: descanso ? '#f59e0b' : undefined }}>
+              {descanso ? 'DESC' : `${minMostrado}'`}
+            </div>
+            <div className="ev2-period" style={{ color: descanso ? '#f59e0b' : tiempo === 2 ? '#2dd4bf' : undefined }}>
+              {textoperiodo()}
+            </div>
           </div>
           <div className="ev2-shield">⚫</div>
           <div className="ev2-team-block"><div className="ev2-tname">{rival}</div><div className="ev2-tsub">Visitante</div></div>
         </div>
         <div className="ev2-actions">
-          <button className="ev2-abtn" onClick={() => setCorriendo((c) => !c)}>{corriendo ? '⏸' : '▶'}<small>{corriendo ? 'PAUSA' : 'INICIAR'}</small></button>
+          {descanso ? (
+            <button className="ev2-abtn" onClick={iniciarSegundoTiempo} style={{ borderColor: '#f59e0b', color: '#f59e0b' }}>▶<small>2º TIEMPO</small></button>
+          ) : (
+            <button className="ev2-abtn" onClick={() => setCorriendo((c) => !c)}>{corriendo ? '⏸' : '▶'}<small>{corriendo ? 'PAUSA' : tiempo === 2 ? 'REANUDAR' : 'INICIAR'}</small></button>
+          )}
           <button className={`ev2-rec-btn${escuchando ? ' on' : ''}`} onClick={toggleVoz}>
             <div className="ev2-rec-ico">
               {escuchando ? (
@@ -383,6 +428,17 @@ export default function EnVivo() {
           <button className="ev2-abtn danger" onClick={finalizar}>⏹<small>FIN</small></button>
         </div>
       </div>
+
+      {/* Banner descanso */}
+      {descanso && (
+        <div className="flex items-center justify-between px-4 py-2.5 text-sm font-bold"
+          style={{ background: 'rgba(245,158,11,0.15)', borderBottom: '1px solid rgba(245,158,11,0.3)', color: '#fcd34d' }}>
+          <span>☕ Descanso — {Math.floor(durT1 / 60)} min completados</span>
+          <button className="px-3 py-1 rounded-lg text-xs font-bold"
+            style={{ background: 'rgba(245,158,11,0.25)', border: '1px solid #f59e0b' }}
+            onClick={iniciarSegundoTiempo}>▶ Iniciar 2º Tiempo</button>
+        </div>
+      )}
 
       {/* Aviso grabar partido */}
       {corriendo && !escuchando && (
