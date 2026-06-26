@@ -16,7 +16,7 @@ const CAT_COLOR = {
 }
 
 export default function Convocatoria() {
-  const { paso, avanzar, saltar } = useOnboarding()
+  const { paso, avanzar, saltar, skipSi } = useOnboarding()
   const { equipoActivo } = useEquipo()
   const eid = equipoActivo?.id
   const [jugadores, setJugadores] = useState([])
@@ -47,8 +47,10 @@ export default function Convocatoria() {
           setRival(ult.rival || '')
           setFecha(ult.fecha || '')
           if (ult.formacion) setFormacion(ult.formacion)
-          setTitulares((ult.titulares || []).map((t) => t.id).filter(Boolean))
+          const tits = (ult.titulares || []).map((t) => t.id).filter(Boolean)
+          setTitulares(tits)
           setSuplentes((ult.suplentes || []).map((s) => s.id).filter(Boolean))
+          skipSi(tits.length > 0, 2, 3)
         }
       } catch (e) { setMsg(e.message) }
       finally { setCargando(false) }

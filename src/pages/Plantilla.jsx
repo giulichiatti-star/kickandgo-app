@@ -26,7 +26,7 @@ function formaClase(r) {
 }
 
 export default function Plantilla() {
-  const { paso, avanzar, saltar } = useOnboarding()
+  const { paso, avanzar, saltar, skipSi } = useOnboarding()
   const { equipoActivo } = useEquipo()
   const eid = equipoActivo?.id
   const [jugadores, setJugadores] = useState([])
@@ -57,6 +57,7 @@ export default function Plantilla() {
         listarTarjetas(eid).catch(() => []), listarEntrenos(eid).catch(() => []),
       ])
       setJugadores(js); setPerfil(p); setPartidos(ps); setTarjetas(tj); setEntrenos(en)
+      skipSi(js.length > 0, 1, 2)
       if (p?.temporada) setTemporada({ nombre: p.temporada.nombre || '', total_partidos: p.temporada.total_partidos || '' })
     } catch (e) { setError(e.message) } finally { setCargando(false) }
   }

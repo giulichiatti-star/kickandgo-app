@@ -4,7 +4,7 @@ import ManualControls from '../components/envivo/ManualControls'
 import ValoracionModal from '../components/envivo/ValoracionModal'
 import '../ev2.css'
 import { ultimaConvocatoria } from '../lib/convocatorias'
-import { guardarPartido } from '../lib/partidos'
+import { guardarPartido, listarPartidos } from '../lib/partidos'
 import { getCompeticion, guardarCompeticion } from '../lib/competicion'
 import { getPerfil } from '../lib/perfil'
 import { useEquipo } from '../contexts/EquipoContext'
@@ -93,7 +93,7 @@ const META = {
 function mmss(s) { return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}` }
 
 export default function EnVivo() {
-  const { paso, avanzar, saltar } = useOnboarding()
+  const { paso, avanzar, saltar, skipSi } = useOnboarding()
   const { equipoActivo } = useEquipo()
   const eid = equipoActivo?.id
   const navigate = useNavigate()
@@ -167,7 +167,8 @@ export default function EnVivo() {
 
     ;(async () => {
       if (!eid) return
-      const c = await ultimaConvocatoria(eid)
+      const [c, previos] = await Promise.all([ultimaConvocatoria(eid), listarPartidos(eid).catch(() => [])])
+      skipSi(previos.length > 0, 3, 4)
       if (c) {
         setTitulares((c.titulares || []).map((t) => ({ ...t })))
         setSuplentes((c.suplentes || []).map((t) => ({ ...t })))

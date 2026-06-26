@@ -88,7 +88,7 @@ function DashGauge({ value, color, label, iconKey }) {
 }
 
 export default function Inicio() {
-  const { paso, avanzar, saltar } = useOnboarding()
+  const { paso, avanzar, saltar, skipSi } = useOnboarding()
   const { mostrar: mostrarPWA, instalar, descartar } = usePWAInstall()
   const nav = useNavigate()
   const { equipoActivo, cargando: cargandoEquipo } = useEquipo()
@@ -111,6 +111,7 @@ export default function Inicio() {
           listarLesiones(eid).catch(() => []),
         ])
         setPerfil(p); setJugadores(js); setPartidos(ps); setConv(c); setEntrenos(en); setTarjetas(tj); setLesiones(ls)
+        skipSi(ps.length > 0, 4, 5)
       } catch { /* noop */ }
     })()
   }, [eid])

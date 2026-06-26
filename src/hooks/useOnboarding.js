@@ -26,5 +26,19 @@ export function useOnboarding() {
     setPaso(null)
   }, [])
 
-  return { paso, avanzar, saltar }
+  // Llama cuando los datos ya existen: si el paso actual coincide, lo salta automáticamente
+  const skipSi = useCallback((condicion, pasoCorriente, siguiente) => {
+    if (condicion && paso === pasoCorriente) {
+      if (siguiente > 4) {
+        localStorage.setItem(KEY_DONE, 'true')
+        localStorage.removeItem(KEY_STEP)
+        setPaso(null)
+      } else {
+        localStorage.setItem(KEY_STEP, String(siguiente))
+        setPaso(siguiente)
+      }
+    }
+  }, [paso])
+
+  return { paso, avanzar, saltar, skipSi }
 }
