@@ -98,6 +98,9 @@ export default function EnVivo() {
   const [tipo, setTipo] = useState('11')
   const [formacion, setFormacion] = useState('4-3-3')
   const [formacionRival, setFormacionRival] = useState('4-4-2')
+  const [coordsManual, setCoordsManual] = useState(null) // null = usa formación, array = manual
+  const [modoManual, setModoManual] = useState(false)
+  const canchaRef = useRef(null)
   const [vista, setVista] = useState('camisetas')
   const [tab, setTab] = useState('partido')
   const [gf, setGf] = useState(0)
@@ -139,6 +142,7 @@ export default function EnVivo() {
           setGf(s.gf); setGc(s.gc); setSeg(s.seg || 0)
           if (s.tiempo) setTiempo(s.tiempo)
           if (s.descanso) setDescanso(s.descanso)
+          if (s.coordsManual) { setCoordsManual(s.coordsManual); setModoManual(true) }
           setEventos(s.eventos || []); setMarks(s.marks || {})
           setNotas(s.notas || ''); setStats(s.stats || { tiros:0, corners:0, faltas:0, amarillas:0 })
           setRival(s.rival || 'Rival'); setClub(s.club || 'Nuestro equipo')
@@ -178,7 +182,7 @@ export default function EnVivo() {
       try {
         localStorage.setItem('kg_envivo', JSON.stringify({
           gf, gc, seg, tiempo, descanso, eventos, marks, notas, stats,
-          rival, club, titulares, suplentes, formacion, tipo,
+          rival, club, titulares, suplentes, formacion, tipo, coordsManual,
           equipo_id: eid, ts: Date.now(),
         }))
       } catch (err) { console.error("[EnVivo] localStorage save", err) }
@@ -246,10 +250,39 @@ export default function EnVivo() {
   }
 
   // Posiciones de cancha
-  const coords = formsDe(tipo)[formacion] || Object.values(formsDe(tipo))[0]
+  const coords = coordsManual || formsDe(tipo)[formacion] || Object.values(formsDe(tipo))[0]
   const puntosLocal = ordenarTitulares(titulares).slice(0, coords.length).map((j, i) => ({
     ...j, x: coords[i][0], y: coords[i][1], gk: i === 0, side: 'local',
   }))
+
+  function handleDragJugador(e, idx) {
+    if (!modoManual) return
+    e.preventDefault()
+    const cancha = canchaRef.current
+    if (!cancha) return
+    const rect = cancha.getBoundingClientRect()
+    const base = coordsManual || formsDe(tipo)[formacion] || Object.values(formsDe(tipo))[0]
+    const newCoords = base.map((c) => [...c])
+
+    function onMove(ev) {
+      const clientX = ev.touches ? ev.touches[0].clientX : ev.clientX
+      const clientY = ev.touches ? ev.touches[0].clientY : ev.clientY
+      const x = Math.round(Math.min(98, Math.max(2, ((clientX - rect.left) / rect.width) * 100)))
+      const y = Math.round(Math.min(97, Math.max(3, ((clientY - rect.top) / rect.height) * 100)))
+      newCoords[idx] = [x, y]
+      setCoordsManual([...newCoords])
+    }
+    function onUp() {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+      window.removeEventListener('touchmove', onMove)
+      window.removeEventListener('touchend', onUp)
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+    window.addEventListener('touchmove', onMove, { passive: false })
+    window.addEventListener('touchend', onUp)
+  }
   const rivalForm = formsDe(tipo)[formacionRival] || Object.values(formsDe(tipo))[0]
   const puntosRival = RIVAL_DEMO.slice(0, rivalForm.length).map((j, i) => ({
     ...j, x: 100 - rivalForm[i][0], y: rivalForm[i][1], gk: i === 0, side: 'rival',
@@ -354,12 +387,15 @@ export default function EnVivo() {
     setValorModal(true)
   }
 
-  const Player = ({ p }) => {
+  const Player = ({ p, onDragStart }) => {
     const isSel = sel?.id === p.id
     const ms = marks[p.id] || []
     return (
-      <div className={`ev2-player${isSel ? ' sel' : ''}`} style={{ left: `${p.x}%`, top: `${p.y}%` }}
-        onClick={() => p.side === 'local' && setSel(isSel ? null : { id: p.id, dorsal: p.dorsal, nombre: p.nombre })}>
+      <div className={`ev2-player${isSel ? ' sel' : ''}`}
+        style={{ left: `${p.x}%`, top: `${p.y}%`, cursor: onDragStart ? 'grab' : undefined, userSelect: 'none' }}
+        onMouseDown={onDragStart}
+        onTouchStart={onDragStart}
+        onClick={() => !onDragStart && p.side === 'local' && setSel(isSel ? null : { id: p.id, dorsal: p.dorsal, nombre: p.nombre })}>
         {ms.length > 0 && <div className="ev2-pmarks">{ms.map((m, k) => <span key={k} className="ev2-pmark">{m}</span>)}</div>}
         <Jersey num={p.dorsal} side={p.side} gk={p.gk} vista={vista} />
         <div className="ev2-pname">{(p.nombre || '').split(' ')[0]}</div>
@@ -482,13 +518,25 @@ export default function EnVivo() {
                 <span className="text-[10px] font-bold text-cyan uppercase shrink-0 pr-1">{club.split(' ')[0]}</span>
                 {Object.keys(formsDe(tipo)).map((f) => (
                   <button key={f} onClick={() => {
-                    if (f !== formacion) {
+                    if (f !== formacion || modoManual) {
                       setFormacion(f)
+                      setCoordsManual(null)
+                      setModoManual(false)
                       setEventos((ev) => [{ min, tipo: 'formacion', icon: '🔀', label: `Cambio de formación → ${f}`, jugador: null }, ...ev])
                     }
                   }}
-                    className={`text-xs px-3 py-1.5 rounded-lg border whitespace-nowrap ${formacion === f ? 'border-cyan bg-cyan/10 text-cyan' : 'border-borde text-muted'}`}>{f}</button>
+                    className={`text-xs px-3 py-1.5 rounded-lg border whitespace-nowrap ${formacion === f && !modoManual ? 'border-cyan bg-cyan/10 text-cyan' : 'border-borde text-muted'}`}>{f}</button>
                 ))}
+                <button onClick={() => {
+                  if (!modoManual) {
+                    setCoordsManual((formsDe(tipo)[formacion] || Object.values(formsDe(tipo))[0]).map(c => [...c]))
+                    setModoManual(true)
+                  } else {
+                    setModoManual(false)
+                  }
+                }} className={`text-xs px-3 py-1.5 rounded-lg border whitespace-nowrap shrink-0 ${modoManual ? 'border-dorado bg-dorado/10 text-dorado' : 'border-borde text-muted'}`}>
+                  ✏️ Manual{modoManual ? ' (activo)' : ''}
+                </button>
               </div>
               {/* Chips formación rival */}
               <div className="flex items-center gap-1.5 mb-2 overflow-x-auto pb-1">
@@ -505,7 +553,12 @@ export default function EnVivo() {
               </div>
               {/* CANCHA */}
               <div className="ev2-pitch-wrap">
-                <div className="ev2-pitch">
+                {modoManual && (
+                  <div className="text-[10px] text-center py-1 font-bold" style={{ color: '#f59e0b', background: 'rgba(245,158,11,0.1)' }}>
+                    ✏️ Modo manual — arrastra los jugadores para reposicionarlos
+                  </div>
+                )}
+                <div className="ev2-pitch" ref={canchaRef}>
                   <svg className="ev2-pitch-lines" viewBox="0 0 160 100" preserveAspectRatio="none">
                     <rect x="2" y="2" width="156" height="96" fill="none" stroke="rgba(255,255,255,.25)" strokeWidth="0.5" />
                     <line x1="80" y1="2" x2="80" y2="98" stroke="rgba(255,255,255,.25)" strokeWidth="0.5" />
@@ -514,10 +567,13 @@ export default function EnVivo() {
                     <rect x="138" y="28" width="20" height="44" fill="none" stroke="rgba(255,255,255,.22)" strokeWidth="0.5" />
                   </svg>
                   <div className="ev2-pname-banner l">{club.toUpperCase()}</div>
-                  <div className="ev2-form-chip l">{formacion}</div>
+                  <div className="ev2-form-chip l">{modoManual ? 'manual' : formacion}</div>
                   <div className="ev2-form-chip r">{formacionRival}</div>
                   <div className="ev2-pname-banner r">{rival.toUpperCase()}</div>
-                  {puntosLocal.map((p) => <Player key={p.id} p={p} />)}
+                  {puntosLocal.map((p, i) => (
+                    <Player key={p.id} p={p}
+                      onDragStart={modoManual ? (e) => handleDragJugador(e, i) : undefined} />
+                  ))}
                   {puntosRival.map((p) => <Player key={p.id} p={p} />)}
                 </div>
               </div>
