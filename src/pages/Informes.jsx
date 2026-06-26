@@ -4,7 +4,7 @@ import {
   LineChart, Line, RadarChart, Radar, PolarGrid, PolarAngleAxis,
   BarChart, Bar, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend
 } from 'recharts'
-import { listarPartidos, borrarPartido, guardarActa } from '../lib/partidos'
+import { listarPartidos, borrarPartido, guardarActa, editarMarcador } from '../lib/partidos'
 import { getPerfil } from '../lib/perfil'
 import { listarJugadores } from '../lib/jugadores'
 import { listarEntrenos } from '../lib/entrenamientos'
@@ -461,6 +461,9 @@ export default function Informes() {
   const [actaMsg,setActaMsg]   = useState('')
   const [perfil,setPerfil]     = useState(null)
   const [borrando,setBorrando] = useState(false)
+  const [editando, setEditando] = useState(false)
+  const [editGf, setEditGf] = useState(0)
+  const [editGc, setEditGc] = useState(0)
   const [jugadores,setJugadores] = useState([])
   const [entrenos,setEntrenos]   = useState([])
   const [liga,setLiga]           = useState(null)
@@ -620,14 +623,39 @@ export default function Informes() {
           </div>
           {/* Centro marcador */}
           <div className="text-center flex-shrink-0 px-4">
-            <div style={{fontSize:40,fontWeight:900,letterSpacing:2,lineHeight:1,color:'#fff'}}>
-              <span style={{color:sel.gf>sel.gc?'#34d399':sel.gf<sel.gc?'#fff':'#f59e0b'}}>{sel.gf}</span>
-              <span style={{color:'#3f3f46',fontWeight:400,fontSize:32,margin:'0 6px'}}>-</span>
-              <span style={{color:sel.gc>sel.gf?'#f87171':sel.gc<sel.gf?'#fff':'#f59e0b'}}>{sel.gc}</span>
-            </div>
-            <div style={{fontSize:9,fontWeight:900,letterSpacing:'2px',color:rl.c,marginTop:4,
-              textShadow:`0 0 12px ${rl.c}80`}}>{rl.l}</div>
-            <div style={{fontSize:9,color:'#52525b',marginTop:3}}>{fechaCorta(sel.fecha)} · {sel.local_visitante==='visitante'?'Fuera':'En casa'}</div>
+            {editando ? (
+              <div className="flex flex-col items-center gap-2">
+                <div className="flex items-center gap-2">
+                  <input type="number" min={0} max={99} value={editGf} onChange={e=>setEditGf(+e.target.value)}
+                    className="field text-center font-black text-xl w-14 py-1" />
+                  <span style={{color:'#3f3f46',fontSize:24}}>-</span>
+                  <input type="number" min={0} max={99} value={editGc} onChange={e=>setEditGc(+e.target.value)}
+                    className="field text-center font-black text-xl w-14 py-1" />
+                </div>
+                <div className="flex gap-1">
+                  <button className="btn btn-primary text-xs px-3 py-1" onClick={async()=>{
+                    await editarMarcador(sel.id, editGf, editGc)
+                    setPartidos(ps=>ps.map(p=>p.id===sel.id?{...p,gf:editGf,gc:editGc}:p))
+                    setEditando(false)
+                  }}>✓ Guardar</button>
+                  <button className="btn btn-outline text-xs px-3 py-1" onClick={()=>setEditando(false)}>✕</button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div style={{fontSize:40,fontWeight:900,letterSpacing:2,lineHeight:1,color:'#fff'}}>
+                  <span style={{color:sel.gf>sel.gc?'#34d399':sel.gf<sel.gc?'#fff':'#f59e0b'}}>{sel.gf}</span>
+                  <span style={{color:'#3f3f46',fontWeight:400,fontSize:32,margin:'0 6px'}}>-</span>
+                  <span style={{color:sel.gc>sel.gf?'#f87171':sel.gc<sel.gf?'#fff':'#f59e0b'}}>{sel.gc}</span>
+                </div>
+                <div style={{fontSize:9,fontWeight:900,letterSpacing:'2px',color:rl.c,marginTop:4,
+                  textShadow:`0 0 12px ${rl.c}80`}}>{rl.l}</div>
+                <div style={{fontSize:9,color:'#52525b',marginTop:3}}>{fechaCorta(sel.fecha)} · {sel.local_visitante==='visitante'?'Fuera':'En casa'}</div>
+                <button onClick={()=>{setEditGf(sel.gf);setEditGc(sel.gc);setEditando(true)}}
+                  className="text-[9px] mt-1 opacity-40 hover:opacity-80 transition"
+                  style={{color:'#a1a1aa'}}>✏️ editar</button>
+              </>
+            )}
           </div>
           {/* Rival */}
           <div className="flex items-center gap-3 flex-1 min-w-0 justify-end flex-row-reverse">
