@@ -683,22 +683,25 @@ export default function Informes() {
               <div style={{fontSize:10,color:'#52525b'}}>{sel.local_visitante==='local'?'visitante':'local'}</div>
             </div>
           </div>
-          <button onClick={()=>{ setValoracionesEdit(sel.valoraciones||{}); setValorarModal(true) }}
-            className="text-[11px] px-3 py-1.5 rounded-lg border transition flex-shrink-0 font-bold"
-            style={{borderColor:'rgba(245,158,11,0.3)',color:'#f59e0b',background:'rgba(245,158,11,0.07)'}}>
-            ⭐ Valorar
-          </button>
-          <button onClick={exportarPDF} disabled={exportando}
-            className="text-[11px] px-3 py-1.5 rounded-lg border transition flex-shrink-0 font-bold"
-            style={{borderColor:'rgba(45,212,191,0.3)',color:'#2dd4bf',background:'rgba(45,212,191,0.07)'}}>
-            {exportando ? '⏳' : '📄 PDF'}
-          </button>
-          <button onClick={eliminar} disabled={borrando}
-            className="text-[11px] px-3 py-1.5 rounded-lg border transition flex-shrink-0"
-            style={{borderColor:'rgba(239,68,68,0.25)',color:'#f87171',background:'transparent'}}>
-            {borrando?'…':'🗑'}
-          </button>
         </div>
+      </div>
+      {/* Botones de acción — fuera del flex row del scoreboard para evitar overflow */}
+      <div className="flex items-center gap-2 mt-2 px-1">
+        <button onClick={()=>{ setValoracionesEdit(sel.valoraciones||{}); setValorarModal(true) }}
+          className="text-[11px] px-3 py-1.5 rounded-lg border transition font-bold"
+          style={{borderColor:'rgba(245,158,11,0.3)',color:'#f59e0b',background:'rgba(245,158,11,0.07)'}}>
+          ⭐ Valorar
+        </button>
+        <button onClick={exportarPDF} disabled={exportando}
+          className="text-[11px] px-3 py-1.5 rounded-lg border transition font-bold"
+          style={{borderColor:'rgba(45,212,191,0.3)',color:'#2dd4bf',background:'rgba(45,212,191,0.07)'}}>
+          {exportando ? '⏳' : '📄 PDF'}
+        </button>
+        <button onClick={eliminar} disabled={borrando}
+          className="text-[11px] px-3 py-1.5 rounded-lg border transition ml-auto"
+          style={{borderColor:'rgba(239,68,68,0.25)',color:'#f87171',background:'transparent'}}>
+          {borrando?'…':'🗑'}
+        </button>
       </div>
 
       {/* Tabs */}

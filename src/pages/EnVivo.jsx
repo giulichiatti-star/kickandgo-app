@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import '../ev2.css'
 import { ultimaConvocatoria } from '../lib/convocatorias'
 import { guardarPartido } from '../lib/partidos'
@@ -90,6 +91,7 @@ function mmss(s) { return `${String(Math.floor(s / 60)).padStart(2, '0')}:${Stri
 export default function EnVivo() {
   const { equipoActivo } = useEquipo()
   const eid = equipoActivo?.id
+  const navigate = useNavigate()
   const [titulares, setTitulares] = useState([])
   const [suplentes, setSuplentes] = useState([])
   const [rival, setRival] = useState('Rival')
@@ -121,8 +123,10 @@ export default function EnVivo() {
   const [entraRival, setEntraRival] = useState('')
   const [notas, setNotas] = useState('')
   const [stats, setStats] = useState({ tiros: 0, corners: 0, faltas: 0, amarillas: 0 })
+  const [localVisitante, setLocalVisitante] = useState('local')
   const [valorModal, setValorModal] = useState(false)
   const [valoraciones, setValoraciones] = useState({})
+  const [toast, setToast] = useState(null)
   const timer = useRef(null), recRef = useRef(null), escRef = useRef(false), titRef = useRef([])
   const clubRef = useRef(club), rivalRef = useRef(rival), lastVozRef = useRef({ txt: '', ts: 0 })
   titRef.current = titulares
@@ -157,6 +161,7 @@ export default function EnVivo() {
     } catch (err) { console.error("[EnVivo] restaurar localStorage", err) }
 
     ;(async () => {
+      if (!eid) return
       const c = await ultimaConvocatoria(eid)
       if (c) {
         setTitulares((c.titulares || []).map((t) => ({ ...t })))
@@ -188,7 +193,7 @@ export default function EnVivo() {
       } catch (err) { console.error("[EnVivo] localStorage save", err) }
     }, 30000)
     return () => clearInterval(id)
-  }, [gf, gc, seg, eventos, marks, notas, stats, rival, club, titulares, suplentes, formacion, tipo])
+  }, [gf, gc, seg, tiempo, descanso, eventos, marks, notas, stats, rival, club, titulares, suplentes, formacion, tipo, coordsManual, eid])
 
   // Duración del primer tiempo según tipo de equipo (en segundos)
   const durT1 = tipo === '7' ? 35 * 60 : tipo === '9' ? 40 * 60 : 45 * 60
@@ -292,7 +297,6 @@ export default function EnVivo() {
 
   function registrar(tipoEv, jug) {
     const ev = { min, tipo: tipoEv, icon: ICONO_MARCA[tipoEv] || '•', label: (META[tipoEv]?.label || tipoEv), jugador: jug ? `#${jug.dorsal} ${jug.nombre}` : null, jugador_id: jug?.id || null }
-    setEventos((e) => [ev, ...e])
     if (tipoEv === 'gol') { setGf((g) => g + 1); bump('tiros') }
     if (tipoEv === 'gol-rival') setGc((g) => g + 1)
     if (tipoEv === 'tiro') bump('tiros')
@@ -300,14 +304,18 @@ export default function EnVivo() {
     if (tipoEv === 'falta' || tipoEv === 'falta-favor') bump('faltas')
     if (tipoEv === 'amarilla') bump('amarillas')
     if (jug && ICONO_MARCA[tipoEv]) setMarks((m) => ({ ...m, [jug.id]: [...(m[jug.id] || []), ICONO_MARCA[tipoEv]] }))
-    // doble amarilla = roja
-    if (tipoEv === 'amarilla' && jug) {
-      const ya = eventos.filter((x) => x.tipo === 'amarilla' && x.jugador === ev.jugador).length
-      if (ya >= 1) {
-        setEventos((e) => [{ min, tipo: 'roja', icon: '🟥', label: 'Roja (doble amarilla)', jugador: ev.jugador }, ...e])
-        setMarks((m) => ({ ...m, [jug.id]: [...(m[jug.id] || []), '🟥'] }))
+    // doble amarilla = roja — usar updater para leer el array más reciente
+    setEventos((prev) => {
+      const lista = [ev, ...prev]
+      if (tipoEv === 'amarilla' && jug) {
+        const ya = prev.filter((x) => x.tipo === 'amarilla' && x.jugador === ev.jugador).length
+        if (ya >= 1) {
+          setMarks((m) => ({ ...m, [jug.id]: [...(m[jug.id] || []), '🟥'] }))
+          return [{ min, tipo: 'roja', icon: '🟥', label: 'Roja (doble amarilla)', jugador: ev.jugador }, ...lista]
+        }
       }
-    }
+      return lista
+    })
     setSel(null)
   }
 
@@ -339,9 +347,15 @@ export default function EnVivo() {
     recRef.current = rec; try { rec.start(); escRef.current = true; setEscuchando(true) } catch {}
   }
 
+  function showToast(msg, tipo = 'ok') {
+    setToast({ msg, tipo })
+    setTimeout(() => setToast(null), 3500)
+  }
+
   async function guardarFinal(vals) {
     const payload = {
       rival, gf, gc, formacion,
+      local_visitante: localVisitante,
       notas_entrenador: notas,
       eventos: eventos.map((e) => ({ min: e.min, tipo: e.tipo, label: e.label, jugador: e.jugador })),
       valoraciones: vals,
@@ -368,21 +382,20 @@ export default function EnVivo() {
       localStorage.removeItem('kg_envivo')
       setValorModal(false)
       setCorriendo(false)
-      alert('✅ Partido guardado en Informes')
+      showToast('✅ Partido guardado')
+      setTimeout(() => navigate('/informes'), 800)
     } catch {
-      // Sin conexión — guardar localmente como pendiente
       const pendientes = JSON.parse(localStorage.getItem('kg_pendientes') || '[]')
       pendientes.push(payload)
       localStorage.setItem('kg_pendientes', JSON.stringify(pendientes))
       localStorage.removeItem('kg_envivo')
       setValorModal(false)
       setCorriendo(false)
-      alert('📴 Sin conexión — el partido quedó guardado localmente. Se subirá automáticamente cuando recuperes internet.')
+      showToast('📴 Sin conexión — partido guardado localmente', 'warn')
     }
   }
 
   async function finalizar() {
-    if (!confirm('¿Finalizar el partido?')) return
     setCorriendo(false)
     setValorModal(true)
   }
@@ -419,7 +432,7 @@ export default function EnVivo() {
         <div className="flex items-center justify-between px-4 py-2 text-[11px] font-bold"
           style={{ background: 'rgba(245,158,11,0.15)', borderBottom: '1px solid rgba(245,158,11,0.3)', color: '#fcd34d' }}>
           <span>🔄 Partido restaurado — continúa donde lo dejaste</span>
-          <button onClick={() => { if (confirm('¿Descartar el partido guardado y empezar de cero?')) { localStorage.removeItem('kg_envivo'); window.location.reload() } }}
+          <button onClick={() => { localStorage.removeItem('kg_envivo'); window.location.reload() }}
             className="text-[10px] opacity-60 hover:opacity-100 ml-3">Descartar</button>
         </div>
       )}
@@ -427,7 +440,7 @@ export default function EnVivo() {
       <div className="ev2-topbar">
         <div className="ev2-logo"><div className="ev2-logo-mark">K</div><div className="ev2-logo-txt">KICK<br />AND <span>GO</span></div></div>
         <div className="ev2-scoreboard">
-          <div className="ev2-team-block rt"><div className="ev2-tname">{club}</div><div className="ev2-tsub">Local</div></div>
+          <div className="ev2-team-block rt"><div className="ev2-tname">{club}</div><div className="ev2-tsub" style={{cursor:'pointer',color:localVisitante==='local'?'#10b981':'#f59e0b'}} onClick={()=>setLocalVisitante(v=>v==='local'?'visitante':'local')}>{localVisitante==='local'?'🏠 Local':'✈️ Visitante'}</div></div>
           <div className="ev2-shield">{escudo ? <img src={escudo} alt="" /> : '🛡️'}</div>
           <div className="ev2-score-center">
             <div className="ev2-score-big">{gf} - {gc}</div>
@@ -729,13 +742,13 @@ export default function EnVivo() {
                     <span className="flex-1 text-xs">{e.label}{e.jugador ? ` · ${e.jugador}` : ''}</span>
                     <button className="text-muted hover:text-rojo text-xs" onClick={() => {
                       // Revertir marcador
-                      if (e.tipo === 'gol') setGf((g) => Math.max(0, g - 1))
+                      if (e.tipo === 'gol') { setGf((g) => Math.max(0, g - 1)); setStats((s) => ({ ...s, tiros: Math.max(0, s.tiros - 1) })) }
                       if (e.tipo === 'gol-rival') setGc((g) => Math.max(0, g - 1))
                       // Revertir stats
-                      if (e.tipo === 'tiro' || e.tipo === 'tiro-rival') setStats((s) => ({ ...s, tiros: Math.max(0, s.tiros - 1) }))
+                      if (e.tipo === 'tiro') setStats((s) => ({ ...s, tiros: Math.max(0, s.tiros - 1) }))
                       if (e.tipo === 'corner') setStats((s) => ({ ...s, corners: Math.max(0, s.corners - 1) }))
                       if (e.tipo === 'falta' || e.tipo === 'falta-favor') setStats((s) => ({ ...s, faltas: Math.max(0, s.faltas - 1) }))
-                      if (e.tipo === 'amarilla' || e.tipo === 'amarilla-rival') setStats((s) => ({ ...s, amarillas: Math.max(0, s.amarillas - 1) }))
+                      if (e.tipo === 'amarilla') setStats((s) => ({ ...s, amarillas: Math.max(0, s.amarillas - 1) }))
                       // Quitar marca del jugador (⚽ amarilla roja etc)
                       const ico = ICONO_MARCA[e.tipo]
                       if (ico && e.jugador_id) {
@@ -755,6 +768,20 @@ export default function EnVivo() {
           </div>
         </div>
       </div>
+      {/* Toast */}
+      {toast && (
+        <div style={{
+          position:'fixed',bottom:24,right:24,zIndex:9999,
+          background: toast.tipo==='warn' ? '#78350f' : '#166534',
+          color: toast.tipo==='warn' ? '#fcd34d' : '#86efac',
+          border:`1px solid ${toast.tipo==='warn'?'#f59e0b':'#22c55e'}`,
+          borderLeft:`3px solid ${toast.tipo==='warn'?'#f59e0b':'#22c55e'}`,
+          borderRadius:10,padding:'10px 16px',fontSize:13,fontWeight:600,
+          boxShadow:'0 4px 24px rgba(0,0,0,0.4)',maxWidth:320
+        }}>
+          {toast.msg}
+        </div>
+      )}
     </div>
   )
 }
@@ -766,7 +793,7 @@ function ManualControls({ rival, onRegistrar }) {
     { tipo: 'gol-rival',      ico: '⚽', lbl: 'Gol',        color: '#ef4444' },
     { tipo: 'tiro-rival',     ico: '🎯', lbl: 'Tiro',        color: '#f59e0b' },
     { tipo: 'corner-rival',   ico: '⛳', lbl: 'Córner',      color: '#f59e0b' },
-    { tipo: 'falta',          ico: '🔴', lbl: 'Falta',       color: '#ef4444' },
+    { tipo: 'falta-favor',    ico: '🟢', lbl: 'Falta\na favor', color: '#10b981' },
     { tipo: 'amarilla-rival', ico: '🟨', lbl: 'Amarilla',    color: '#f59e0b', needsDorsal: true },
     { tipo: 'roja-rival',     ico: '🟥', lbl: 'Roja',        color: '#ef4444', needsDorsal: true },
     { tipo: 'offside',        ico: '🚩', lbl: 'F. juego',    color: '#94a3b8' },

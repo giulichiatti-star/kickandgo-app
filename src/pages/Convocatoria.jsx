@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { listarJugadores, posACat } from '../lib/jugadores'
 import { guardarConvocatoria, ultimaConvocatoria } from '../lib/convocatorias'
 import { getPerfil } from '../lib/perfil'
-import { nTitulares, nSuplentes } from '../lib/formaciones'
+import { nTitulares, nSuplentes, formacionesPara, formacionDefecto } from '../lib/formaciones'
 import { useEquipo } from '../contexts/EquipoContext'
 import { listarLesiones } from '../lib/lesiones'
 
@@ -24,6 +24,7 @@ export default function Convocatoria() {
   const [cargando, setCargando] = useState(true)
   const [msg, setMsg] = useState('')
   const [tipo, setTipo] = useState('11')
+  const [formacion, setFormacion] = useState('4-3-3')
   const [club, setClub] = useState('')
   const [lesActivas, setLesActivas] = useState([])
   const MAX_TIT = nTitulares(tipo)
@@ -34,6 +35,7 @@ export default function Convocatoria() {
       try {
         const t = equipoActivo?.tipo_equipo || '11'
         setTipo(t); setClub(equipoActivo?.nombre || '')
+        setFormacion(formacionDefecto(t))
         const [js, les] = await Promise.all([listarJugadores(eid), listarLesiones(eid).catch(() => [])])
         setJugadores(js)
         setLesActivas(les.filter(l => !l.alta))
@@ -41,6 +43,7 @@ export default function Convocatoria() {
         if (ult) {
           setRival(ult.rival || '')
           setFecha(ult.fecha || '')
+          if (ult.formacion) setFormacion(ult.formacion)
           setTitulares((ult.titulares || []).map((t) => t.id).filter(Boolean))
           setSuplentes((ult.suplentes || []).map((s) => s.id).filter(Boolean))
         }
@@ -132,7 +135,7 @@ export default function Convocatoria() {
     }
     try {
       await guardarConvocatoria({
-        rival, fecha, formacion: '433',
+        rival, fecha, formacion,
         titulares: titulares.map(empaqueta),
         suplentes: suplentes.map(empaqueta),
       }, eid)
@@ -160,7 +163,7 @@ export default function Convocatoria() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 mb-4">
+      <div className="grid grid-cols-3 gap-3 mb-4">
         <div>
           <label className="text-xs text-muted">Rival</label>
           <input className="field mt-1" value={rival} onChange={(e) => setRival(e.target.value)} placeholder="Próximo rival" />
@@ -168,6 +171,14 @@ export default function Convocatoria() {
         <div>
           <label className="text-xs text-muted">Fecha</label>
           <input className="field mt-1" type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} />
+        </div>
+        <div>
+          <label className="text-xs text-muted">Formación</label>
+          <select className="field mt-1" value={formacion} onChange={(e) => setFormacion(e.target.value)}>
+            {Object.keys(formacionesPara(tipo)).map(f => (
+              <option key={f} value={f}>{f}</option>
+            ))}
+          </select>
         </div>
       </div>
 
