@@ -171,17 +171,7 @@ export default function EnVivo() {
 
   useEffect(() => {
     if (corriendo) {
-      timer.current = setInterval(() => {
-        setSeg((s) => {
-          // Al llegar al final del 1T, parar y activar descanso
-          if (tiempo === 1 && s + 1 >= durT1) {
-            setCorriendo(false)
-            setDescanso(true)
-            return durT1
-          }
-          return s + 1
-        })
-      }, 1000)
+      timer.current = setInterval(() => setSeg((s) => s + 1), 1000)
     } else {
       clearInterval(timer.current)
     }
@@ -400,6 +390,9 @@ export default function EnVivo() {
             <button className="ev2-abtn" onClick={iniciarSegundoTiempo} style={{ borderColor: '#f59e0b', color: '#f59e0b' }}>▶<small>2º TIEMPO</small></button>
           ) : (
             <button className="ev2-abtn" onClick={() => setCorriendo((c) => !c)}>{corriendo ? '⏸' : '▶'}<small>{corriendo ? 'PAUSA' : tiempo === 2 ? 'REANUDAR' : 'INICIAR'}</small></button>
+          )}
+          {!descanso && tiempo === 1 && seg >= durT1 && (
+            <button className="ev2-abtn" onClick={() => { setCorriendo(false); setDescanso(true) }} style={{ borderColor: '#f59e0b', color: '#f59e0b' }}>☕<small>DESCANSO</small></button>
           )}
           <button className={`ev2-rec-btn${escuchando ? ' on' : ''}`} onClick={toggleVoz}>
             <div className="ev2-rec-ico">
