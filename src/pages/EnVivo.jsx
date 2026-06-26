@@ -571,6 +571,18 @@ export default function EnVivo() {
                     ✏️ Modo manual — arrastra los jugadores para reposicionarlos
                   </div>
                 )}
+                {titulares.length === 0 && (
+                  <div style={{
+                    position:'absolute',top:'50%',left:'50%',transform:'translate(-50%,-50%)',
+                    zIndex:20,textAlign:'center',pointerEvents:'none',
+                    background:'rgba(15,15,17,0.85)',borderRadius:12,padding:'16px 24px',
+                    border:'1px solid #27272a'
+                  }}>
+                    <div style={{fontSize:28,marginBottom:6}}>📋</div>
+                    <div style={{fontSize:13,fontWeight:700,color:'#fafafa'}}>Sin convocatoria</div>
+                    <div style={{fontSize:11,color:'#71717a',marginTop:4}}>Ve a <b style={{color:'#10b981'}}>Convocatoria</b> y confirma los jugadores antes del partido</div>
+                  </div>
+                )}
                 <div className="ev2-pitch" ref={canchaRef}>
                   <svg className="ev2-pitch-lines" viewBox="0 0 160 100" preserveAspectRatio="none">
                     <rect x="2" y="2" width="156" height="96" fill="none" stroke="rgba(255,255,255,.25)" strokeWidth="0.5" />
