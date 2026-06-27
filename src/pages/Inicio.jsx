@@ -237,6 +237,40 @@ export default function Inicio() {
 
   return (
     <div>
+      {paso === 1 && (
+        <div style={{
+          background: 'linear-gradient(135deg, #10b98112, #10b98106)',
+          border: '1px solid #10b98135',
+          borderRadius: 14,
+          padding: '20px 20px',
+          marginBottom: 20,
+          textAlign: 'center',
+        }}>
+          <div style={{ fontSize: 32, marginBottom: 8 }}>⚽</div>
+          <div style={{ fontSize: 16, fontWeight: 800, color: '#fafafa', marginBottom: 6 }}>
+            Bienvenido a KICK AND GO
+          </div>
+          <div style={{ fontSize: 12, color: '#71717a', lineHeight: 1.6, marginBottom: 16 }}>
+            Para empezar, añade tus jugadores a la plantilla.<br />
+            Solo te lleva 2 minutos y desbloquea todo lo demás.
+          </div>
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
+            <button onClick={() => navigate('/plantilla')} style={{
+              background: '#10b981', color: '#000',
+              fontWeight: 800, fontSize: 13, borderRadius: 10,
+              padding: '10px 20px', border: 'none', cursor: 'pointer',
+            }}>
+              👥 Ir a Plantilla →
+            </button>
+            <button onClick={saltar} style={{
+              background: 'none', border: '1px solid #27272a', color: '#52525b',
+              fontSize: 12, borderRadius: 10, padding: '10px 16px', cursor: 'pointer',
+            }}>
+              Explorar solo
+            </button>
+          </div>
+        </div>
+      )}
       {paso === 4 && (
         <OnboardingBanner
           paso={4}
