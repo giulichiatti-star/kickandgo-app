@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { getPerfil, updatePerfil } from '../lib/perfil'
 import '../rivinf.css'
 import { getCompeticion, guardarCompeticion, parseTabla, parseGoleadores, parseCalendario } from '../lib/competicion'
@@ -124,6 +125,7 @@ function GuiaRapida() {
 export default function Ajustes() {
   const { equipoActivo } = useEquipo()
   const eid = equipoActivo?.id
+  const navigate = useNavigate()
   const [form, setForm] = useState({
     entrenador: '', club_nombre: '', descripcion: '', tipo_equipo: '11', escudo_url: '', temporada: '',
   })
@@ -165,7 +167,15 @@ export default function Ajustes() {
       // temporada se guarda dentro de competicion para no necesitar migración
       const comp = await getCompeticion(eid)
       await guardarCompeticion({ ...(comp||{}), temporada }, eid)
-      setMsg('✅ Guardado')
+      // Si es la primera vez que guarda (usuario nuevo), llevar a Plantilla
+      const esNuevo = !localStorage.getItem('kg_onboarding_done') && !localStorage.getItem('kg_onboarding_step')
+      if (esNuevo) {
+        localStorage.setItem('kg_onboarding_step', '1')
+        setMsg('✅ Guardado')
+        setTimeout(() => navigate('/plantilla'), 800)
+      } else {
+        setMsg('✅ Guardado')
+      }
     } catch (e) { setMsg('⚠️ ' + e.message) }
   }
 
