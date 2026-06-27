@@ -209,27 +209,71 @@ export default function Inicio() {
   if (!conv?.rival) alertas.push({ ico: '📋', col: 'rgba(45,212,191,0.15)', border: '#2dd4bf', t: 'Sin convocatoria preparada', d: 'Prepara el próximo partido' })
   if (entrenosSemana.length === 0) alertas.push({ ico: '🏋️', col: 'rgba(139,92,246,0.15)', border: '#8b5cf6', t: 'Sin entrenos esta semana', d: 'Planifica una sesión' })
 
-  // Sin equipo: onboarding
+  // Sin equipo: pantalla de bienvenida con guía
   if (!cargandoEquipo && !equipoActivo) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6 text-center px-4">
-        <div className="text-5xl">⚽</div>
-        <div>
-          <h1 className="text-2xl font-extrabold text-blanco mb-2">Bienvenido a KickAndGo</h1>
-          <p className="text-sm text-muted max-w-xs mx-auto">
-            Crea tu primer equipo para empezar a gestionar partidos, plantilla y entrenamientos.
-          </p>
-        </div>
-        <div className="space-y-3 w-full max-w-xs">
+      <div>
+        {/* Banner de bienvenida */}
+        <div style={{
+          background: 'linear-gradient(135deg, #18181b 0%, #1a2235 100%)',
+          border: '1px solid #10b98140',
+          borderLeft: '4px solid #10b981',
+          borderRadius: 16,
+          padding: '24px 20px',
+          marginBottom: 16,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+            <div style={{
+              width: 48, height: 48, borderRadius: 14, flexShrink: 0,
+              background: 'linear-gradient(135deg, #10b98130, #10b98110)',
+              border: '1px solid #10b98140',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 24,
+            }}>⚽</div>
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 800, color: '#10b981', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 3 }}>
+                Bienvenido a KICK AND GO
+              </div>
+              <div style={{ fontSize: 16, fontWeight: 800, color: '#fafafa' }}>
+                Empieza en 3 pasos
+              </div>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
+            {[
+              { n: 1, texto: 'Crea tu equipo — nombre, escudo y tipo (Fútbol 11 o 7).', dest: '/ajustes', btn: '→ Ir a Ajustes' },
+              { n: 2, texto: 'Añade tus jugadores en Plantilla.', dest: '/plantilla', btn: '→ Ir a Plantilla' },
+              { n: 3, texto: 'Prepara la convocatoria y empieza un partido en vivo.', dest: '/convocatoria', btn: '→ Ir a Convocatoria' },
+            ].map(({ n, texto, dest, btn }) => (
+              <div key={n} style={{ display: 'flex', alignItems: 'center', gap: 12, background: '#ffffff06', borderRadius: 10, padding: '12px 14px' }}>
+                <div style={{
+                  width: 26, height: 26, borderRadius: 8, flexShrink: 0,
+                  background: '#10b98120', border: '1px solid #10b98140',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 12, fontWeight: 900, color: '#10b981',
+                }}>{n}</div>
+                <div style={{ fontSize: 12, color: '#94a3b8', flex: 1, lineHeight: 1.4 }}>{texto}</div>
+                <button
+                  onClick={() => nav(dest)}
+                  style={{
+                    fontSize: 11, fontWeight: 700, color: '#10b981',
+                    background: 'none', border: '1px solid #10b98140',
+                    borderRadius: 8, padding: '5px 10px', cursor: 'pointer', whiteSpace: 'nowrap',
+                  }}>{btn}</button>
+              </div>
+            ))}
+          </div>
+
           <button
-            className="btn btn-primary w-full"
             onClick={() => nav('/ajustes')}
-          >
-            ✚ Crear mi equipo
+            style={{
+              width: '100%', background: '#10b981', color: '#000',
+              fontWeight: 800, fontSize: 13, borderRadius: 10,
+              padding: '12px', border: 'none', cursor: 'pointer',
+            }}>
+            ✚ Crear mi equipo ahora
           </button>
-          <p className="text-[11px] text-muted">
-            También puedes ir a <b className="text-cyan">Club y ajustes</b> desde el menú lateral.
-          </p>
         </div>
       </div>
     )
