@@ -5,7 +5,7 @@ import { getPerfil } from '../lib/perfil'
 import { nTitulares, nSuplentes, formacionesPara, formacionDefecto } from '../lib/formaciones'
 import { useEquipo } from '../contexts/EquipoContext'
 import { listarLesiones } from '../lib/lesiones'
-import { useOnboarding } from '../hooks/useOnboarding'
+import { useBanner } from '../hooks/useOnboarding'
 import OnboardingBanner from '../components/OnboardingBanner'
 
 const CAT_COLOR = {
@@ -16,7 +16,7 @@ const CAT_COLOR = {
 }
 
 export default function Convocatoria() {
-  const { paso, avanzar, saltar, skipSi } = useOnboarding()
+  const { visible: bannerVisible, dismiss: bannerDismiss } = useBanner('kg_banner_convocatoria')
   const { equipoActivo } = useEquipo()
   const eid = equipoActivo?.id
   const [jugadores, setJugadores] = useState([])
@@ -50,7 +50,7 @@ export default function Convocatoria() {
           const tits = (ult.titulares || []).map((t) => t.id).filter(Boolean)
           setTitulares(tits)
           setSuplentes((ult.suplentes || []).map((s) => s.id).filter(Boolean))
-          skipSi(tits.length > 0, 2, 3)
+          if (tits.length > 0) bannerDismiss()
         }
       } catch (e) { setMsg(e.message) }
       finally { setCargando(false) }
@@ -152,13 +152,17 @@ export default function Convocatoria() {
 
   return (
     <div>
-      {paso === 2 && (
+      {bannerVisible && titulares.length === 0 && (
         <OnboardingBanner
-          paso={2}
-          titulo="Selecciona titulares y guarda la convocatoria"
-          descripcion="Con la convocatoria guardada, el mapa del partido en vivo cargará automáticamente a tus jugadores."
-          onAvanzar={() => avanzar(3)}
-          onSaltar={saltar}
+          storageKey="kg_banner_convocatoria"
+          icono="📋"
+          titulo="Prepara la convocatoria del partido"
+          pasos={[
+            'Toca cada jugador de la lista para añadirlo como titular o suplente.',
+            'Elige la formación táctica en el selector de arriba.',
+            'Pulsa "Guardar convocatoria" — el mapa del partido en vivo la cargará automáticamente.',
+          ]}
+          onDismiss={bannerDismiss}
         />
       )}
       <div className="flex items-center justify-between mb-4">

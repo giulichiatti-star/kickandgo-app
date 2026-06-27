@@ -8,7 +8,7 @@ import { listarPartidos } from '../lib/partidos'
 import { listarTarjetas } from '../lib/tarjetas'
 import { listarEntrenos } from '../lib/entrenamientos'
 import { useEquipo } from '../contexts/EquipoContext'
-import { useOnboarding } from '../hooks/useOnboarding'
+import { useBanner } from '../hooks/useOnboarding'
 import OnboardingBanner from '../components/OnboardingBanner'
 import '../equipo.css'
 
@@ -26,7 +26,7 @@ function formaClase(r) {
 }
 
 export default function Plantilla() {
-  const { paso, avanzar, saltar, skipSi } = useOnboarding()
+  const { visible: bannerVisible, dismiss: bannerDismiss } = useBanner('kg_banner_plantilla')
   const { equipoActivo } = useEquipo()
   const eid = equipoActivo?.id
   const [jugadores, setJugadores] = useState([])
@@ -57,7 +57,7 @@ export default function Plantilla() {
         listarTarjetas(eid).catch(() => []), listarEntrenos(eid).catch(() => []),
       ])
       setJugadores(js); setPerfil(p); setPartidos(ps); setTarjetas(tj); setEntrenos(en)
-      skipSi(js.length > 0, 1, 2)
+      if (js.length > 0) bannerDismiss()
       if (p?.temporada) setTemporada({ nombre: p.temporada.nombre || '', total_partidos: p.temporada.total_partidos || '' })
     } catch (e) { setError(e.message) } finally { setCargando(false) }
   }
@@ -221,13 +221,17 @@ export default function Plantilla() {
 
   return (
     <div>
-      {paso === 1 && (
+      {bannerVisible && jugadores.length === 0 && (
         <OnboardingBanner
-          paso={1}
-          titulo="Añade tus jugadores para empezar"
-          descripcion="La plantilla es la base de todo. Agrega al menos los titulares habituales antes de crear una convocatoria."
-          onAvanzar={() => avanzar(2)}
-          onSaltar={saltar}
+          storageKey="kg_banner_plantilla"
+          icono="👥"
+          titulo="Añade tu plantilla de jugadores"
+          pasos={[
+            'Pulsa el botón verde "+ Jugador" arriba a la derecha.',
+            'Rellena nombre, dorsal y posición — es suficiente para empezar.',
+            'Repite para todos tus titulares habituales (mínimo 11).',
+          ]}
+          onDismiss={bannerDismiss}
         />
       )}
       {/* HEADER club */}

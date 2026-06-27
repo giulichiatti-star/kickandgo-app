@@ -1,44 +1,12 @@
-import { useState, useCallback } from 'react'
+import { useState } from 'react'
 
-const KEY_STEP = 'kg_onboarding_step'
-const KEY_DONE = 'kg_onboarding_done'
+export function useBanner(storageKey) {
+  const [visible, setVisible] = useState(() => localStorage.getItem(storageKey) !== '1')
 
-export function useOnboarding() {
-  const [paso, setPaso] = useState(() => {
-    if (localStorage.getItem(KEY_DONE)) return null
-    return parseInt(localStorage.getItem(KEY_STEP) || '1', 10)
-  })
+  function dismiss() {
+    localStorage.setItem(storageKey, '1')
+    setVisible(false)
+  }
 
-  const avanzar = useCallback((siguiente) => {
-    if (siguiente > 4) {
-      localStorage.setItem(KEY_DONE, 'true')
-      localStorage.removeItem(KEY_STEP)
-      setPaso(null)
-    } else {
-      localStorage.setItem(KEY_STEP, String(siguiente))
-      setPaso(siguiente)
-    }
-  }, [])
-
-  const saltar = useCallback(() => {
-    localStorage.setItem(KEY_DONE, 'true')
-    localStorage.removeItem(KEY_STEP)
-    setPaso(null)
-  }, [])
-
-  // Llama cuando los datos ya existen: si el paso actual coincide, lo salta automáticamente
-  const skipSi = useCallback((condicion, pasoCorriente, siguiente) => {
-    if (condicion && paso === pasoCorriente) {
-      if (siguiente > 4) {
-        localStorage.setItem(KEY_DONE, 'true')
-        localStorage.removeItem(KEY_STEP)
-        setPaso(null)
-      } else {
-        localStorage.setItem(KEY_STEP, String(siguiente))
-        setPaso(siguiente)
-      }
-    }
-  }, [paso])
-
-  return { paso, avanzar, saltar, skipSi }
+  return { visible, dismiss }
 }

@@ -8,7 +8,7 @@ import { listarEntrenos, COLOR_CAT } from '../lib/entrenamientos'
 import { listarTarjetas } from '../lib/tarjetas'
 import { listarLesiones } from '../lib/lesiones'
 import { useEquipo } from '../contexts/EquipoContext'
-import { useOnboarding } from '../hooks/useOnboarding'
+import { useBanner } from '../hooks/useOnboarding'
 import OnboardingBanner from '../components/OnboardingBanner'
 import PWAInstallBanner from '../components/PWAInstallBanner'
 import { usePWAInstall } from '../hooks/usePWAInstall'
@@ -88,7 +88,7 @@ function DashGauge({ value, color, label, iconKey }) {
 }
 
 export default function Inicio() {
-  const { paso, avanzar, saltar, skipSi } = useOnboarding()
+  const { visible: bannerVisible, dismiss: bannerDismiss } = useBanner('kg_banner_inicio')
   const { mostrar: mostrarPWA, instalar, descartar } = usePWAInstall()
   const nav = useNavigate()
   const { equipoActivo, cargando: cargandoEquipo } = useEquipo()
@@ -111,7 +111,7 @@ export default function Inicio() {
           listarLesiones(eid).catch(() => []),
         ])
         setPerfil(p); setJugadores(js); setPartidos(ps); setConv(c); setEntrenos(en); setTarjetas(tj); setLesiones(ls)
-        skipSi(ps.length > 0, 4, 5)
+        if (ps.length > 0) bannerDismiss()
       } catch { /* noop */ }
     })()
   }, [eid])
@@ -237,47 +237,18 @@ export default function Inicio() {
 
   return (
     <div>
-      {paso === 1 && (
-        <div style={{
-          background: 'linear-gradient(135deg, #10b98112, #10b98106)',
-          border: '1px solid #10b98135',
-          borderRadius: 14,
-          padding: '20px 20px',
-          marginBottom: 20,
-          textAlign: 'center',
-        }}>
-          <div style={{ fontSize: 32, marginBottom: 8 }}>⚽</div>
-          <div style={{ fontSize: 16, fontWeight: 800, color: '#fafafa', marginBottom: 6 }}>
-            Bienvenido a KICK AND GO
-          </div>
-          <div style={{ fontSize: 12, color: '#71717a', lineHeight: 1.6, marginBottom: 16 }}>
-            Para empezar, añade tus jugadores a la plantilla.<br />
-            Solo te lleva 2 minutos y desbloquea todo lo demás.
-          </div>
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <button onClick={() => navigate('/plantilla')} style={{
-              background: '#10b981', color: '#000',
-              fontWeight: 800, fontSize: 13, borderRadius: 10,
-              padding: '10px 20px', border: 'none', cursor: 'pointer',
-            }}>
-              👥 Ir a Plantilla →
-            </button>
-            <button onClick={saltar} style={{
-              background: 'none', border: '1px solid #27272a', color: '#52525b',
-              fontSize: 12, borderRadius: 10, padding: '10px 16px', cursor: 'pointer',
-            }}>
-              Explorar solo
-            </button>
-          </div>
-        </div>
-      )}
-      {paso === 4 && (
+      {bannerVisible && partidos.length === 0 && (
         <OnboardingBanner
-          paso={4}
-          titulo="El dashboard se llena con cada partido"
-          descripcion="Registra tu primer partido en vivo y aquí verás estadísticas, racha y predicciones actualizadas al instante."
-          onAvanzar={() => avanzar(5)}
-          onSaltar={saltar}
+          storageKey="kg_banner_inicio"
+          icono="🏠"
+          titulo="Este es tu centro de mando"
+          pasos={[
+            'Ve a Plantilla y añade tus jugadores (mínimo 11).',
+            'Ve a Convocatoria y selecciona los titulares del próximo partido.',
+            'Ve a Partido en Vivo, pulsa Iniciar y registra el partido.',
+            'Cuando guardes el primer partido, este dashboard se llena con estadísticas, racha y predicciones.',
+          ]}
+          onDismiss={bannerDismiss}
         />
       )}
       {mostrarPWA && <PWAInstallBanner onInstalar={instalar} onDescartar={descartar} />}
