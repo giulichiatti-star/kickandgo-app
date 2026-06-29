@@ -32,7 +32,7 @@ function Toast({ msg, onClose }) {
 }
 
 export default function PlanTemporada() {
-  const { equipoActivo } = useEquipo()
+  const { equipoActivo, cargando: cargandoCtx } = useEquipo()
   const eid = equipoActivo?.id
 
   const [temporada, setTemporada] = useState(null)
@@ -49,7 +49,8 @@ export default function PlanTemporada() {
   const [nuevoHito, setNuevoHito] = useState({ mes: 0, texto: '' })
 
   useEffect(() => {
-    if (!eid) return
+    if (cargandoCtx) return
+    if (!eid) { setCargando(false); return }
     ;(async () => {
       try {
         const [t, ps] = await Promise.all([getTemporada(eid), listarPartidos(eid)])
@@ -70,7 +71,7 @@ export default function PlanTemporada() {
       } catch (err) { console.error('[PlanTemporada] carga', err) }
       finally { setCargando(false) }
     })()
-  }, [eid])
+  }, [eid, cargandoCtx])
 
   // Calcular reales desde partidos
   const real = (() => {
@@ -108,6 +109,13 @@ export default function PlanTemporada() {
   }
 
   if (cargando) return <div className="text-sm text-muted py-10 text-center">Cargando…</div>
+  if (!eid) return (
+    <div className="card p-8 text-center">
+      <div className="text-3xl mb-3">🏆</div>
+      <div className="text-sm font-semibold mb-1">Sin equipo activo</div>
+      <div className="text-xs text-muted">Crea tu equipo en <b>Ajustes</b> para configurar el plan de temporada.</div>
+    </div>
+  )
 
   const obj = form
   const hayObjetivos = obj.objetivo_posicion || obj.objetivo_victorias_pct || obj.objetivo_goles_favor || obj.objetivo_goles_contra

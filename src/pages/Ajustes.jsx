@@ -261,6 +261,10 @@ export default function Ajustes() {
           <a href="/privacidad" target="_blank" rel="noopener noreferrer" className="text-cyan underline">
             política de privacidad
           </a>{' '}
+          y nuestros{' '}
+          <a href="/terminos" target="_blank" rel="noopener noreferrer" className="text-cyan underline">
+            términos y condiciones
+          </a>{' '}
           en cualquier momento.
         </p>
         <EliminarCuenta />
@@ -324,7 +328,7 @@ function EliminarCuenta() {
       if (error) throw error
       await supabase.auth.signOut()
     } catch (e) {
-      setMsg('⚠️ ' + e.message + ' — Escríbenos a lopezlucas290@gmail.com para tramitarlo manualmente.')
+      setMsg('⚠️ ' + e.message + ' — Escríbenos a kickandgoapp@gmail.com para tramitarlo manualmente.')
       setCargando(false); setConfirm(false)
     }
   }

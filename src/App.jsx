@@ -20,6 +20,7 @@ import Clima from './pages/Clima'
 import Asistente from './pages/Asistente'
 import Rivales from './pages/Rivales'
 import PlanTemporada from './pages/PlanTemporada'
+import Terminos from './pages/Terminos'
 import OnboardingWizard, { useWizard } from './components/OnboardingWizard'
 
 import { createContext, useContext } from 'react'
@@ -289,6 +290,10 @@ function Shell({ children, onLogout }) {
       </header>
 
       <main className="lg:ml-[224px] px-4 lg:px-6 py-5 max-w-[1280px] mx-auto" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>{children}</main>
+      <footer className="lg:ml-[224px] px-4 lg:px-6 py-3 border-t border-borde flex gap-4 text-[11px] text-muted">
+        <a href="/privacidad" className="hover:text-blanco2 transition-colors">Política de privacidad</a>
+        <a href="/terminos" className="hover:text-blanco2 transition-colors">Términos y condiciones</a>
+      </footer>
     </div>
   )
 }
@@ -320,6 +325,7 @@ export default function App() {
   if (!listo) return <div className="min-h-screen grid place-items-center text-muted">Cargando…</div>
   // Página pública — accesible sin login
   if (window.location.pathname === '/privacidad') return <Privacidad />
+  if (window.location.pathname === '/terminos') return <Terminos />
   if (!sesion) return <Login />
   if (activo === null) return <div className="min-h-screen grid place-items-center text-muted">Comprobando acceso…</div>
   if (!activo) return <Pendiente onLogout={logout} />

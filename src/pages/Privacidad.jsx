@@ -9,7 +9,7 @@ export default function Privacidad() {
 
       <Section titulo="1. Responsable del tratamiento">
         <p><b>KICK AND GO</b> es el responsable del tratamiento de los datos personales recogidos a través de esta aplicación.</p>
-        <p className="mt-2">Puedes contactarnos en: <a href="mailto:lopezlucas290@gmail.com" className="text-cyan underline">lopezlucas290@gmail.com</a></p>
+        <p className="mt-2">Puedes contactarnos en: <a href="mailto:kickandgoapp@gmail.com" className="text-cyan underline">kickandgoapp@gmail.com</a></p>
       </Section>
 
       <Section titulo="2. Datos que recogemos">
@@ -57,7 +57,7 @@ export default function Privacidad() {
           <li><b>Portabilidad</b>: solicitar una copia de tus datos</li>
           <li><b>Oposición</b>: oponerte a cualquier tratamiento</li>
         </ul>
-        <p className="mt-2">Para ejercer cualquier derecho, escríbenos a <a href="mailto:lopezlucas290@gmail.com" className="text-cyan underline">lopezlucas290@gmail.com</a>.</p>
+        <p className="mt-2">Para ejercer cualquier derecho, escríbenos a <a href="mailto:kickandgoapp@gmail.com" className="text-cyan underline">kickandgoapp@gmail.com</a>.</p>
         <p className="mt-2">También puedes presentar una reclamación ante la <b>AEPD</b> (Agencia Española de Protección de Datos): <span className="text-muted">aepd.es</span>.</p>
       </Section>
 
