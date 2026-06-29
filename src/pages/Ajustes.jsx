@@ -9,6 +9,7 @@ import { borrarTodasTarjetas } from '../lib/tarjetas'
 import { borrarTodosEntrenos } from '../lib/entrenamientos'
 import { supabase } from '../lib/supabase'
 import { useEquipo } from '../contexts/EquipoContext'
+import { useWizardContext } from '../App'
 import { suscribirPush, cancelarPush, tieneSuscripcion } from '../lib/push'
 
 /* ── Guía rápida animada ── */
@@ -126,6 +127,7 @@ export default function Ajustes() {
   const { equipoActivo } = useEquipo()
   const eid = equipoActivo?.id
   const navigate = useNavigate()
+  const wizard = useWizardContext()
   const [form, setForm] = useState({
     entrenador: '', club_nombre: '', descripcion: '', tipo_equipo: '11', escudo_url: '', temporada: '',
   })
@@ -183,7 +185,15 @@ export default function Ajustes() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-extrabold">Club y ajustes</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-extrabold">Club y ajustes</h1>
+        <button
+          onClick={() => wizard?.abrir()}
+          className="btn btn-outline text-xs flex items-center gap-1"
+        >
+          📖 Ver guía de inicio
+        </button>
+      </div>
       <GuiaRapida />
 
       {/* Escudo */}

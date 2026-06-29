@@ -5,8 +5,6 @@ import { getPerfil } from '../lib/perfil'
 import { nTitulares, nSuplentes, formacionesPara, formacionDefecto } from '../lib/formaciones'
 import { useEquipo } from '../contexts/EquipoContext'
 import { listarLesiones } from '../lib/lesiones'
-import { useBanner } from '../hooks/useOnboarding'
-import OnboardingBanner from '../components/OnboardingBanner'
 
 const CAT_COLOR = {
   POR: 'bg-dorado/15 text-dorado',
@@ -16,7 +14,6 @@ const CAT_COLOR = {
 }
 
 export default function Convocatoria() {
-  const { visible: bannerVisible, dismiss: bannerDismiss } = useBanner('kg_banner_convocatoria')
   const { equipoActivo } = useEquipo()
   const eid = equipoActivo?.id
   const [jugadores, setJugadores] = useState([])
@@ -50,7 +47,6 @@ export default function Convocatoria() {
           const tits = (ult.titulares || []).map((t) => t.id).filter(Boolean)
           setTitulares(tits)
           setSuplentes((ult.suplentes || []).map((s) => s.id).filter(Boolean))
-          if (tits.length > 0) bannerDismiss()
         }
       } catch (e) { setMsg(e.message) }
       finally { setCargando(false) }
@@ -152,19 +148,6 @@ export default function Convocatoria() {
 
   return (
     <div>
-      {bannerVisible && titulares.length === 0 && (
-        <OnboardingBanner
-          storageKey="kg_banner_convocatoria"
-          icono="📋"
-          titulo="Prepara la convocatoria del partido"
-          pasos={[
-            'Toca cada jugador de la lista para añadirlo como titular o suplente.',
-            'Elige la formación táctica en el selector de arriba.',
-            'Pulsa "Guardar convocatoria" — el mapa del partido en vivo la cargará automáticamente.',
-          ]}
-          onDismiss={bannerDismiss}
-        />
-      )}
       <div className="flex items-center justify-between mb-4">
         <div>
           <h1 className="text-xl font-extrabold">Convocatoria</h1>

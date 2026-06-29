@@ -8,8 +8,6 @@ import { listarPartidos } from '../lib/partidos'
 import { listarTarjetas } from '../lib/tarjetas'
 import { listarEntrenos } from '../lib/entrenamientos'
 import { useEquipo } from '../contexts/EquipoContext'
-import { useBanner } from '../hooks/useOnboarding'
-import OnboardingBanner from '../components/OnboardingBanner'
 import '../equipo.css'
 
 const POSICIONES = [
@@ -26,7 +24,6 @@ function formaClase(r) {
 }
 
 export default function Plantilla() {
-  const { visible: bannerVisible, dismiss: bannerDismiss } = useBanner('kg_banner_plantilla')
   const { equipoActivo } = useEquipo()
   const eid = equipoActivo?.id
   const [jugadores, setJugadores] = useState([])
@@ -57,7 +54,6 @@ export default function Plantilla() {
         listarTarjetas(eid).catch(() => []), listarEntrenos(eid).catch(() => []),
       ])
       setJugadores(js); setPerfil(p); setPartidos(ps); setTarjetas(tj); setEntrenos(en)
-      if (js.length > 0) bannerDismiss()
       if (p?.temporada) setTemporada({ nombre: p.temporada.nombre || '', total_partidos: p.temporada.total_partidos || '' })
     } catch (e) { setError(e.message) } finally { setCargando(false) }
   }
@@ -221,19 +217,6 @@ export default function Plantilla() {
 
   return (
     <div>
-      {bannerVisible && jugadores.length === 0 && (
-        <OnboardingBanner
-          storageKey="kg_banner_plantilla"
-          icono="👥"
-          titulo="Añade tu plantilla de jugadores"
-          pasos={[
-            'Pulsa el botón verde "+ Jugador" arriba a la derecha.',
-            'Rellena nombre, dorsal y posición — es suficiente para empezar.',
-            'Repite para todos tus titulares habituales (mínimo 11).',
-          ]}
-          onDismiss={bannerDismiss}
-        />
-      )}
       {/* HEADER club */}
       <div className="equipo-header">
         <div className="equipo-header-left">

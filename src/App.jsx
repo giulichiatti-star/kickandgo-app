@@ -20,6 +20,21 @@ import Clima from './pages/Clima'
 import Asistente from './pages/Asistente'
 import Rivales from './pages/Rivales'
 import PlanTemporada from './pages/PlanTemporada'
+import OnboardingWizard, { useWizard } from './components/OnboardingWizard'
+
+import { createContext, useContext } from 'react'
+export const WizardContext = createContext(null)
+export function useWizardContext() { return useContext(WizardContext) }
+
+function WizardRoot({ children }) {
+  const wizard = useWizard()
+  return (
+    <WizardContext.Provider value={wizard}>
+      {children}
+      <OnboardingWizard open={wizard.open} onCerrar={wizard.cerrar} />
+    </WizardContext.Provider>
+  )
+}
 
 function Centro({ children }) {
   return (
@@ -311,6 +326,7 @@ export default function App() {
 
   return (
     <EquipoProvider>
+    <WizardRoot>
     <Shell onLogout={logout}>
       <Routes>
         <Route path="/inicio" element={<Inicio />} />
@@ -331,6 +347,7 @@ export default function App() {
         <Route path="*" element={<Navigate to="/inicio" replace />} />
       </Routes>
     </Shell>
+    </WizardRoot>
     </EquipoProvider>
   )
 }

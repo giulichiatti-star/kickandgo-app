@@ -11,8 +11,6 @@ import { useEquipo } from '../contexts/EquipoContext'
 import { clasificarVoz } from '../lib/voz'
 import { ordenarTitulares } from '../lib/formaciones'
 import Jersey from '../components/Jersey'
-import { useBanner } from '../hooks/useOnboarding'
-import OnboardingBanner from '../components/OnboardingBanner'
 
 // Formaciones HORIZONTALES (x = profundidad, nuestra portería a la izquierda)
 const FORM_H_11 = {
@@ -93,7 +91,6 @@ const META = {
 function mmss(s) { return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}` }
 
 export default function EnVivo() {
-  const { visible: bannerVisible, dismiss: bannerDismiss } = useBanner('kg_banner_envivo')
   const { equipoActivo } = useEquipo()
   const eid = equipoActivo?.id
   const navigate = useNavigate()
@@ -168,7 +165,6 @@ export default function EnVivo() {
     ;(async () => {
       if (!eid) return
       const [c, previos] = await Promise.all([ultimaConvocatoria(eid), listarPartidos(eid).catch(() => [])])
-      if (previos.length > 0) bannerDismiss()
       if (c) {
         setTitulares((c.titulares || []).map((t) => ({ ...t })))
         setSuplentes((c.suplentes || []).map((t) => ({ ...t })))
@@ -424,20 +420,6 @@ export default function EnVivo() {
 
   return (
     <>
-      {bannerVisible && titulares.length === 0 && (
-        <OnboardingBanner
-          storageKey="kg_banner_envivo"
-          icono="⚡"
-          titulo="Controla el partido en tiempo real"
-          pasos={[
-            'Antes de entrar aquí, guarda una convocatoria — los jugadores aparecerán en el mapa.',
-            'Pulsa "▶ Iniciar" para arrancar el cronómetro.',
-            'Toca un jugador en el mapa y elige la acción: gol, amarilla, cambio…',
-            'Al finalizar, pulsa "Finalizar" para guardar el partido y ver el informe.',
-          ]}
-          onDismiss={bannerDismiss}
-        />
-      )}
     <div className="ev2-wrap" style={{ margin: '-20px -16px' }}>
       {valorModal && (
         <ValoracionModal

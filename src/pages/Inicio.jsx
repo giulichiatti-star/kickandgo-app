@@ -8,8 +8,6 @@ import { listarEntrenos, COLOR_CAT } from '../lib/entrenamientos'
 import { listarTarjetas } from '../lib/tarjetas'
 import { listarLesiones } from '../lib/lesiones'
 import { useEquipo } from '../contexts/EquipoContext'
-import { useBanner } from '../hooks/useOnboarding'
-import OnboardingBanner from '../components/OnboardingBanner'
 import PWAInstallBanner from '../components/PWAInstallBanner'
 import { usePWAInstall } from '../hooks/usePWAInstall'
 import { useSyncPendientes } from '../hooks/useSyncPendientes'
@@ -88,7 +86,6 @@ function DashGauge({ value, color, label, iconKey }) {
 }
 
 export default function Inicio() {
-  const { visible: bannerVisible, dismiss: bannerDismiss } = useBanner('kg_banner_inicio')
   const { mostrar: mostrarPWA, instalar, descartar } = usePWAInstall()
   const nav = useNavigate()
   const { equipoActivo, cargando: cargandoEquipo } = useEquipo()
@@ -111,7 +108,6 @@ export default function Inicio() {
           listarLesiones(eid).catch(() => []),
         ])
         setPerfil(p); setJugadores(js); setPartidos(ps); setConv(c); setEntrenos(en); setTarjetas(tj); setLesiones(ls)
-        if (ps.length > 0) bannerDismiss()
       } catch { /* noop */ }
     })()
   }, [eid])
@@ -281,20 +277,6 @@ export default function Inicio() {
 
   return (
     <div>
-      {bannerVisible && partidos.length === 0 && (
-        <OnboardingBanner
-          storageKey="kg_banner_inicio"
-          icono="🏠"
-          titulo="Este es tu centro de mando"
-          pasos={[
-            'Ve a Plantilla y añade tus jugadores (mínimo 11).',
-            'Ve a Convocatoria y selecciona los titulares del próximo partido.',
-            'Ve a Partido en Vivo, pulsa Iniciar y registra el partido.',
-            'Cuando guardes el primer partido, este dashboard se llena con estadísticas, racha y predicciones.',
-          ]}
-          onDismiss={bannerDismiss}
-        />
-      )}
       {mostrarPWA && <PWAInstallBanner onInstalar={instalar} onDescartar={descartar} />}
       {/* TOP BAR */}
       <div className="dash2-top">
