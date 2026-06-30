@@ -21,6 +21,8 @@ import Asistente from './pages/Asistente'
 import Rivales from './pages/Rivales'
 import PlanTemporada from './pages/PlanTemporada'
 import Terminos from './pages/Terminos'
+import Landing from './pages/Landing'
+import AdminLeads from './pages/AdminLeads'
 import OnboardingWizard, { useWizard } from './components/OnboardingWizard'
 
 import { createContext, useContext } from 'react'
@@ -111,6 +113,7 @@ const NAV_MAS = [
   { to: '/clima',          label: 'Clima',             svg: IC.clima },
   { to: '/asistente',      label: 'Asistente IA',      svg: IC.asistente },
 ]
+const IC_ADMIN = <svg viewBox="0 0 24 24"><path d="M12 2l8 4v6c0 5-3.5 9-8 10-4.5-1-8-5-8-10V6z" /><path d="M9 12l2 2 4-4" /></svg>
 
 // Evento global para que los lib files avisen cuando usan caché
 export function notificarModoCache() {
@@ -248,7 +251,7 @@ function TeamSwitcher() {
   )
 }
 
-function Shell({ children, onLogout }) {
+function Shell({ children, onLogout, esAdmin }) {
   const [open, setOpen] = useState(false)
   const nav = useNavigate()
   const ir = (to) => { setOpen(false); nav(to) }
@@ -271,6 +274,7 @@ function Shell({ children, onLogout }) {
           {NAV_PRINCIPAL.map((n) => <Item key={n.to} to={n.to} label={n.label} svg={n.svg} />)}
           <div className="kg-nav-label">Más</div>
           {NAV_MAS.map((n) => <Item key={n.to} to={n.to} label={n.label} svg={n.svg} />)}
+          {esAdmin && <Item to="/admin" label="Admin" svg={IC_ADMIN} />}
         </nav>
         <button onClick={onLogout}
           className="kg-nav-item border-t border-borde !py-3 text-rojo hover:text-rojo">
@@ -301,6 +305,7 @@ function Shell({ children, onLogout }) {
 export default function App() {
   const [sesion, setSesion] = useState(null)
   const [activo, setActivo] = useState(null) // null = sin saber aún
+  const [esAdmin, setEsAdmin] = useState(false)
   const [listo, setListo] = useState(false)
 
   useEffect(() => {
@@ -310,12 +315,16 @@ export default function App() {
     return () => sub.subscription.unsubscribe()
   }, [])
 
-  // Al haber sesión, comprobar si la cuenta está activa (suscripción)
+  // Al haber sesión, comprobar si la cuenta está activa (suscripción) y si es admin
   useEffect(() => {
-    if (!sesion) { setActivo(null); return }
+    if (!sesion) { setActivo(null); setEsAdmin(false); return }
     let cancelado = false
-    supabase.from('profiles').select('activo').eq('id', sesion.user.id).single()
-      .then(({ data }) => { if (!cancelado) setActivo(Boolean(data?.activo)) })
+    supabase.from('profiles').select('activo, is_admin').eq('id', sesion.user.id).single()
+      .then(({ data }) => {
+        if (cancelado) return
+        setActivo(Boolean(data?.activo))
+        setEsAdmin(Boolean(data?.is_admin))
+      })
     return () => { cancelado = true }
   }, [sesion])
 
@@ -326,6 +335,8 @@ export default function App() {
   // Página pública — accesible sin login
   if (window.location.pathname === '/privacidad') return <Privacidad />
   if (window.location.pathname === '/terminos') return <Terminos />
+  const queryLogin = new URLSearchParams(window.location.search).get('login') === '1'
+  if (window.location.pathname === '/' && !sesion && !queryLogin) return <Landing />
   if (!sesion) return <Login />
   if (activo === null) return <div className="min-h-screen grid place-items-center text-muted">Comprobando acceso…</div>
   if (!activo) return <Pendiente onLogout={logout} />
@@ -333,7 +344,7 @@ export default function App() {
   return (
     <EquipoProvider>
     <WizardRoot>
-    <Shell onLogout={logout}>
+    <Shell onLogout={logout} esAdmin={esAdmin}>
       <Routes>
         <Route path="/inicio" element={<Inicio />} />
         <Route path="/plantilla" element={<Plantilla />} />
@@ -350,6 +361,7 @@ export default function App() {
         <Route path="/clima" element={<Clima />} />
         <Route path="/asistente" element={<Asistente />} />
         <Route path="/ajustes" element={<Ajustes />} />
+        <Route path="/admin" element={esAdmin ? <AdminLeads /> : <Navigate to="/inicio" replace />} />
         <Route path="*" element={<Navigate to="/inicio" replace />} />
       </Routes>
     </Shell>
