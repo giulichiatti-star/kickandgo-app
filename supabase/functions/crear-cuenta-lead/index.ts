@@ -1,5 +1,6 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { Resend } from 'npm:resend@4'
+import { CORS_HEADERS } from '../_shared/cors.ts'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -73,7 +74,8 @@ async function altaUnLead(leadId: string) {
 }
 
 Deno.serve(async (req) => {
-  if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 })
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS_HEADERS })
+  if (req.method !== 'POST') return new Response('Method not allowed', { status: 405, headers: CORS_HEADERS })
 
   try {
     const body = await req.json()
@@ -82,7 +84,7 @@ Deno.serve(async (req) => {
       : body.leadId ? [body.leadId] : []
 
     if (leadIds.length === 0) {
-      return new Response(JSON.stringify({ error: 'Falta leadId o leadIds' }), { status: 400 })
+      return new Response(JSON.stringify({ error: 'Falta leadId o leadIds' }), { status: 400, headers: CORS_HEADERS })
     }
 
     const resultados = []
@@ -90,8 +92,8 @@ Deno.serve(async (req) => {
       resultados.push(await altaUnLead(leadId))
     }
 
-    return new Response(JSON.stringify({ ok: true, resultados }), { status: 200 })
+    return new Response(JSON.stringify({ ok: true, resultados }), { status: 200, headers: CORS_HEADERS })
   } catch (e) {
-    return new Response(JSON.stringify({ error: e.message }), { status: 500 })
+    return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: CORS_HEADERS })
   }
 })
