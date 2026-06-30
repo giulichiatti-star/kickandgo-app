@@ -30,9 +30,12 @@ create policy profiles_admin_update on public.profiles
   for update using (auth.uid() = id or public.is_admin())
   with check (auth.uid() = id or public.is_admin());
 
--- 5. Cron diario de suspensión automática (requiere extensión pg_cron ya activada)
+-- 5. Cron diario de suspensión automática
 -- NOTA: revisar-vencimientos se despliega con --no-verify-jwt (no requiere Authorization)
 -- para no tener que guardar una clave secreta en este archivo SQL versionado en git.
+create extension if not exists pg_cron with schema extensions;
+create extension if not exists pg_net with schema extensions;
+
 select cron.schedule(
   'revisar-vencimientos-diario',
   '0 8 * * *',
