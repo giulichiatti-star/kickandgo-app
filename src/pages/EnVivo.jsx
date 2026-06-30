@@ -527,6 +527,10 @@ export default function EnVivo() {
       <div className="ev2-grid">
         {/* COLUMNA CENTRAL */}
         <div>
+          {/* ManualControls visible en móvil — antes de la cancha */}
+          <div className="ev2-rail-mobile" style={{ display: 'none', marginBottom: 12 }}>
+            <ManualControls rival={rival} onRegistrar={registrar} />
+          </div>
           {tab === 'partido' && (
             <>
               {/* Chips formación nuestra */}
@@ -681,9 +685,8 @@ export default function EnVivo() {
           )}
         </div>
 
-        {/* RAIL DERECHO */}
-        <div>
-          {/* CONTROL MANUAL */}
+        {/* RAIL DERECHO — oculto en móvil (contenido duplicado abajo para móvil) */}
+        <div className="ev2-rail-right-desktop">
           <ManualControls rival={rival} onRegistrar={registrar} />
 
           {/* Vista */}
