@@ -821,7 +821,7 @@ export default function EnVivo() {
       formsDe={formsDe}
       titulares={titulares} suplentes={suplentes}
       puntosLocal={puntosLocal} puntosRival={puntosRival}
-      canchaRef={canchaRef} vista={vista}
+      canchaRef={canchaRef} vista={vista} setVista={setVista}
       escuchando={escuchando} oido={oido}
       eventos={eventos} setEventos={setEventos}
       marks={marks} setMarks={setMarks} setStats={setStats}
@@ -849,7 +849,7 @@ function MobileEnVivo({
   corriendo, descanso, tiempo, textoperiodo,
   localVisitante, setLocalVisitante,
   tipo, formacion, setFormacion, formacionRival, setFormacionRival, formsDe,
-  titulares, suplentes, puntosLocal, puntosRival, canchaRef, vista,
+  titulares, suplentes, puntosLocal, puntosRival, canchaRef, vista, setVista,
   escuchando, oido, eventos, setEventos, marks, setMarks, setStats,
   registrar, mobileSheet, setMobileSheet,
   mSaleId, setMSaleId, mEntraId, setMEntraId,
@@ -982,6 +982,16 @@ function MobileEnVivo({
             {Object.keys(formsDe(tipo)).map(f => <option key={f} value={f}>{f}</option>)}
           </select>
         </div>
+      </div>
+
+      {/* VISTA JUGADORES */}
+      <div style={{ display:'flex', gap:6, padding:'8px 12px 0', justifyContent:'center' }}>
+        {[['camisetas','👕','Camiseta'],['chapas','⬤','Chapa'],['escudo','🛡️','Escudo']].map(([v,ic,l]) => (
+          <button key={v} onClick={() => setVista(v)}
+            style={{ display:'flex', alignItems:'center', gap:4, padding:'5px 10px', borderRadius:20, border:`1px solid ${vista===v?'#2dd4bf':'#27272a'}`, background: vista===v?'rgba(45,212,191,.12)':'transparent', color: vista===v?'#2dd4bf':'#71717a', fontSize:11, fontWeight:700, cursor:'pointer', transition:'all .15s' }}>
+            <span style={{ fontSize:13 }}>{ic}</span>{l}
+          </button>
+        ))}
       </div>
 
       {/* CAMPO */}
