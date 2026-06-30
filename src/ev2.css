@@ -121,25 +121,11 @@
 .ev2-row3 { display:grid; grid-template-columns:1fr 220px; gap:12px; margin-top:12px; align-items:start; }
 @media (max-width:720px){ .ev2-row3{ grid-template-columns:1fr; } }
 
-/* ── MOBILE fixes ── */
-@media (max-width:640px) {
-  /* Scoreboard: ocupa fila propia y centrado */
-  .ev2-topbar { flex-wrap:wrap; gap:8px; padding:10px 12px; }
-  .ev2-logo { display:none; }
-  .ev2-scoreboard { flex:none; width:100%; order:-1; justify-content:center; min-width:0; }
-  .ev2-actions { width:100%; justify-content:center; flex-wrap:wrap; gap:6px; }
-  .ev2-score-big { font-size:28px; }
-  .ev2-team-block { min-width:70px; }
-  .ev2-tname { font-size:13px; }
+/* ── Desktop/tablet: mostrar layout original, ocultar mobile ── */
+.ev2-mobile-layout { display: none; }
 
-  /* Grid en móvil: ManualControls arriba, luego resto */
-  .ev2-grid { padding:10px; gap:10px; }
-
-  /* ManualControls móvil: visible antes de la cancha */
-  .ev2-rail-mobile { display:block !important; }
-  /* Rail derecho: ocultar ManualControls duplicado (ya está arriba) */
-  .ev2-rail-right-desktop > .ev2-rail-card:first-child { display:none; }
-}
-@media (min-width:641px) {
-  .ev2-rail-mobile { display:none !important; }
+/* ── MOBILE: ocultar desktop, mostrar mobile layout ── */
+@media (max-width:768px) {
+  .ev2-desktop-only { display: none !important; }
+  .ev2-mobile-layout { display: block; }
 }

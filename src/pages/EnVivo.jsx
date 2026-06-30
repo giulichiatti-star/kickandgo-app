@@ -128,6 +128,11 @@ export default function EnVivo() {
   const [localVisitante, setLocalVisitante] = useState('local')
   const [valorModal, setValorModal] = useState(false)
   const [valoraciones, setValoraciones] = useState({})
+  const [mobileSheet, setMobileSheet] = useState(null) // null | {type:'player',tipo,label} | {type:'rival-player',tipo,label} | {type:'cambio'} | {type:'cambio-rival'}
+  const [mSaleId, setMSaleId] = useState('')
+  const [mEntraId, setMEntraId] = useState('')
+  const [mSaleRival, setMSaleRival] = useState('')
+  const [mEntraRival, setMEntraRival] = useState('')
   const [toast, setToast] = useState(null)
   const timer = useRef(null), recRef = useRef(null), escRef = useRef(false), titRef = useRef([])
   const clubRef = useRef(club), rivalRef = useRef(rival), lastVozRef = useRef({ txt: '', ts: 0 })
@@ -431,6 +436,7 @@ export default function EnVivo() {
           onSaltar={() => guardarFinal({})}
         />
       )}
+      <div className="ev2-desktop-only">
       {partidoRestaurado && (
         <div className="flex items-center justify-between px-4 py-2 text-[11px] font-bold"
           style={{ background: 'rgba(245,158,11,0.15)', borderBottom: '1px solid rgba(245,158,11,0.3)', color: '#fcd34d' }}>
@@ -801,7 +807,349 @@ export default function EnVivo() {
         </div>
       )}
     </div>
+    </div>{/* end ev2-desktop-only */}
+
+    {/* ── MOBILE LAYOUT (≤768px) ── */}
+    <MobileEnVivo
+      club={club} rival={rival} escudo={escudo}
+      gf={gf} gc={gc} minMostrado={minMostrado}
+      corriendo={corriendo} descanso={descanso} tiempo={tiempo}
+      textoperiodo={textoperiodo}
+      localVisitante={localVisitante} setLocalVisitante={setLocalVisitante}
+      tipo={tipo} formacion={formacion} setFormacion={setFormacion}
+      formacionRival={formacionRival} setFormacionRival={setFormacionRival}
+      formsDe={formsDe}
+      titulares={titulares} suplentes={suplentes}
+      puntosLocal={puntosLocal} puntosRival={puntosRival}
+      canchaRef={canchaRef} vista={vista}
+      escuchando={escuchando} oido={oido}
+      eventos={eventos} setEventos={setEventos}
+      marks={marks} setMarks={setMarks} setStats={setStats}
+      registrar={registrar}
+      mobileSheet={mobileSheet} setMobileSheet={setMobileSheet}
+      mSaleId={mSaleId} setMSaleId={setMSaleId}
+      mEntraId={mEntraId} setMEntraId={setMEntraId}
+      mSaleRival={mSaleRival} setMSaleRival={setMSaleRival}
+      mEntraRival={mEntraRival} setMEntraRival={setMEntraRival}
+      setCorriendo={setCorriendo} iniciarSegundoTiempo={iniciarSegundoTiempo}
+      toggleVoz={toggleVoz} finalizar={finalizar}
+      durT1={durT1} seg={seg}
+      partidoRestaurado={partidoRestaurado}
+      ICONO_MARCA={ICONO_MARCA}
+      min={min}
+    />
     </>
   )
 }
 
+// ── Mobile layout component ──────────────────────────────────────────────────
+function MobileEnVivo({
+  club, rival, escudo, gf, gc, minMostrado,
+  corriendo, descanso, tiempo, textoperiodo,
+  localVisitante, setLocalVisitante,
+  tipo, formacion, setFormacion, formacionRival, setFormacionRival, formsDe,
+  titulares, suplentes, puntosLocal, puntosRival, canchaRef, vista,
+  escuchando, oido, eventos, setEventos, marks, setMarks, setStats,
+  registrar, mobileSheet, setMobileSheet,
+  mSaleId, setMSaleId, mEntraId, setMEntraId,
+  mSaleRival, setMSaleRival, mEntraRival, setMEntraRival,
+  setCorriendo, iniciarSegundoTiempo, toggleVoz, finalizar,
+  durT1, seg, partidoRestaurado, ICONO_MARCA, min,
+}) {
+  const ACCIONES = [
+    { tipo: 'gol',      tipoRival: 'gol-rival',      ico: '⚽', lbl: 'Gol',        needsPlayer: true,  needsPlayerRival: true  },
+    { tipo: 'amarilla', tipoRival: 'amarilla-rival',  ico: '🟨', lbl: 'Amarilla',   needsPlayer: true,  needsPlayerRival: true  },
+    { tipo: 'roja',     tipoRival: 'roja-rival',      ico: '🟥', lbl: 'Roja',       needsPlayer: true,  needsPlayerRival: true  },
+    { tipo: 'tiro',     tipoRival: 'tiro-rival',      ico: '🎯', lbl: 'Tiro',       needsPlayer: false, needsPlayerRival: false },
+    { tipo: 'corner',   tipoRival: 'corner-rival',    ico: '⛳', lbl: 'Córner',     needsPlayer: false, needsPlayerRival: false },
+    { tipo: 'offside',  tipoRival: 'offside',         ico: '🚩', lbl: 'F. juego',   needsPlayer: false, needsPlayerRival: false },
+    { tipo: 'cambio',   tipoRival: 'cambio-rival',    ico: '🔄', lbl: 'Cambio',     needsPlayer: 'cambio', needsPlayerRival: 'cambio-rival' },
+  ]
+
+  function handleNuestro(a) {
+    if (a.needsPlayer === 'cambio') { setMobileSheet({ type: 'cambio' }); return }
+    if (a.needsPlayer) { setMobileSheet({ type: 'player', tipo: a.tipo, label: a.lbl, ico: a.ico }); return }
+    registrar(a.tipo, null)
+  }
+  function handleRival(a) {
+    if (a.needsPlayerRival === 'cambio-rival') { setMobileSheet({ type: 'cambio-rival' }); return }
+    if (a.needsPlayerRival) { setMobileSheet({ type: 'rival-player', tipo: a.tipoRival, label: a.lbl, ico: a.ico }); return }
+    registrar(a.tipoRival, null)
+  }
+
+  function confirmCambio() {
+    const sale = titulares.find(j => j.id === mSaleId)
+    const entra = suplentes.find(j => j.id === mEntraId)
+    if (!sale || !entra) return
+    setEventos(e => [{ min, tipo: 'cambio', icon: '🔄', label: 'Cambio', jugador: `Sale ${sale.nombre} · Entra ${entra.nombre}` }, ...e])
+    setMarks(m => ({ ...m, [entra.id]: [...(m[entra.id] || []), '🔄'] }))
+    // swap en titulares/suplentes via registrar indirecto
+    registrar('cambio', null)
+    setMSaleId(''); setMEntraId('')
+    setMobileSheet(null)
+  }
+
+  function confirmCambioRival() {
+    if (!mSaleRival.trim() || !mEntraRival.trim()) return
+    setEventos(e => [{ min, tipo: 'cambio-rival', icon: '🔄', label: `Cambio ${rival}`, jugador: `Sale #${mSaleRival} · Entra #${mEntraRival}` }, ...e])
+    setMSaleRival(''); setMEntraRival('')
+    setMobileSheet(null)
+  }
+
+  function confirmRivalPlayer(dorsal) {
+    if (!dorsal?.trim()) return
+    const jug = { id: 'r-' + dorsal, dorsal, nombre: `#${dorsal}` }
+    registrar(mobileSheet.tipo, jug)
+    setMobileSheet(null)
+  }
+
+  const [rivalDorsal, setRivalDorsal] = useState('')
+
+  return (
+    <div className="ev2-mobile-layout">
+      {/* Restaurado banner */}
+      {partidoRestaurado && (
+        <div style={{ background:'rgba(245,158,11,0.15)', borderBottom:'1px solid rgba(245,158,11,0.3)', color:'#fcd34d', padding:'8px 14px', display:'flex', justifyContent:'space-between', alignItems:'center', fontSize:11, fontWeight:700 }}>
+          <span>🔄 Partido restaurado</span>
+          <button onClick={() => { localStorage.removeItem('kg_envivo'); window.location.reload() }} style={{ fontSize:10, opacity:.7 }}>Descartar</button>
+        </div>
+      )}
+
+      {/* TOPBAR */}
+      <div style={{ background:'#16161a', borderBottom:'1px solid #27272a', padding:'10px 14px 8px' }}>
+        {/* Marcador */}
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
+          <div style={{ textAlign:'center', flex:1 }}>
+            <div style={{ fontSize:13, fontWeight:800, color:'#fafafa', lineHeight:1.2 }}>{club}</div>
+            <div onClick={() => setLocalVisitante(v => v==='local'?'visitante':'local')}
+              style={{ fontSize:9, color: localVisitante==='local'?'#10b981':'#f59e0b', cursor:'pointer', marginTop:2 }}>
+              {localVisitante==='local'?'🏠 Local':'✈️ Visitante'}
+            </div>
+          </div>
+          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:2, padding:'0 12px' }}>
+            <div style={{ fontSize:34, fontWeight:900, color:'#fafafa', letterSpacing:4, lineHeight:1 }}>{gf} - {gc}</div>
+            <div style={{ fontSize:14, fontWeight:800, color: descanso?'#f59e0b':'#2dd4bf', letterSpacing:1 }}>
+              {descanso ? 'DESC' : `${minMostrado}'`}
+            </div>
+            <div style={{ fontSize:9, color:'#71717a', textTransform:'uppercase', letterSpacing:.5 }}>{textoperiodo()}</div>
+          </div>
+          <div style={{ textAlign:'center', flex:1 }}>
+            <div style={{ fontSize:13, fontWeight:800, color:'#fafafa', lineHeight:1.2 }}>{rival}</div>
+            <div style={{ fontSize:9, color:'#71717a', marginTop:2 }}>Visitante</div>
+          </div>
+        </div>
+        {/* Controles */}
+        <div style={{ display:'flex', gap:6, justifyContent:'center' }}>
+          {descanso ? (
+            <button onClick={iniciarSegundoTiempo} style={{ display:'flex',alignItems:'center',gap:5,padding:'6px 14px',borderRadius:9,border:'1px solid #f59e0b',background:'rgba(245,158,11,.1)',color:'#f59e0b',fontSize:11,fontWeight:800,cursor:'pointer' }}>
+              ▶ 2º Tiempo
+            </button>
+          ) : (
+            <button onClick={() => setCorriendo(c => !c)} style={{ display:'flex',alignItems:'center',gap:5,padding:'6px 14px',borderRadius:9,border:'1px solid #10b981',background:'rgba(16,185,129,.1)',color:'#10b981',fontSize:11,fontWeight:800,cursor:'pointer' }}>
+              {corriendo ? '⏸ Pausa' : '▶ Reanudar'}
+            </button>
+          )}
+          {!descanso && tiempo===1 && seg>=durT1 && (
+            <button onClick={() => { setCorriendo(false); /* setDescanso */ }} style={{ display:'flex',alignItems:'center',gap:5,padding:'6px 14px',borderRadius:9,border:'1px solid #f59e0b',background:'rgba(245,158,11,.1)',color:'#f59e0b',fontSize:11,fontWeight:800,cursor:'pointer' }}>
+              ☕ Descanso
+            </button>
+          )}
+          <button onClick={toggleVoz} style={{ display:'flex',alignItems:'center',gap:5,padding:'6px 14px',borderRadius:9,border:`1px solid ${escuchando?'#ef4444':'rgba(239,68,68,.35)'}`,background:escuchando?'rgba(239,68,68,.18)':'rgba(239,68,68,.06)',color:'#fca5a5',fontSize:11,fontWeight:800,cursor:'pointer' }}>
+            🎤 {escuchando ? 'Grabando' : 'Voz'}
+          </button>
+          <button onClick={finalizar} style={{ display:'flex',alignItems:'center',gap:5,padding:'6px 14px',borderRadius:9,border:'1px solid rgba(239,68,68,.4)',background:'transparent',color:'#ef4444',fontSize:11,fontWeight:800,cursor:'pointer' }}>
+            ⏹ Fin
+          </button>
+        </div>
+      </div>
+
+      {/* FORMACIONES */}
+      <div style={{ display:'flex', gap:8, padding:'8px 12px', background:'#121214', borderBottom:'1px solid #27272a' }}>
+        <div style={{ flex:1 }}>
+          <div style={{ fontSize:9, fontWeight:800, color:'#2dd4bf', textTransform:'uppercase', letterSpacing:.5, marginBottom:3 }}>{club.split(' ')[0]}</div>
+          <select value={formacion} onChange={e => setFormacion(e.target.value)}
+            style={{ width:'100%', background:'#1c1c20', border:'1px solid #27272a', borderRadius:8, color:'#fafafa', fontSize:12, fontWeight:700, padding:'5px 8px' }}>
+            {Object.keys(formsDe(tipo)).map(f => <option key={f} value={f}>{f}</option>)}
+          </select>
+        </div>
+        <div style={{ flex:1 }}>
+          <div style={{ fontSize:9, fontWeight:800, color:'#ef4444', textTransform:'uppercase', letterSpacing:.5, marginBottom:3 }}>{rival.split(' ')[0]}</div>
+          <select value={formacionRival} onChange={e => setFormacionRival(e.target.value)}
+            style={{ width:'100%', background:'#1c1c20', border:'1px solid #27272a', borderRadius:8, color:'#fafafa', fontSize:12, fontWeight:700, padding:'5px 8px' }}>
+            {Object.keys(formsDe(tipo)).map(f => <option key={f} value={f}>{f}</option>)}
+          </select>
+        </div>
+      </div>
+
+      {/* CAMPO */}
+      <div style={{ padding:'10px 12px 0' }}>
+        <div className="ev2-pitch" ref={canchaRef} style={{ borderRadius:10 }}>
+          <svg className="ev2-pitch-lines" viewBox="0 0 160 100" preserveAspectRatio="none">
+            <rect x="2" y="2" width="156" height="96" fill="none" stroke="rgba(255,255,255,.25)" strokeWidth="0.5"/>
+            <line x1="80" y1="2" x2="80" y2="98" stroke="rgba(255,255,255,.25)" strokeWidth="0.5"/>
+            <circle cx="80" cy="50" r="13" fill="none" stroke="rgba(255,255,255,.25)" strokeWidth="0.5"/>
+            <rect x="2" y="28" width="20" height="44" fill="none" stroke="rgba(255,255,255,.22)" strokeWidth="0.5"/>
+            <rect x="138" y="28" width="20" height="44" fill="none" stroke="rgba(255,255,255,.22)" strokeWidth="0.5"/>
+          </svg>
+          <div className="ev2-pname-banner l">{club.toUpperCase()}</div>
+          <div className="ev2-pname-banner r">{rival.toUpperCase()}</div>
+          {puntosLocal.map(p => (
+            <div key={p.id} className="ev2-player" style={{ left:`${p.x}%`, top:`${p.y}%` }}>
+              <Jersey num={p.dorsal} side={p.side} gk={p.gk} vista={vista} />
+              <div className="ev2-pname">{(p.nombre||'').split(' ')[0]}</div>
+            </div>
+          ))}
+          {puntosRival.map(p => (
+            <div key={p.id} className="ev2-player" style={{ left:`${p.x}%`, top:`${p.y}%` }}>
+              <Jersey num={p.dorsal} side={p.side} gk={p.gk} vista={vista} />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* PANEL ACCIONES 2 COLUMNAS */}
+      <div style={{ margin:'10px 12px 0', border:'1px solid #27272a', borderRadius:10, overflow:'hidden' }}>
+        {/* Headers */}
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', background:'#121214' }}>
+          <div style={{ padding:'6px 8px', fontSize:9, fontWeight:800, color:'#2dd4bf', textAlign:'center', textTransform:'uppercase', letterSpacing:.4, borderBottom:'2px solid #2dd4bf' }}>
+            {club.length > 14 ? club.split(' ')[0] : club}
+          </div>
+          <div style={{ padding:'6px 8px', fontSize:9, fontWeight:800, color:'#ef4444', textAlign:'center', textTransform:'uppercase', letterSpacing:.4, borderBottom:'2px solid #ef4444' }}>
+            {rival.length > 14 ? rival.split(' ')[0] : rival}
+          </div>
+        </div>
+        {/* Filas de acciones */}
+        {ACCIONES.map(a => (
+          <div key={a.tipo} style={{ display:'grid', gridTemplateColumns:'1fr 1fr', borderTop:'1px solid #27272a' }}>
+            <button onClick={() => handleNuestro(a)}
+              style={{ display:'flex', alignItems:'center', gap:7, padding:'10px 12px', background:'transparent', border:'none', borderRight:'1px solid #27272a', color:'#fafafa', cursor:'pointer', fontSize:12, fontWeight:700, textAlign:'left' }}>
+              <span style={{ fontSize:15, width:20, textAlign:'center', flexShrink:0 }}>{a.ico}</span>
+              {a.lbl}
+            </button>
+            <button onClick={() => handleRival(a)}
+              style={{ display:'flex', alignItems:'center', gap:7, padding:'10px 12px', background:'transparent', border:'none', color:'#fafafa', cursor:'pointer', fontSize:12, fontWeight:700, textAlign:'left' }}>
+              <span style={{ fontSize:15, width:20, textAlign:'center', flexShrink:0 }}>{a.ico}</span>
+              {a.lbl}
+            </button>
+          </div>
+        ))}
+      </div>
+
+      {/* VOZ */}
+      {escuchando && oido && (
+        <div style={{ margin:'8px 12px 0', fontSize:10, color:'#a1a1aa', fontStyle:'italic' }}>🎤 "{oido}"</div>
+      )}
+
+      {/* EVENTOS */}
+      <div style={{ margin:'10px 12px', paddingBottom:16 }}>
+        <div style={{ fontSize:10, fontWeight:800, textTransform:'uppercase', letterSpacing:.5, color:'#71717a', marginBottom:8 }}>
+          Eventos del partido
+        </div>
+        {eventos.length === 0 ? (
+          <div style={{ fontSize:11, color:'#71717a' }}>Sin eventos aún.</div>
+        ) : (
+          <div style={{ display:'flex', flexDirection:'column', gap:0 }}>
+            {eventos.slice(0,10).map((e, i) => (
+              <div key={i} style={{ display:'flex', alignItems:'center', gap:8, padding:'7px 0', borderTop:'1px solid #27272a' }}>
+                <span style={{ fontSize:10, fontWeight:700, color:'#71717a', width:28, flexShrink:0 }}>{e.min}'</span>
+                <span style={{ fontSize:13 }}>{e.icon || '•'}</span>
+                <div style={{ flex:1 }}>
+                  <div style={{ fontSize:11, fontWeight:700, color:'#fafafa' }}>{e.label}</div>
+                  {e.jugador && <div style={{ fontSize:10, color:'#71717a' }}>{e.jugador}</div>}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* BOTTOM SHEETS */}
+      {mobileSheet && (
+        <div onClick={() => setMobileSheet(null)}
+          style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.6)', zIndex:200, display:'flex', flexDirection:'column', justifyContent:'flex-end' }}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ background:'#18181b', borderRadius:'14px 14px 0 0', padding:16, borderTop:'1px solid #27272a', maxHeight:'75vh', overflowY:'auto' }}>
+            <div style={{ width:36, height:4, background:'#3f3f46', borderRadius:2, margin:'0 auto 14px' }} />
+
+            {/* Sheet: seleccionar jugador propio */}
+            {mobileSheet.type === 'player' && (<>
+              <div style={{ fontSize:13, fontWeight:800, color:'#fafafa', textAlign:'center', marginBottom:12 }}>
+                {mobileSheet.ico} {mobileSheet.label} — ¿quién?
+              </div>
+              <div style={{ display:'flex', flexDirection:'column', gap:2 }}>
+                {titulares.map(j => (
+                  <button key={j.id} onClick={() => { registrar(mobileSheet.tipo, j); setMobileSheet(null) }}
+                    style={{ display:'flex', alignItems:'center', gap:10, padding:'9px 10px', borderRadius:8, background:'transparent', border:'none', color:'#fafafa', cursor:'pointer', textAlign:'left', width:'100%' }}>
+                    <div style={{ width:28, height:28, borderRadius:7, background:'rgba(45,212,191,.15)', border:'1px solid #2dd4bf', display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:900, color:'#2dd4bf', flexShrink:0 }}>
+                      {j.dorsal}
+                    </div>
+                    <div>
+                      <div style={{ fontSize:12, fontWeight:700 }}>{j.nombre}</div>
+                      <div style={{ fontSize:10, color:'#71717a' }}>{j.posicion}</div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </>)}
+
+            {/* Sheet: cambio nuestro equipo */}
+            {mobileSheet.type === 'cambio' && (<>
+              <div style={{ fontSize:13, fontWeight:800, color:'#fafafa', textAlign:'center', marginBottom:14 }}>🔄 Cambio — {club}</div>
+              <div style={{ fontSize:10, fontWeight:800, color:'#ef4444', marginBottom:4 }}>SALE</div>
+              <select className="field mb-3" value={mSaleId} onChange={e => setMSaleId(e.target.value)} style={{ marginBottom:10 }}>
+                <option value="">— elige titular —</option>
+                {titulares.map(j => <option key={j.id} value={j.id}>#{j.dorsal} {j.nombre}</option>)}
+              </select>
+              <div style={{ fontSize:10, fontWeight:800, color:'#2dd4bf', margin:'10px 0 4px' }}>ENTRA</div>
+              <select className="field" value={mEntraId} onChange={e => setMEntraId(e.target.value)} style={{ marginBottom:12 }}>
+                <option value="">— elige suplente —</option>
+                {suplentes.map(j => <option key={j.id} value={j.id}>#{j.dorsal} {j.nombre}</option>)}
+              </select>
+              <button onClick={confirmCambio} disabled={!mSaleId||!mEntraId} className="btn btn-primary w-full" style={{ marginBottom:8 }}>
+                Confirmar cambio
+              </button>
+            </>)}
+
+            {/* Sheet: jugador rival (gol/amarilla/roja) */}
+            {mobileSheet.type === 'rival-player' && (<>
+              <div style={{ fontSize:13, fontWeight:800, color:'#fafafa', textAlign:'center', marginBottom:14 }}>
+                {mobileSheet.ico} {mobileSheet.label} rival — dorsal
+              </div>
+              <input className="field" type="number" min={1} max={99} placeholder="Nº dorsal del rival"
+                value={rivalDorsal} onChange={e => setRivalDorsal(e.target.value)}
+                style={{ marginBottom:12, fontSize:20, fontWeight:800, textAlign:'center' }} />
+              <button onClick={() => { confirmRivalPlayer(rivalDorsal); setRivalDorsal('') }}
+                disabled={!rivalDorsal?.trim()} className="btn btn-primary w-full" style={{ marginBottom:8 }}>
+                Registrar
+              </button>
+              <button onClick={() => { registrar(mobileSheet.tipo, null); setMobileSheet(null); setRivalDorsal('') }}
+                className="btn btn-outline w-full" style={{ fontSize:11 }}>
+                Sin dorsal — registrar igualmente
+              </button>
+            </>)}
+
+            {/* Sheet: cambio rival */}
+            {mobileSheet.type === 'cambio-rival' && (<>
+              <div style={{ fontSize:13, fontWeight:800, color:'#fafafa', textAlign:'center', marginBottom:14 }}>🔄 Cambio — {rival}</div>
+              <div style={{ fontSize:10, fontWeight:800, color:'#ef4444', marginBottom:4 }}>SALE dorsal</div>
+              <input className="field" type="number" min={1} max={99} placeholder="Dorsal que sale"
+                value={mSaleRival} onChange={e => setMSaleRival(e.target.value)} style={{ marginBottom:10 }} />
+              <div style={{ fontSize:10, fontWeight:800, color:'#2dd4bf', margin:'6px 0 4px' }}>ENTRA dorsal</div>
+              <input className="field" type="number" min={1} max={99} placeholder="Dorsal que entra"
+                value={mEntraRival} onChange={e => setMEntraRival(e.target.value)} style={{ marginBottom:12 }} />
+              <button onClick={confirmCambioRival} disabled={!mSaleRival?.trim()||!mEntraRival?.trim()}
+                className="btn btn-outline w-full" style={{ borderColor:'rgba(239,68,68,.4)', color:'#f87171', marginBottom:8 }}>
+                Registrar cambio rival
+              </button>
+            </>)}
+
+            <button onClick={() => { setMobileSheet(null); setRivalDorsal('') }}
+              style={{ width:'100%', padding:'10px', borderRadius:8, border:'1px solid #27272a', background:'transparent', color:'#71717a', fontSize:12, fontWeight:700, cursor:'pointer', marginTop:4 }}>
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
