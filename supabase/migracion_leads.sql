@@ -1,5 +1,7 @@
 -- Captación de leads desde la landing + flag de admin en profiles
 
+alter table public.profiles add column if not exists is_admin boolean default false;
+
 create table if not exists public.leads (
   id             uuid primary key default gen_random_uuid(),
   nombre         text not null,
@@ -30,5 +32,3 @@ create policy leads_admin_update on public.leads
   for update using (
     exists (select 1 from public.profiles where id = auth.uid() and is_admin = true)
   );
-
-alter table public.profiles add column if not exists is_admin boolean default false;
