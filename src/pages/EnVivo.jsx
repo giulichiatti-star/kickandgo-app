@@ -837,6 +837,7 @@ export default function EnVivo() {
       partidoRestaurado={partidoRestaurado}
       ICONO_MARCA={ICONO_MARCA}
       min={min}
+      notas={notas} setNotas={setNotas}
     />
     </>
   )
@@ -855,6 +856,7 @@ function MobileEnVivo({
   mSaleRival, setMSaleRival, mEntraRival, setMEntraRival,
   setCorriendo, iniciarSegundoTiempo, toggleVoz, finalizar,
   durT1, seg, partidoRestaurado, ICONO_MARCA, min,
+  notas, setNotas,
 }) {
   const ACCIONES = [
     { tipo: 'gol',      tipoRival: 'gol-rival',      ico: '⚽', lbl: 'Gol',        needsPlayer: true,  needsPlayerRival: true  },
@@ -904,6 +906,7 @@ function MobileEnVivo({
   }
 
   const [rivalDorsal, setRivalDorsal] = useState('')
+  const [notasOpen, setNotasOpen] = useState(false)
 
   return (
     <div className="ev2-mobile-layout">
@@ -983,7 +986,7 @@ function MobileEnVivo({
 
       {/* CAMPO */}
       <div style={{ padding:'10px 12px 0' }}>
-        <div className="ev2-pitch" ref={canchaRef} style={{ borderRadius:10 }}>
+        <div className="ev2-pitch" style={{ borderRadius:10, position:'relative' }}>
           <svg className="ev2-pitch-lines" viewBox="0 0 160 100" preserveAspectRatio="none">
             <rect x="2" y="2" width="156" height="96" fill="none" stroke="rgba(255,255,255,.25)" strokeWidth="0.5"/>
             <line x1="80" y1="2" x2="80" y2="98" stroke="rgba(255,255,255,.25)" strokeWidth="0.5"/>
@@ -994,13 +997,13 @@ function MobileEnVivo({
           <div className="ev2-pname-banner l">{club.toUpperCase()}</div>
           <div className="ev2-pname-banner r">{rival.toUpperCase()}</div>
           {puntosLocal.map(p => (
-            <div key={p.id} className="ev2-player" style={{ left:`${p.x}%`, top:`${p.y}%` }}>
+            <div key={p.id} className="ev2-player" style={{ left:`${p.x}%`, top:`${p.y}%`, position:'absolute', transform:'translate(-50%,-50%)' }}>
               <Jersey num={p.dorsal} side={p.side} gk={p.gk} vista={vista} />
               <div className="ev2-pname">{(p.nombre||'').split(' ')[0]}</div>
             </div>
           ))}
           {puntosRival.map(p => (
-            <div key={p.id} className="ev2-player" style={{ left:`${p.x}%`, top:`${p.y}%` }}>
+            <div key={p.id} className="ev2-player" style={{ left:`${p.x}%`, top:`${p.y}%`, position:'absolute', transform:'translate(-50%,-50%)' }}>
               <Jersey num={p.dorsal} side={p.side} gk={p.gk} vista={vista} />
             </div>
           ))}
@@ -1039,6 +1042,29 @@ function MobileEnVivo({
       {escuchando && oido && (
         <div style={{ margin:'8px 12px 0', fontSize:10, color:'#a1a1aa', fontStyle:'italic' }}>🎤 "{oido}"</div>
       )}
+
+      {/* NOTAS DEL ENTRENADOR */}
+      <div style={{ margin:'10px 12px 0', border:'1px solid #27272a', borderRadius:10, overflow:'hidden' }}>
+        <button onClick={() => setNotasOpen(o => !o)}
+          style={{ width:'100%', display:'flex', alignItems:'center', justifyContent:'space-between', padding:'10px 14px', background:'transparent', border:'none', color:'#fafafa', cursor:'pointer' }}>
+          <span style={{ fontSize:11, fontWeight:800, textTransform:'uppercase', letterSpacing:.5, color:'#71717a' }}>
+            📝 Notas del entrenador
+          </span>
+          <span style={{ fontSize:10, color:'#71717a' }}>{notasOpen ? '▲' : '▼'}</span>
+        </button>
+        {notasOpen && (
+          <div style={{ padding:'0 12px 12px' }}>
+            <textarea
+              rows={4}
+              placeholder="Observaciones: táctica, rendimiento, instrucciones…"
+              value={notas}
+              onChange={e => setNotas(e.target.value)}
+              style={{ width:'100%', background:'#121214', border:'1px solid #27272a', borderRadius:8, color:'#fafafa', fontSize:12, padding:'8px 10px', resize:'vertical', lineHeight:1.6, fontFamily:'inherit', boxSizing:'border-box' }}
+            />
+            <div style={{ fontSize:10, color:'#71717a', marginTop:4 }}>Se guardan al finalizar el partido.</div>
+          </div>
+        )}
+      </div>
 
       {/* EVENTOS */}
       <div style={{ margin:'10px 12px', paddingBottom:16 }}>
