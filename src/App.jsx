@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
-import { Routes, Route, NavLink, Navigate, useNavigate } from 'react-router-dom'
+import { Routes, Route, NavLink, Navigate, useNavigate, useLocation } from 'react-router-dom'
 import { supabase, supabaseReady } from './lib/supabase'
 import { EquipoProvider, useEquipo } from './contexts/EquipoContext'
 import Logo from './components/Logo'
@@ -303,6 +303,7 @@ function Shell({ children, onLogout, esAdmin }) {
 }
 
 export default function App() {
+  const { pathname, search } = useLocation()
   const [sesion, setSesion] = useState(null)
   const [activo, setActivo] = useState(null) // null = sin saber aún
   const [esAdmin, setEsAdmin] = useState(false)
@@ -333,18 +334,18 @@ export default function App() {
   if (!supabaseReady) return <FaltanClaves />
   if (!listo) return <div className="min-h-screen grid place-items-center text-muted">Cargando…</div>
   // Páginas públicas — accesibles sin login
-  if (window.location.pathname === '/privacidad') return <Privacidad />
-  if (window.location.pathname === '/terminos') return <Terminos />
+  if (pathname === '/privacidad') return <Privacidad />
+  if (pathname === '/terminos') return <Terminos />
 
-  const params = new URLSearchParams(window.location.search)
+  const params = new URLSearchParams(search)
   const queryLogin = params.get('login') === '1'
   const esPWA = params.get('pwa') === '1' || window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone
 
-  // Ruta /login siempre va al login sin recarga
-  if (window.location.pathname === '/login') return sesion ? <Navigate to="/inicio" replace /> : <Login />
+  // Ruta /login siempre muestra el login (o redirige si ya hay sesión)
+  if (pathname === '/login') return sesion ? <Navigate to="/inicio" replace /> : <Login />
 
-  // Sin sesión en raíz: mostrar Landing solo si no es PWA ni viene de link de login
-  if (window.location.pathname === '/' && !sesion && !queryLogin && !esPWA) return <Landing />
+  // Sin sesión en raíz: mostrar Landing solo si no es PWA
+  if (pathname === '/' && !sesion && !queryLogin && !esPWA) return <Landing />
   if (!sesion) return <Login />
   if (activo === null) return <div className="min-h-screen grid place-items-center text-muted">Comprobando acceso…</div>
   if (!activo) return <Pendiente onLogout={logout} />
