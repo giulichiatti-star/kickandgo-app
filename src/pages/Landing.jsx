@@ -121,8 +121,10 @@ export default function Landing() {
       <nav>
         <div className="nav-logo">
           <div className="nav-logo-icon">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2dd4bf" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10" /><path d="M12 2c0 0 4 4.5 4 10s-4 10-4 10-4-4.5-4-10 4-10 4-10z" /><line x1="2" y1="12" x2="22" y2="12" />
+            <svg width="22" height="22" viewBox="0 0 32 32" fill="none">
+              <rect x="4" y="4" width="5" height="24" rx="1.5" fill="#2dd4bf" />
+              <path d="M11 16 L24 4 L31 4 L17 16 Z" fill="#2dd4bf" />
+              <path d="M11 16 L17 16 L31 28 L24 28 Z" fill="#f59e0b" />
             </svg>
           </div>
           <span className="nav-wordmark">KICK<em>AND</em>GO</span>
