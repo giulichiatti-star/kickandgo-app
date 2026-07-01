@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { listarLeads, actualizarLead, activarLeads, contactarLeads, linkWhatsapp } from '../lib/leads'
-import { listarCuentas, marcarPagado, marcarMora, darDeBaja, reactivar, resetearPassword, proximoVencimiento, eliminarCuenta } from '../lib/cuentas'
+import { listarCuentas, marcarPagado, marcarMora, darDeBaja, reactivar, resetearPassword, proximoVencimiento, eliminarCuenta, marcarFundador } from '../lib/cuentas'
+
+const CUPO_FUNDADORES = 50
 
 const DIAS_GRACIA = 2
 
@@ -346,6 +348,7 @@ function TabCuentas() {
   }, [cuentas, filtro])
 
   const alertas = useMemo(() => calcularAlertas(cuentas), [cuentas])
+  const fundadoresActuales = useMemo(() => cuentas.filter(c => c.es_fundador).length, [cuentas])
 
   async function accion(fn, ...args) {
     try { await fn(...args); recargar() }
@@ -359,6 +362,15 @@ function TabCuentas() {
 
   return (
     <div className="space-y-3">
+      <div className="card p-4 flex items-center justify-between flex-wrap gap-2" style={{ border: '1px solid rgba(245,166,35,.3)' }}>
+        <div className="font-bold text-sm" style={{ color: '#f5a623' }}>🔥 Fundadores</div>
+        <div className="text-sm">
+          <b style={{ color: fundadoresActuales >= CUPO_FUNDADORES ? '#f87171' : '#f5a623' }}>{fundadoresActuales}</b>
+          <span className="text-muted"> / {CUPO_FUNDADORES} cupo usado</span>
+          {fundadoresActuales >= CUPO_FUNDADORES && <span className="text-[10px] font-bold ml-2" style={{ color: '#f87171' }}>CUPO COMPLETO — deja de ofrecer precio fundador</span>}
+        </div>
+      </div>
+
       <div className="card p-4" style={{ border: '1px solid rgba(245,158,11,.3)' }}>
         <div className="font-bold text-sm mb-3" style={{ color: '#fbbf24' }}>⚠️ Alertas de cobro</div>
         {alertas.porVencer.length === 0 && alertas.enGracia.length === 0 ? (
@@ -422,6 +434,7 @@ function TabCuentas() {
               onReactivar={() => accion(reactivar, c.id)}
               onResetPassword={() => onResetPassword(c)}
               onEliminar={() => onEliminar(c)}
+              onToggleFundador={() => accion(marcarFundador, c.id, !c.es_fundador)}
             />
           ))}
         </div>
@@ -431,7 +444,7 @@ function TabCuentas() {
   )
 }
 
-function CuentaCard({ cuenta, onPagado, onMora, onBaja, onReactivar, onResetPassword, onEliminar }) {
+function CuentaCard({ cuenta, onPagado, onMora, onBaja, onReactivar, onResetPassword, onEliminar, onToggleFundador }) {
   const est = ESTADOS_PLAN[cuenta.plan_estado] || ESTADOS_PLAN.prueba
   const diasPrueba = cuenta.plan_estado === 'prueba' ? diasRestantes(cuenta.prueba_vence) : null
   const diasPago = (cuenta.plan_estado === 'pagado' || cuenta.plan_estado === 'mora') ? diasRestantes(cuenta.pago_vence) : null
@@ -445,6 +458,7 @@ function CuentaCard({ cuenta, onPagado, onMora, onBaja, onReactivar, onResetPass
             <span className="font-bold text-sm">{cuenta.club_nombre}</span>
             <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: est.bg, color: est.fg }}>{est.label}</span>
             <TipoCliente cuenta={cuenta} />
+            {cuenta.es_fundador && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: 'rgba(245,166,35,.15)', color: '#f5a623' }}>🔥 Fundador</span>}
             {!cuenta.activo && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: 'rgba(239,68,68,.12)', color: '#f87171' }}>Suspendido</span>}
           </div>
           <div className="text-xs text-muted mt-1">{cuenta.entrenador} · {cuenta.email}</div>
@@ -459,6 +473,9 @@ function CuentaCard({ cuenta, onPagado, onMora, onBaja, onReactivar, onResetPass
           <button className="btn btn-primary text-xs" onClick={onPagado}>💳 Marcar pagado</button>
           <button className="btn btn-outline text-xs" style={{ color: '#fbbf24', borderColor: 'rgba(245,158,11,.3)' }} onClick={onMora}>⚠️ Mora</button>
           <button className="btn btn-outline text-xs" onClick={onResetPassword}>🔑 Nueva contraseña</button>
+          <button className="btn btn-outline text-xs" style={cuenta.es_fundador ? { color: '#f5a623', borderColor: 'rgba(245,166,35,.4)' } : {}} onClick={onToggleFundador}>
+            {cuenta.es_fundador ? '🔥 Quitar fundador' : '🔥 Marcar fundador'}
+          </button>
           {cuenta.activo ? (
             <button className="btn btn-outline text-xs" style={{ color: '#f87171', borderColor: 'rgba(239,68,68,.3)' }} onClick={onBaja}>🚫 Dar de baja</button>
           ) : (

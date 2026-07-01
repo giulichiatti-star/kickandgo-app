@@ -3,10 +3,15 @@ import { supabase } from './supabase'
 export async function listarCuentas() {
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, email, club_nombre, entrenador, activo, plan_estado, prueba_vence, pago_vence, ultimo_pago_en, creado')
+    .select('id, email, club_nombre, entrenador, activo, plan_estado, prueba_vence, pago_vence, ultimo_pago_en, creado, es_fundador')
     .order('creado', { ascending: false })
   if (error) throw error
   return data || []
+}
+
+export async function marcarFundador(id, valor) {
+  const { error } = await supabase.from('profiles').update({ es_fundador: valor }).eq('id', id)
+  if (error) throw error
 }
 
 // Avanza un mes manteniendo el mismo día del mes (no "+30 días") — así el
