@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { listarLeads, actualizarLead, activarLeads, contactarLeads, linkWhatsapp } from '../lib/leads'
-import { listarCuentas, marcarPagado, marcarMora, darDeBaja, reactivar } from '../lib/cuentas'
+import { listarCuentas, marcarPagado, marcarMora, darDeBaja, reactivar, resetearPassword } from '../lib/cuentas'
 
 const ESTADOS_LEAD = {
   nuevo:       { label: 'Nuevo',       bg: 'rgba(59,130,246,.12)',  fg: '#60a5fa' },
@@ -249,6 +249,7 @@ function TabCuentas() {
   const [cargando, setCargando] = useState(true)
   const [filtro, setFiltro] = useState('todos')
   const [error, setError] = useState('')
+  const [passwordReseteada, setPasswordReseteada] = useState(null)
 
   async function recargar() {
     setCargando(true)
@@ -257,6 +258,14 @@ function TabCuentas() {
     finally { setCargando(false) }
   }
   useEffect(() => { recargar() }, [])
+
+  async function onResetPassword(cuenta) {
+    if (!confirm(`¿Generar una contraseña nueva para ${cuenta.club_nombre}? La anterior dejará de funcionar.`)) return
+    try {
+      const res = await resetearPassword(cuenta.id)
+      setPasswordReseteada({ email: cuenta.email, password: res.password })
+    } catch (e) { setError(e.message) }
+  }
 
   const visibles = useMemo(() => {
     if (filtro === 'todos') return cuentas
@@ -285,6 +294,14 @@ function TabCuentas() {
         <div className="card p-3 text-xs" style={{ background: 'rgba(239,68,68,.1)', border: '1px solid rgba(239,68,68,.3)', color: '#f87171' }}>⚠️ {error}</div>
       )}
 
+      {passwordReseteada && (
+        <div className="card p-4 text-xs" style={{ background: 'rgba(34,197,94,.08)', border: '1px solid rgba(34,197,94,.3)' }}>
+          <div className="font-bold text-[#4ade80] mb-1">✅ Contraseña generada</div>
+          <div>Para <b>{passwordReseteada.email}</b>: <code className="font-mono font-bold">{passwordReseteada.password}</code></div>
+          <div className="text-muted mt-1">Cópiala y envíasela por WhatsApp o email — no se guarda en ningún sitio, solo se muestra ahora.</div>
+        </div>
+      )}
+
       {cargando ? (
         <div className="card p-8 text-center text-sm text-muted">Cargando…</div>
       ) : visibles.length === 0 ? (
@@ -297,6 +314,7 @@ function TabCuentas() {
               onMora={() => accion(marcarMora, c.id)}
               onBaja={() => accion(darDeBaja, c.id)}
               onReactivar={() => accion(reactivar, c.id)}
+              onResetPassword={() => onResetPassword(c)}
             />
           ))}
         </div>
@@ -305,7 +323,7 @@ function TabCuentas() {
   )
 }
 
-function CuentaCard({ cuenta, onPagado, onMora, onBaja, onReactivar }) {
+function CuentaCard({ cuenta, onPagado, onMora, onBaja, onReactivar, onResetPassword }) {
   const [fechaPago, setFechaPago] = useState(() => {
     const d = new Date(); d.setDate(d.getDate() + 30)
     return d.toISOString().slice(0, 10)
@@ -334,6 +352,7 @@ function CuentaCard({ cuenta, onPagado, onMora, onBaja, onReactivar }) {
           <input type="date" className="field text-xs" style={{ width: 140 }} value={fechaPago} onChange={(e) => setFechaPago(e.target.value)} />
           <button className="btn btn-primary text-xs" onClick={() => onPagado(new Date(fechaPago).toISOString())}>💳 Marcar pagado</button>
           <button className="btn btn-outline text-xs" style={{ color: '#fbbf24', borderColor: 'rgba(245,158,11,.3)' }} onClick={onMora}>⚠️ Mora</button>
+          <button className="btn btn-outline text-xs" onClick={onResetPassword}>🔑 Nueva contraseña</button>
           {cuenta.activo ? (
             <button className="btn btn-outline text-xs" style={{ color: '#f87171', borderColor: 'rgba(239,68,68,.3)' }} onClick={onBaja}>🚫 Dar de baja</button>
           ) : (

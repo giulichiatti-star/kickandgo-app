@@ -33,3 +33,9 @@ export async function reactivar(id) {
   const { error } = await supabase.from('profiles').update({ activo: true }).eq('id', id)
   if (error) throw error
 }
+
+export async function resetearPassword(userId) {
+  const { data, error } = await supabase.functions.invoke('resetear-password', { body: { userId } })
+  if (error) throw error
+  return data
+}
