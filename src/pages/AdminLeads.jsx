@@ -4,6 +4,34 @@ import { listarCuentas, marcarPagado, marcarMora, darDeBaja, reactivar, resetear
 
 const DIAS_GRACIA = 2
 
+function ConfirmModal({ mensaje, onCancelar, onConfirmar }) {
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.6)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+      onClick={onCancelar}>
+      <div className="card p-5" style={{ maxWidth: 420, width: '90%', border: '1px solid rgba(45,212,191,.3)' }} onClick={(e) => e.stopPropagation()}>
+        <div className="text-sm mb-4">{mensaje}</div>
+        <div className="flex gap-2 justify-end">
+          <button className="btn btn-outline text-xs" onClick={onCancelar}>Cancelar</button>
+          <button className="btn btn-primary text-xs" onClick={onConfirmar}>Confirmar</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function useConfirm() {
+  const [pedido, setPedido] = useState(null)
+  function confirmar(mensaje, accion) {
+    setPedido({ mensaje, accion })
+  }
+  function cerrar() { setPedido(null) }
+  const modal = pedido && (
+    <ConfirmModal mensaje={pedido.mensaje} onCancelar={cerrar}
+      onConfirmar={() => { const a = pedido.accion; cerrar(); a() }} />
+  )
+  return [modal, confirmar]
+}
+
 const ESTADOS_LEAD = {
   nuevo:       { label: 'Nuevo',       bg: 'rgba(59,130,246,.12)',  fg: '#60a5fa' },
   contactado:  { label: 'Contactado',  bg: 'rgba(245,158,11,.12)',  fg: '#fbbf24' },
@@ -46,6 +74,7 @@ function TabLeads() {
   const [procesando, setProcesando] = useState(false)
   const [resultado, setResultado] = useState(null)
   const [error, setError] = useState('')
+  const [modalConfirm, confirmar] = useConfirm()
 
   async function recargar() {
     setCargando(true)
@@ -104,16 +133,17 @@ function TabLeads() {
     limpiarSeleccion(); recargar()
   }
 
-  async function accionMasivaAlta() {
-    if (!confirm(`¿Dar de alta ${seleccion.size} lead(s)? Se generarán contraseñas y se enviarán emails.`)) return
-    setProcesando(true); setError(''); setResultado(null)
-    try {
-      const ids = [...seleccion]
-      const res = await activarLeads(ids)
-      setResultado({ tipo: 'alta', ...res })
-      limpiarSeleccion(); recargar()
-    } catch (e) { setError(e.message) }
-    finally { setProcesando(false) }
+  function accionMasivaAlta() {
+    confirmar(`¿Dar de alta ${seleccion.size} lead(s)? Se generarán contraseñas y se enviarán emails.`, async () => {
+      setProcesando(true); setError(''); setResultado(null)
+      try {
+        const ids = [...seleccion]
+        const res = await activarLeads(ids)
+        setResultado({ tipo: 'alta', ...res })
+        limpiarSeleccion(); recargar()
+      } catch (e) { setError(e.message) }
+      finally { setProcesando(false) }
+    })
   }
 
   async function setRespondio(id, valor) {
@@ -189,6 +219,7 @@ function TabLeads() {
           ))}
         </div>
       )}
+      {modalConfirm}
     </div>
   )
 }
@@ -276,6 +307,7 @@ function TabCuentas() {
   const [filtro, setFiltro] = useState('todos')
   const [error, setError] = useState('')
   const [passwordReseteada, setPasswordReseteada] = useState(null)
+  const [modalConfirm, confirmar] = useConfirm()
 
   async function recargar() {
     setCargando(true)
@@ -285,12 +317,13 @@ function TabCuentas() {
   }
   useEffect(() => { recargar() }, [])
 
-  async function onResetPassword(cuenta) {
-    if (!confirm(`¿Generar una contraseña nueva para ${cuenta.club_nombre}? La anterior dejará de funcionar.`)) return
-    try {
-      const res = await resetearPassword(cuenta.id)
-      setPasswordReseteada({ email: cuenta.email, password: res.password })
-    } catch (e) { setError(e.message) }
+  function onResetPassword(cuenta) {
+    confirmar(`¿Generar una contraseña nueva para ${cuenta.club_nombre}? La anterior dejará de funcionar.`, async () => {
+      try {
+        const res = await resetearPassword(cuenta.id)
+        setPasswordReseteada({ email: cuenta.email, password: res.password })
+      } catch (e) { setError(e.message) }
+    })
   }
 
   const visibles = useMemo(() => {
@@ -364,13 +397,14 @@ function TabCuentas() {
             <CuentaCard key={c.id} cuenta={c}
               onPagado={() => accion(marcarPagado, c)}
               onMora={() => accion(marcarMora, c.id)}
-              onBaja={() => accion(darDeBaja, c.id)}
+              onBaja={() => confirmar(`¿Dar de baja a ${c.club_nombre}? Perderá el acceso inmediatamente.`, () => accion(darDeBaja, c.id))}
               onReactivar={() => accion(reactivar, c.id)}
               onResetPassword={() => onResetPassword(c)}
             />
           ))}
         </div>
       )}
+      {modalConfirm}
     </div>
   )
 }
