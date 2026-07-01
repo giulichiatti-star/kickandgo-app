@@ -340,6 +340,9 @@ export default function App() {
   const queryLogin = params.get('login') === '1'
   const esPWA = params.get('pwa') === '1' || window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone
 
+  // Ruta /login siempre va al login sin recarga
+  if (window.location.pathname === '/login') return sesion ? <Navigate to="/inicio" replace /> : <Login />
+
   // Sin sesión en raíz: mostrar Landing solo si no es PWA ni viene de link de login
   if (window.location.pathname === '/' && !sesion && !queryLogin && !esPWA) return <Landing />
   if (!sesion) return <Login />

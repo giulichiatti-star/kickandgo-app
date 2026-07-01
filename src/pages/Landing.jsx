@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import '../landing.css'
 import { crearLead } from '../lib/leads'
 
@@ -109,6 +110,7 @@ const PLANES = {
 export default function Landing() {
   const [modalOpen, setModalOpen] = useState(false)
   const [ciclo, setCiclo] = useState('mensual')
+  const navigate = useNavigate()
 
   return (
     <div className="kg-landing">
@@ -127,7 +129,7 @@ export default function Landing() {
           <li><a href="#precios">Precios</a></li>
         </ul>
         <div className="nav-right">
-          <a className="btn-login" href="/?login=1">Iniciar sesión</a>
+          <button className="btn-login" onClick={() => navigate('/login')}>Iniciar sesión</button>
           <button className="btn-cta-nav" onClick={() => setModalOpen(true)}>Empezar gratis</button>
         </div>
       </nav>
@@ -150,7 +152,7 @@ export default function Landing() {
               <button className="btn-ghost" onClick={() => document.getElementById('funciones')?.scrollIntoView({ behavior: 'smooth' })}>▶ Ver funciones</button>
             </div>
             <div className="hero-login-link">
-              <a href="/?login=1">¿Ya tienes cuenta? <strong>Iniciar sesión →</strong></a>
+              <button onClick={() => navigate('/login')} style={{ background:'none', border:'none', cursor:'pointer', padding:0, font:'inherit', color:'inherit' }}>¿Ya tienes cuenta? <strong style={{color:'#2dd4bf'}}>Iniciar sesión →</strong></button>
             </div>
             <div className="hero-proof">
               <div className="avatars">
