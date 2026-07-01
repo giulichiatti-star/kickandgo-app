@@ -257,3 +257,46 @@
   .kg-landing .modal-box { padding: 32px 24px; }
   .kg-landing .section { padding: 56px 20px; }
 }
+
+@media (max-width: 480px) {
+  /* Nav */
+  .kg-landing nav { padding: 0 16px; }
+  .kg-landing .btn-login { display: none; }
+
+  /* Hero */
+  .kg-landing .hero { padding: 28px 16px 36px; min-height: auto; }
+  .kg-landing h1 { font-size: 38px; letter-spacing: -.5px; }
+  .kg-landing .hero-sub { font-size: 15px; max-width: 100%; }
+  .kg-landing .hero-btns { flex-direction: column; gap: 10px; }
+  .kg-landing .btn-hero, .kg-landing .btn-ghost { width: 100%; text-align: center; padding: 14px 20px; }
+  .kg-landing .hero-mockup { display: none; }
+
+  /* Sections */
+  .kg-landing .section { padding: 48px 16px; }
+  .kg-landing h2 { font-size: 30px; }
+  .kg-landing .section-sub { font-size: 14px; }
+
+  /* Stats */
+  .kg-landing .stats-section { padding: 40px 16px; }
+  .kg-landing .stats-inner { gap: 20px; justify-content: space-around; }
+  .kg-landing .stat-val { font-size: 40px; }
+  .kg-landing .stat-lbl { font-size: 12px; }
+
+  /* Pricing */
+  .kg-landing .pricing-section { padding: 48px 16px; }
+  .kg-landing .price-big { font-size: 56px; }
+  .kg-landing .price-features { grid-template-columns: 1fr; gap: 10px; }
+  .kg-landing .pricing-card { padding: 24px 16px; }
+
+  /* CTA */
+  .kg-landing .cta-section { padding: 48px 16px; }
+  .kg-landing .cta-section h2 { font-size: 30px; }
+  .kg-landing .btn-cta-big { width: 100%; padding: 16px 20px; }
+
+  /* Modal */
+  .kg-landing .modal-box { padding: 28px 16px; width: 95%; }
+
+  /* Footer */
+  .kg-landing footer { padding: 20px 16px; }
+  .kg-landing .footer-links { gap: 14px; }
+}
