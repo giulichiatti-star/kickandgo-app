@@ -284,6 +284,18 @@ function fechaVencimientoRelevante(cuenta) {
   return null
 }
 
+function TipoCliente({ cuenta }) {
+  const esPrueba = cuenta.plan_estado === 'prueba' || cuenta.plan_estado === 'vencido'
+  return (
+    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+      style={esPrueba
+        ? { background: 'rgba(139,92,246,.12)', color: '#c4b5fd' }
+        : { background: 'rgba(45,212,191,.12)', color: '#2dd4bf' }}>
+      {esPrueba ? '🆕 Prueba gratis' : '🔁 Cliente recurrente'}
+    </span>
+  )
+}
+
 function calcularAlertas(cuentas) {
   const porVencer = []
   const enGracia = []
@@ -342,29 +354,33 @@ function TabCuentas() {
 
   return (
     <div className="space-y-3">
-      {(alertas.porVencer.length > 0 || alertas.enGracia.length > 0) && (
-        <div className="card p-4" style={{ border: '1px solid rgba(245,158,11,.3)' }}>
-          <div className="font-bold text-sm mb-3" style={{ color: '#fbbf24' }}>⚠️ Alertas de cobro</div>
+      <div className="card p-4" style={{ border: '1px solid rgba(245,158,11,.3)' }}>
+        <div className="font-bold text-sm mb-3" style={{ color: '#fbbf24' }}>⚠️ Alertas de cobro</div>
+        {alertas.porVencer.length === 0 && alertas.enGracia.length === 0 ? (
+          <div className="text-xs text-muted">No hay ninguna cuenta por vencer ni en gracia ahora mismo.</div>
+        ) : (
           <div className="space-y-2">
             {alertas.enGracia.map(({ cuenta: c, dias }) => (
               <div key={c.id} className="flex items-center justify-between flex-wrap gap-2 p-2 rounded-lg" style={{ background: 'rgba(239,68,68,.08)' }}>
-                <div className="text-xs">
-                  <b>{c.club_nombre}</b> — vencido hace {dias} día(s) {dias >= DIAS_GRACIA ? '(se suspenderá hoy si no se registra el pago)' : `(se suspende en ${DIAS_GRACIA - dias} día(s))`}
+                <div className="text-xs flex items-center gap-2 flex-wrap">
+                  <TipoCliente cuenta={c} />
+                  <span><b>{c.club_nombre}</b> — vencido hace {dias} día(s) {dias >= DIAS_GRACIA ? '(se suspenderá hoy si no se registra el pago)' : `(se suspende en ${DIAS_GRACIA - dias} día(s))`}</span>
                 </div>
                 <button className="btn btn-primary text-xs" onClick={() => accion(marcarPagado, c)}>💳 Pagado</button>
               </div>
             ))}
             {alertas.porVencer.map(({ cuenta: c, dias }) => (
               <div key={c.id} className="flex items-center justify-between flex-wrap gap-2 p-2 rounded-lg" style={{ background: 'rgba(245,158,11,.08)' }}>
-                <div className="text-xs">
-                  <b>{c.club_nombre}</b> — {dias === 0 ? 'vence hoy' : `vence en ${dias} día(s)`} ({c.plan_estado === 'prueba' ? 'fin de prueba' : 'próximo pago'})
+                <div className="text-xs flex items-center gap-2 flex-wrap">
+                  <TipoCliente cuenta={c} />
+                  <span><b>{c.club_nombre}</b> — {dias === 0 ? 'vence hoy' : `vence en ${dias} día(s)`} ({c.plan_estado === 'prueba' ? 'fin de prueba' : 'próximo pago'})</span>
                 </div>
                 <button className="btn btn-primary text-xs" onClick={() => accion(marcarPagado, c)}>💳 Pagado</button>
               </div>
             ))}
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       <div className="flex gap-2 flex-wrap">
         {['todos', 'por_vencer', 'prueba', 'pagado', 'mora', 'baja', 'suspendidos'].map(f => (
@@ -422,6 +438,7 @@ function CuentaCard({ cuenta, onPagado, onMora, onBaja, onReactivar, onResetPass
           <div className="flex items-center gap-2 flex-wrap">
             <span className="font-bold text-sm">{cuenta.club_nombre}</span>
             <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: est.bg, color: est.fg }}>{est.label}</span>
+            <TipoCliente cuenta={cuenta} />
             {!cuenta.activo && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: 'rgba(239,68,68,.12)', color: '#f87171' }}>Suspendido</span>}
           </div>
           <div className="text-xs text-muted mt-1">{cuenta.entrenador} · {cuenta.email}</div>

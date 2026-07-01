@@ -9,7 +9,19 @@ export async function listarCuentas() {
   return data || []
 }
 
-const DIAS_CICLO_PAGO = 30
+// Avanza un mes manteniendo el mismo día del mes (no "+30 días") — así el
+// cliente siempre paga el mismo día de cada mes, como una suscripción real.
+// Si el mes destino no tiene ese día (ej. día 31 en febrero), se ajusta al
+// último día disponible de ese mes.
+function addMonths(fecha, n) {
+  const d = new Date(fecha)
+  const dia = d.getDate()
+  d.setDate(1)
+  d.setMonth(d.getMonth() + n)
+  const diasEnMes = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate()
+  d.setDate(Math.min(dia, diasEnMes))
+  return d
+}
 
 // El ciclo de cobro se ancla siempre a la fecha de vencimiento anterior
 // (prueba_vence en el primer pago, pago_vence en renovaciones) — nunca al
@@ -19,9 +31,7 @@ export function proximoVencimiento(cuenta) {
     ? cuenta.pago_vence
     : cuenta.prueba_vence
   const base = anchor ? new Date(anchor) : new Date()
-  const nuevo = new Date(base)
-  nuevo.setDate(nuevo.getDate() + DIAS_CICLO_PAGO)
-  return nuevo
+  return addMonths(base, 1)
 }
 
 export async function marcarPagado(cuenta) {
