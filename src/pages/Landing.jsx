@@ -39,13 +39,15 @@ function Ticker() {
 }
 
 function LeadForm({ onClose }) {
-  const [form, setForm] = useState({ nombre: '', email: '', telefono: '', equipo_nombre: '' })
+  const [form, setForm] = useState({ nombre: '', email: '', emailConfirm: '', telefono: '', equipo_nombre: '' })
   const [estado, setEstado] = useState('idle') // idle | enviando | ok | error
   const [error, setError] = useState('')
 
   async function enviar(e) {
     e.preventDefault()
     if (!form.nombre.trim() || !form.email.trim()) { setError('Nombre y email son obligatorios'); return }
+    if (!form.telefono.trim()) { setError('El teléfono es obligatorio'); return }
+    if (form.email.trim() !== form.emailConfirm.trim()) { setError('Los emails no coinciden, revísalos'); return }
     setEstado('enviando'); setError('')
     try {
       await crearLead(form)
@@ -83,8 +85,10 @@ function LeadForm({ onClose }) {
           onChange={e => setForm({ ...form, nombre: e.target.value })} required />
         <input type="email" placeholder="Tu email" value={form.email}
           onChange={e => setForm({ ...form, email: e.target.value })} required />
-        <input placeholder="Teléfono (opcional)" value={form.telefono}
-          onChange={e => setForm({ ...form, telefono: e.target.value })} />
+        <input type="email" placeholder="Confirma tu email" value={form.emailConfirm}
+          onChange={e => setForm({ ...form, emailConfirm: e.target.value })} required />
+        <input type="tel" placeholder="Teléfono" value={form.telefono}
+          onChange={e => setForm({ ...form, telefono: e.target.value })} required />
         <input placeholder="Nombre de tu equipo (opcional)" value={form.equipo_nombre}
           onChange={e => setForm({ ...form, equipo_nombre: e.target.value })} />
         {error && <div className="lead-error">⚠️ {error}</div>}
