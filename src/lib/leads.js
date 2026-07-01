@@ -29,8 +29,22 @@ export async function contactarLeads(ids) {
 }
 
 export function mensajeWhatsapp(lead) {
-  const equipo = lead.equipo_nombre ? ` para ${lead.equipo_nombre}` : ''
-  return `Hola ${lead.nombre} 👋 Soy del equipo de KickAndGo. Vi que pediste probar la app${equipo}. En 5 min te dejo activada tu cuenta con 15 días gratis — ¿me confirmas si jugáis fútbol 11 o fútbol 7?`
+  const equipo = lead.equipo_nombre ? `*${lead.equipo_nombre}*` : 'tu equipo'
+  return `⚽ ¡Hola ${lead.nombre}! Soy del equipo de *KickAndGo* 🚀
+
+Vi que te interesó probar la app para ${equipo}. Te escribo para confirmarte que en breve te mandamos los accesos a tu cuenta.
+
+🎁 *15 días gratis — sin tarjeta de crédito*
+
+✅ Gestión de plantilla completa
+🧠 IA Coach en tiempo real
+📋 Convocatorias tácticas interactivas
+🔴 Modo En Vivo desde el campo
+📊 Estadísticas y análisis de partidos
+
+La cuenta se activa en *Fútbol 11* por defecto, puedes cambiarlo cuando quieras desde los ajustes.
+
+¿Alguna pregunta antes de empezar? Aquí estoy 👇`
 }
 
 export function linkWhatsapp(lead) {
