@@ -258,17 +258,14 @@
   .kg-landing .section { padding: 56px 20px; }
 }
 
-.kg-landing .hero-login-link { display: none; }
+.kg-landing .hero-login-link { display: block; margin-top: 14px; font-size: 13px; color: #71717a; }
+.kg-landing .hero-login-link a { color: #94a3b8; text-decoration: none; }
+.kg-landing .hero-login-link a strong { color: #2dd4bf; }
 
 @media (max-width: 480px) {
   /* Nav */
   .kg-landing nav { padding: 0 16px; }
   .kg-landing .btn-login { display: none; }
-
-  /* Hero login link — solo visible en móvil */
-  .kg-landing .hero-login-link { display: block; margin-top: 14px; font-size: 13px; color: #71717a; }
-  .kg-landing .hero-login-link a { color: #94a3b8; text-decoration: none; }
-  .kg-landing .hero-login-link a strong { color: #2dd4bf; }
 
   /* Hero */
   .kg-landing .hero { padding: 28px 16px 36px; min-height: auto; }
