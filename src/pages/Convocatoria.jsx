@@ -244,14 +244,17 @@ export default function Convocatoria() {
       ) : (
         <>
           {/* Pizarra */}
-          <div className="card p-3 mb-4">
-            <div className="ev2-pitch" style={{ borderRadius: 10, position: 'relative' }}>
-              <svg className="ev2-pitch-lines" viewBox="0 0 160 100" preserveAspectRatio="none">
-                <rect x="2" y="2" width="156" height="96" fill="none" stroke="rgba(255,255,255,.25)" strokeWidth="0.5" />
-                <line x1="80" y1="2" x2="80" y2="98" stroke="rgba(255,255,255,.25)" strokeWidth="0.5" />
-                <circle cx="80" cy="50" r="13" fill="none" stroke="rgba(255,255,255,.25)" strokeWidth="0.5" />
-                <rect x="2" y="28" width="20" height="44" fill="none" stroke="rgba(255,255,255,.22)" strokeWidth="0.5" />
-                <rect x="138" y="28" width="20" height="44" fill="none" stroke="rgba(255,255,255,.22)" strokeWidth="0.5" />
+          <div className="card p-3 mb-4 flex justify-center">
+            <div className="ev2-pitch" style={{
+              borderRadius: 10, position: 'relative',
+              width: '100%', maxWidth: 380, aspectRatio: '3/4',
+            }}>
+              <svg className="ev2-pitch-lines" viewBox="0 0 100 133" preserveAspectRatio="none">
+                <rect x="2" y="2" width="96" height="129" fill="none" stroke="rgba(255,255,255,.25)" strokeWidth="0.5" />
+                <line x1="2" y1="66.5" x2="98" y2="66.5" stroke="rgba(255,255,255,.25)" strokeWidth="0.5" />
+                <circle cx="50" cy="66.5" r="13" fill="none" stroke="rgba(255,255,255,.25)" strokeWidth="0.5" />
+                <rect x="24" y="107" width="52" height="24" fill="none" stroke="rgba(255,255,255,.22)" strokeWidth="0.5" />
+                <rect x="24" y="2" width="52" height="24" fill="none" stroke="rgba(255,255,255,.22)" strokeWidth="0.5" />
               </svg>
               {coords.map(([x, y], i) => {
                 const jid = asignaciones[i]
