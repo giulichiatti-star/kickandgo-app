@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { listarLeads, actualizarLead, activarLeads, contactarLeads, linkWhatsapp } from '../lib/leads'
-import { listarCuentas, marcarPagado, marcarMora, darDeBaja, reactivar, resetearPassword, proximoVencimiento } from '../lib/cuentas'
+import { listarCuentas, marcarPagado, marcarMora, darDeBaja, reactivar, resetearPassword, proximoVencimiento, eliminarCuenta } from '../lib/cuentas'
 
 const DIAS_GRACIA = 2
 
@@ -352,6 +352,11 @@ function TabCuentas() {
     catch (e) { setError(e.message) }
   }
 
+  function onEliminar(cuenta) {
+    confirmar(`⚠️ ESTO ES IRREVERSIBLE. Se borrará por completo la cuenta de ${cuenta.club_nombre} (${cuenta.email}) y todos sus datos: jugadores, partidos, entrenamientos, convocatorias, tarjetas y lesiones. No se puede deshacer. ¿Confirmas la eliminación?`,
+      () => accion(eliminarCuenta, cuenta.id))
+  }
+
   return (
     <div className="space-y-3">
       <div className="card p-4" style={{ border: '1px solid rgba(245,158,11,.3)' }}>
@@ -416,6 +421,7 @@ function TabCuentas() {
               onBaja={() => confirmar(`¿Dar de baja a ${c.club_nombre}? Perderá el acceso inmediatamente.`, () => accion(darDeBaja, c.id))}
               onReactivar={() => accion(reactivar, c.id)}
               onResetPassword={() => onResetPassword(c)}
+              onEliminar={() => onEliminar(c)}
             />
           ))}
         </div>
@@ -425,7 +431,7 @@ function TabCuentas() {
   )
 }
 
-function CuentaCard({ cuenta, onPagado, onMora, onBaja, onReactivar, onResetPassword }) {
+function CuentaCard({ cuenta, onPagado, onMora, onBaja, onReactivar, onResetPassword, onEliminar }) {
   const est = ESTADOS_PLAN[cuenta.plan_estado] || ESTADOS_PLAN.prueba
   const diasPrueba = cuenta.plan_estado === 'prueba' ? diasRestantes(cuenta.prueba_vence) : null
   const diasPago = (cuenta.plan_estado === 'pagado' || cuenta.plan_estado === 'mora') ? diasRestantes(cuenta.pago_vence) : null
@@ -458,6 +464,7 @@ function CuentaCard({ cuenta, onPagado, onMora, onBaja, onReactivar, onResetPass
           ) : (
             <button className="btn btn-outline text-xs" style={{ color: '#4ade80', borderColor: 'rgba(34,197,94,.3)' }} onClick={onReactivar}>✅ Reactivar</button>
           )}
+          <button className="btn text-xs" style={{ background: '#7f1d1d', color: '#fca5a5', border: '1px solid rgba(239,68,68,.4)' }} onClick={onEliminar}>🗑️ Eliminar cuenta</button>
         </div>
       </div>
     </div>

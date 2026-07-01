@@ -65,3 +65,9 @@ export async function resetearPassword(userId) {
   if (error) throw error
   return data
 }
+
+export async function eliminarCuenta(userId) {
+  const { data, error } = await supabase.functions.invoke('eliminar-cuenta', { body: { userId } })
+  if (error) throw error
+  return data
+}
