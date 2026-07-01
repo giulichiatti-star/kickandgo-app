@@ -1,5 +1,5 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
-import { CORS_HEADERS } from '../_shared/cors.ts'
+import { CORS_HEADERS, JSON_HEADERS } from '../_shared/cors.ts'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -16,14 +16,14 @@ Deno.serve(async (req) => {
 
   try {
     const { userId } = await req.json()
-    if (!userId) return new Response(JSON.stringify({ error: 'Falta userId' }), { status: 400, headers: CORS_HEADERS })
+    if (!userId) return new Response(JSON.stringify({ error: 'Falta userId' }), { status: 400, headers: JSON_HEADERS })
 
     const password = generarPassword()
     const { error } = await supabase.auth.admin.updateUserById(userId, { password })
-    if (error) return new Response(JSON.stringify({ error: error.message }), { status: 400, headers: CORS_HEADERS })
+    if (error) return new Response(JSON.stringify({ error: error.message }), { status: 400, headers: JSON_HEADERS })
 
-    return new Response(JSON.stringify({ ok: true, password }), { status: 200, headers: CORS_HEADERS })
+    return new Response(JSON.stringify({ ok: true, password }), { status: 200, headers: JSON_HEADERS })
   } catch (e) {
-    return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: CORS_HEADERS })
+    return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: JSON_HEADERS })
   }
 })
