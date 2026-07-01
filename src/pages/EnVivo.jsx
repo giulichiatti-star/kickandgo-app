@@ -1093,6 +1093,24 @@ function MobileEnVivo({
                   <div style={{ fontSize:11, fontWeight:700, color:'#fafafa' }}>{e.label}</div>
                   {e.jugador && <div style={{ fontSize:10, color:'#71717a' }}>{e.jugador}</div>}
                 </div>
+                <button onClick={() => {
+                  if (e.tipo === 'gol') { setGf((g) => Math.max(0, g - 1)); setStats((s) => ({ ...s, tiros: Math.max(0, s.tiros - 1) })) }
+                  if (e.tipo === 'gol-rival') setGc((g) => Math.max(0, g - 1))
+                  if (e.tipo === 'tiro') setStats((s) => ({ ...s, tiros: Math.max(0, s.tiros - 1) }))
+                  if (e.tipo === 'corner') setStats((s) => ({ ...s, corners: Math.max(0, s.corners - 1) }))
+                  if (e.tipo === 'falta' || e.tipo === 'falta-favor') setStats((s) => ({ ...s, faltas: Math.max(0, s.faltas - 1) }))
+                  if (e.tipo === 'amarilla') setStats((s) => ({ ...s, amarillas: Math.max(0, s.amarillas - 1) }))
+                  const ico = ICONO_MARCA[e.tipo]
+                  if (ico && e.jugador_id) {
+                    setMarks((m) => {
+                      const arr = [...(m[e.jugador_id] || [])]
+                      const idx = arr.lastIndexOf(ico)
+                      if (idx !== -1) arr.splice(idx, 1)
+                      return { ...m, [e.jugador_id]: arr }
+                    })
+                  }
+                  setEventos((ev) => ev.filter((_, k) => k !== i))
+                }} style={{ background:'none', border:'none', color:'#71717a', fontSize:14, padding:'4px 6px', cursor:'pointer', flexShrink:0, lineHeight:1 }}>✕</button>
               </div>
             ))}
           </div>
