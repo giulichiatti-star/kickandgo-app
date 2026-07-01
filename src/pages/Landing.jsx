@@ -97,8 +97,14 @@ function LeadForm({ onClose }) {
   )
 }
 
+const PLANES = {
+  fundador: { mensual: '19,99', anual: '199' },
+  estandar: { mensual: '24,95', anual: '249' },
+}
+
 export default function Landing() {
   const [modalOpen, setModalOpen] = useState(false)
+  const [ciclo, setCiclo] = useState('mensual')
 
   return (
     <div className="kg-landing">
@@ -314,23 +320,67 @@ export default function Landing() {
       <section className="pricing-section" id="precios">
         <div className="eyebrow">Precio</div>
         <h2>Simple y sin sorpresas</h2>
-        <p className="section-sub" style={{ margin: '14px auto 48px' }}>Un solo plan con todo incluido. Sin límites de jugadores, sin costes ocultos.</p>
+        <p className="section-sub" style={{ margin: '14px auto 32px' }}>Todo incluido, sin límites de jugadores ni costes ocultos.</p>
 
-        <div className="pricing-card">
-          <div className="plan-label">Plan Entrenador</div>
-          <div className="price"><div className="price-big">€20</div><div className="price-period">/mes</div></div>
-          <div className="price-note">Sin permanencia · Cancela cuando quieras</div>
-          <div className="price-features">
-            <div className="pf"><span className="pf-check">✓</span> Plantilla ilimitada</div>
-            <div className="pf"><span className="pf-check">✓</span> IA Coach incluida</div>
-            <div className="pf"><span className="pf-check">✓</span> Análisis de partidos</div>
-            <div className="pf"><span className="pf-check">✓</span> Pizarra táctica</div>
-            <div className="pf"><span className="pf-check">✓</span> En Vivo desde el campo</div>
-            <div className="pf"><span className="pf-check">✓</span> Plan de temporada</div>
-            <div className="pf"><span className="pf-check">✓</span> Control de lesiones</div>
-            <div className="pf"><span className="pf-check">✓</span> Soporte directo</div>
+        <div style={{ display: 'inline-flex', background: '#1a1a20', border: '1px solid rgba(255,255,255,.08)', borderRadius: 100, padding: 4, marginBottom: 40, gap: 4 }}>
+          <button onClick={() => setCiclo('mensual')} style={{
+            padding: '9px 22px', borderRadius: 100, border: 'none', cursor: 'pointer',
+            fontSize: 13, fontWeight: 700, fontFamily: "'DM Sans',sans-serif",
+            background: ciclo === 'mensual' ? '#2dd4bf' : 'transparent',
+            color: ciclo === 'mensual' ? '#042c28' : '#94a3b8',
+          }}>Mensual</button>
+          <button onClick={() => setCiclo('anual')} style={{
+            padding: '9px 22px', borderRadius: 100, border: 'none', cursor: 'pointer',
+            fontSize: 13, fontWeight: 700, fontFamily: "'DM Sans',sans-serif",
+            background: ciclo === 'anual' ? '#2dd4bf' : 'transparent',
+            color: ciclo === 'anual' ? '#042c28' : '#94a3b8',
+            display: 'flex', alignItems: 'center', gap: 6,
+          }}>Anual <span style={{ fontSize: 10, opacity: .8 }}>ahorra ~17%</span></button>
+        </div>
+
+        <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', justifyContent: 'center', maxWidth: 900, margin: '0 auto' }}>
+          {/* FUNDADOR */}
+          <div className="pricing-card" style={{ borderColor: 'rgba(245,166,35,.4)', boxShadow: '0 0 80px rgba(245,166,35,.06)', flex: '1 1 380px', maxWidth: 420 }}>
+            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: 'linear-gradient(90deg,#f5a623,transparent)' }} />
+            <div className="plan-label" style={{ color: '#f5a623' }}>🔥 Precio Fundador — primeros 50 usuarios</div>
+            <div className="price">
+              <div className="price-big">€{ciclo === 'mensual' ? PLANES.fundador.mensual : PLANES.fundador.anual}</div>
+              <div className="price-period">/{ciclo === 'mensual' ? 'mes' : 'año'}</div>
+            </div>
+            <div className="price-note">Precio bloqueado para siempre mientras seas fundador · Cancela cuando quieras</div>
+            <div className="price-features">
+              <div className="pf"><span className="pf-check">✓</span> Plantilla ilimitada</div>
+              <div className="pf"><span className="pf-check">✓</span> IA Coach incluida</div>
+              <div className="pf"><span className="pf-check">✓</span> Análisis de partidos</div>
+              <div className="pf"><span className="pf-check">✓</span> Pizarra táctica</div>
+              <div className="pf"><span className="pf-check">✓</span> En Vivo desde el campo</div>
+              <div className="pf"><span className="pf-check">✓</span> Plan de temporada</div>
+              <div className="pf"><span className="pf-check">✓</span> Control de lesiones</div>
+              <div className="pf"><span className="pf-check">✓</span> Soporte directo</div>
+            </div>
+            <button className="btn-pricing" style={{ background: '#f5a623' }} onClick={() => setModalOpen(true)}>Empieza gratis 15 días →</button>
           </div>
-          <button className="btn-pricing" onClick={() => setModalOpen(true)}>Empieza gratis 15 días →</button>
+
+          {/* ESTÁNDAR */}
+          <div className="pricing-card" style={{ flex: '1 1 380px', maxWidth: 420 }}>
+            <div className="plan-label">Plan Entrenador</div>
+            <div className="price">
+              <div className="price-big">€{ciclo === 'mensual' ? PLANES.estandar.mensual : PLANES.estandar.anual}</div>
+              <div className="price-period">/{ciclo === 'mensual' ? 'mes' : 'año'}</div>
+            </div>
+            <div className="price-note">Sin permanencia · Cancela cuando quieras</div>
+            <div className="price-features">
+              <div className="pf"><span className="pf-check">✓</span> Plantilla ilimitada</div>
+              <div className="pf"><span className="pf-check">✓</span> IA Coach incluida</div>
+              <div className="pf"><span className="pf-check">✓</span> Análisis de partidos</div>
+              <div className="pf"><span className="pf-check">✓</span> Pizarra táctica</div>
+              <div className="pf"><span className="pf-check">✓</span> En Vivo desde el campo</div>
+              <div className="pf"><span className="pf-check">✓</span> Plan de temporada</div>
+              <div className="pf"><span className="pf-check">✓</span> Control de lesiones</div>
+              <div className="pf"><span className="pf-check">✓</span> Soporte directo</div>
+            </div>
+            <button className="btn-pricing" onClick={() => setModalOpen(true)}>Empieza gratis 15 días →</button>
+          </div>
         </div>
         <div className="pricing-fine">Sin tarjeta de crédito · Activación en minutos</div>
       </section>
