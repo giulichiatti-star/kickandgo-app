@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { listarLeads, actualizarLead, activarLeads, contactarLeads, linkWhatsapp } from '../lib/leads'
-import { listarCuentas, marcarPagado, marcarMora, darDeBaja, reactivar, resetearPassword } from '../lib/cuentas'
+import { listarCuentas, marcarPagado, marcarMora, darDeBaja, reactivar, resetearPassword, proximoVencimiento } from '../lib/cuentas'
+
+const DIAS_GRACIA = 2
 
 const ESTADOS_LEAD = {
   nuevo:       { label: 'Nuevo',       bg: 'rgba(59,130,246,.12)',  fg: '#60a5fa' },
@@ -244,6 +246,30 @@ function diasRestantes(fechaISO) {
   return dias
 }
 
+// Fecha relevante de vencimiento según el estado del plan (prueba o pago)
+function fechaVencimientoRelevante(cuenta) {
+  if (cuenta.plan_estado === 'prueba') return cuenta.prueba_vence
+  if (cuenta.plan_estado === 'pagado' || cuenta.plan_estado === 'mora') return cuenta.pago_vence
+  return null
+}
+
+function calcularAlertas(cuentas) {
+  const porVencer = []
+  const enGracia = []
+  for (const c of cuentas) {
+    if (c.plan_estado === 'baja') continue
+    const fecha = fechaVencimientoRelevante(c)
+    if (!fecha) continue
+    const dias = diasRestantes(fecha)
+    if (dias === null) continue
+    if (dias >= 0 && dias <= 3) porVencer.push({ cuenta: c, dias })
+    else if (dias < 0 && c.activo) enGracia.push({ cuenta: c, dias: -dias })
+  }
+  porVencer.sort((a, b) => a.dias - b.dias)
+  enGracia.sort((a, b) => b.dias - a.dias)
+  return { porVencer, enGracia }
+}
+
 function TabCuentas() {
   const [cuentas, setCuentas] = useState([])
   const [cargando, setCargando] = useState(true)
@@ -274,6 +300,8 @@ function TabCuentas() {
     return cuentas.filter(c => c.plan_estado === filtro)
   }, [cuentas, filtro])
 
+  const alertas = useMemo(() => calcularAlertas(cuentas), [cuentas])
+
   async function accion(fn, ...args) {
     try { await fn(...args); recargar() }
     catch (e) { setError(e.message) }
@@ -281,6 +309,30 @@ function TabCuentas() {
 
   return (
     <div className="space-y-3">
+      {(alertas.porVencer.length > 0 || alertas.enGracia.length > 0) && (
+        <div className="card p-4" style={{ border: '1px solid rgba(245,158,11,.3)' }}>
+          <div className="font-bold text-sm mb-3" style={{ color: '#fbbf24' }}>⚠️ Alertas de cobro</div>
+          <div className="space-y-2">
+            {alertas.enGracia.map(({ cuenta: c, dias }) => (
+              <div key={c.id} className="flex items-center justify-between flex-wrap gap-2 p-2 rounded-lg" style={{ background: 'rgba(239,68,68,.08)' }}>
+                <div className="text-xs">
+                  <b>{c.club_nombre}</b> — vencido hace {dias} día(s) {dias >= DIAS_GRACIA ? '(se suspenderá hoy si no se registra el pago)' : `(se suspende en ${DIAS_GRACIA - dias} día(s))`}
+                </div>
+                <button className="btn btn-primary text-xs" onClick={() => accion(marcarPagado, c)}>💳 Pagado</button>
+              </div>
+            ))}
+            {alertas.porVencer.map(({ cuenta: c, dias }) => (
+              <div key={c.id} className="flex items-center justify-between flex-wrap gap-2 p-2 rounded-lg" style={{ background: 'rgba(245,158,11,.08)' }}>
+                <div className="text-xs">
+                  <b>{c.club_nombre}</b> — {dias === 0 ? 'vence hoy' : `vence en ${dias} día(s)`} ({c.plan_estado === 'prueba' ? 'fin de prueba' : 'próximo pago'})
+                </div>
+                <button className="btn btn-primary text-xs" onClick={() => accion(marcarPagado, c)}>💳 Pagado</button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="flex gap-2 flex-wrap">
         {['todos', 'por_vencer', 'prueba', 'pagado', 'mora', 'baja', 'suspendidos'].map(f => (
           <button key={f} onClick={() => setFiltro(f)}
@@ -310,7 +362,7 @@ function TabCuentas() {
         <div className="space-y-3">
           {visibles.map(c => (
             <CuentaCard key={c.id} cuenta={c}
-              onPagado={(fecha) => accion(marcarPagado, c.id, fecha)}
+              onPagado={() => accion(marcarPagado, c)}
               onMora={() => accion(marcarMora, c.id)}
               onBaja={() => accion(darDeBaja, c.id)}
               onReactivar={() => accion(reactivar, c.id)}
@@ -324,13 +376,10 @@ function TabCuentas() {
 }
 
 function CuentaCard({ cuenta, onPagado, onMora, onBaja, onReactivar, onResetPassword }) {
-  const [fechaPago, setFechaPago] = useState(() => {
-    const d = new Date(); d.setDate(d.getDate() + 30)
-    return d.toISOString().slice(0, 10)
-  })
   const est = ESTADOS_PLAN[cuenta.plan_estado] || ESTADOS_PLAN.prueba
   const diasPrueba = cuenta.plan_estado === 'prueba' ? diasRestantes(cuenta.prueba_vence) : null
-  const diasPago = cuenta.plan_estado === 'pagado' ? diasRestantes(cuenta.pago_vence) : null
+  const diasPago = (cuenta.plan_estado === 'pagado' || cuenta.plan_estado === 'mora') ? diasRestantes(cuenta.pago_vence) : null
+  const nuevoVence = proximoVencimiento(cuenta)
 
   return (
     <div className="card p-4">
@@ -349,8 +398,8 @@ function CuentaCard({ cuenta, onPagado, onMora, onBaja, onReactivar, onResetPass
           </div>
         </div>
         <div className="flex gap-2 flex-wrap items-center">
-          <input type="date" className="field text-xs" style={{ width: 140 }} value={fechaPago} onChange={(e) => setFechaPago(e.target.value)} />
-          <button className="btn btn-primary text-xs" onClick={() => onPagado(new Date(fechaPago).toISOString())}>💳 Marcar pagado</button>
+          <span className="text-[10px] text-muted">Próximo vencimiento si pagas hoy: {nuevoVence.toLocaleDateString('es-ES')}</span>
+          <button className="btn btn-primary text-xs" onClick={onPagado}>💳 Marcar pagado</button>
           <button className="btn btn-outline text-xs" style={{ color: '#fbbf24', borderColor: 'rgba(245,158,11,.3)' }} onClick={onMora}>⚠️ Mora</button>
           <button className="btn btn-outline text-xs" onClick={onResetPassword}>🔑 Nueva contraseña</button>
           {cuenta.activo ? (

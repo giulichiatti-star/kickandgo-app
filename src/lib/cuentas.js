@@ -9,13 +9,29 @@ export async function listarCuentas() {
   return data || []
 }
 
-export async function marcarPagado(id, pagoVenceISO) {
+const DIAS_CICLO_PAGO = 30
+
+// El ciclo de cobro se ancla siempre a la fecha de vencimiento anterior
+// (prueba_vence en el primer pago, pago_vence en renovaciones) — nunca al
+// día en que realmente se hace clic — para que el día de cobro no derive.
+export function proximoVencimiento(cuenta) {
+  const anchor = (cuenta.plan_estado === 'pagado' || cuenta.plan_estado === 'mora') && cuenta.pago_vence
+    ? cuenta.pago_vence
+    : cuenta.prueba_vence
+  const base = anchor ? new Date(anchor) : new Date()
+  const nuevo = new Date(base)
+  nuevo.setDate(nuevo.getDate() + DIAS_CICLO_PAGO)
+  return nuevo
+}
+
+export async function marcarPagado(cuenta) {
+  const nuevoVence = proximoVencimiento(cuenta)
   const { error } = await supabase.from('profiles').update({
     plan_estado: 'pagado',
-    pago_vence: pagoVenceISO,
+    pago_vence: nuevoVence.toISOString(),
     ultimo_pago_en: new Date().toISOString(),
     activo: true,
-  }).eq('id', id)
+  }).eq('id', cuenta.id)
   if (error) throw error
 }
 
