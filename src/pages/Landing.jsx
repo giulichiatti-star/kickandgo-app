@@ -149,6 +149,9 @@ export default function Landing() {
               <button className="btn-hero" onClick={() => setModalOpen(true)}>Empieza gratis 15 días →</button>
               <button className="btn-ghost" onClick={() => document.getElementById('funciones')?.scrollIntoView({ behavior: 'smooth' })}>▶ Ver funciones</button>
             </div>
+            <div className="hero-login-link">
+              <a href="/?login=1">¿Ya tienes cuenta? <strong>Iniciar sesión →</strong></a>
+            </div>
             <div className="hero-proof">
               <div className="avatars">
                 <div className="av" style={{ background: 'linear-gradient(135deg,#2dd4bf,#0e7490)', zIndex: 3 }}>⚽</div>
