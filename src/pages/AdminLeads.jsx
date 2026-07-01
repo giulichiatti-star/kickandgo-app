@@ -240,6 +240,7 @@ function LeadCard({ lead, seleccionado, onToggleSel, onRespondio, onGuardarNota 
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="font-bold text-sm">{lead.nombre}</span>
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: est.bg, color: est.fg }}>{est.label}</span>
+                {lead.email_enviado && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: 'rgba(16,185,129,.12)', color: '#34d399' }}>✉️ Email enviado</span>}
                 {lead.respondio === 'si' && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: 'rgba(34,197,94,.12)', color: '#4ade80' }}>Respondió: Sí</span>}
                 {lead.respondio === 'no' && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: 'rgba(239,68,68,.12)', color: '#f87171' }}>Respondió: No</span>}
               </div>
@@ -247,8 +248,9 @@ function LeadCard({ lead, seleccionado, onToggleSel, onRespondio, onGuardarNota 
                 {lead.email} {lead.telefono && `· ${lead.telefono}`} {lead.equipo_nombre && `· ${lead.equipo_nombre}`}
               </div>
               <div className="text-[10px] text-muted mt-1">
-                Alta: {new Date(lead.creado).toLocaleDateString('es-ES')}
-                {lead.contactado_en && ` · Contactado: ${new Date(lead.contactado_en).toLocaleDateString('es-ES')}`}
+                Alta: {new Date(lead.creado).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' })}
+                {lead.activado_en && ` · Activado: ${new Date(lead.activado_en).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' })}`}
+                {lead.contactado_en && !lead.activado_en && ` · Contactado: ${new Date(lead.contactado_en).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' })}`}
               </div>
             </div>
             <div className="flex gap-1 flex-wrap items-center">

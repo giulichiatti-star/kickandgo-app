@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import '../landing.css'
-import { crearLead } from '../lib/leads'
+import { supabase } from '../lib/supabase'
 
 const ICONS = {
   plantilla: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2dd4bf" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
@@ -51,7 +51,10 @@ function LeadForm({ onClose }) {
     if (form.email.trim() !== form.emailConfirm.trim()) { setError('Los emails no coinciden, revísalos'); return }
     setEstado('enviando'); setError('')
     try {
-      await crearLead(form)
+      const { error } = await supabase.functions.invoke('nuevo-lead', {
+        body: { nombre: form.nombre, email: form.email, telefono: form.telefono, equipo_nombre: form.equipo_nombre }
+      })
+      if (error) throw error
       setEstado('ok')
     } catch (err) {
       setError(err.message || 'No se pudo enviar, inténtalo de nuevo')
@@ -65,8 +68,8 @@ function LeadForm({ onClose }) {
         <div className="modal-emoji">🎉</div>
         <div className="modal-title">¡Listo!</div>
         <p className="modal-sub" style={{ textAlign: 'center' }}>
-          Hemos recibido tu solicitud. Te escribiremos en breve a <strong>{form.email}</strong> con tus accesos
-          para empezar tu prueba gratuita de 15 días.
+          Te hemos enviado tus accesos a <strong>{form.email}</strong>.
+          Revisa tu bandeja de entrada y empieza tu prueba gratuita de 15 días.
         </p>
         <button className="btn-pricing" onClick={onClose}>Cerrar</button>
       </div>
