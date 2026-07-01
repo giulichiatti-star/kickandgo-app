@@ -6,7 +6,7 @@ const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')!
 const RESEND_FROM = Deno.env.get('RESEND_FROM') || 'KickAndGo <hola@kickandgo.app>'
-const APP_URL = Deno.env.get('APP_URL') || 'https://kickandgo-app.vercel.app'
+const APP_URL = 'https://kickandgo.app'
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 const resend = new Resend(RESEND_API_KEY)
@@ -15,6 +15,78 @@ const DIAS_PRUEBA = 15
 
 function generarPassword() {
   return crypto.randomUUID().replace(/-/g, '').slice(0, 12)
+}
+
+function emailBienvenida(nombre: string, email: string, password: string) {
+  return `<!DOCTYPE html>
+<html lang="es">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#0f0f11;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#0f0f11;padding:40px 0;">
+    <tr><td align="center">
+      <table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;background:#18181b;border-radius:16px;border:1px solid #27272a;overflow:hidden;">
+
+        <!-- HEADER -->
+        <tr><td style="background:linear-gradient(135deg,#064e3b,#0f172a);padding:32px 40px;text-align:center;">
+          <div style="font-size:24px;font-weight:800;color:#fafafa;letter-spacing:.5px;">
+            KICK<span style="color:#10b981;">AND</span>GO ⚽
+          </div>
+          <div style="font-size:13px;color:#6ee7b7;margin-top:6px;font-weight:500;">Tu prueba gratuita está lista</div>
+        </td></tr>
+
+        <!-- BODY -->
+        <tr><td style="padding:36px 40px;">
+          <p style="margin:0 0 20px;font-size:17px;font-weight:700;color:#fafafa;">¡Hola ${nombre}! 👋</p>
+
+          <p style="margin:0 0 24px;font-size:15px;color:#a1a1aa;line-height:1.7;">
+            Tu cuenta de <b style="color:#fafafa;">KickAndGo</b> ya está activa.
+            Tienes <b style="color:#10b981;">${DIAS_PRUEBA} días gratis</b> para probarlo todo, sin tarjeta de crédito.
+          </p>
+
+          <!-- CREDENCIALES -->
+          <table width="100%" cellpadding="0" cellspacing="0" style="background:#111117;border-radius:12px;border:1px solid #27272a;margin-bottom:28px;">
+            <tr><td style="padding:20px 24px;">
+              <div style="font-size:11px;font-weight:700;color:#10b981;letter-spacing:2px;text-transform:uppercase;margin-bottom:14px;">Tus accesos</div>
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="padding:6px 0;font-size:12px;color:#71717a;width:90px;">Usuario</td>
+                  <td style="padding:6px 0;font-size:14px;color:#fafafa;font-weight:600;">${email}</td>
+                </tr>
+                <tr>
+                  <td style="padding:6px 0;font-size:12px;color:#71717a;">Contraseña</td>
+                  <td style="padding:6px 0;font-size:14px;color:#fafafa;font-weight:600;letter-spacing:1px;">${password}</td>
+                </tr>
+              </table>
+            </td></tr>
+          </table>
+
+          <!-- CTA -->
+          <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
+            <tr><td align="center">
+              <a href="${APP_URL}/login" style="display:inline-block;background:#10b981;color:#022c22;font-size:16px;font-weight:800;text-decoration:none;padding:16px 40px;border-radius:12px;">
+                Entrar a KickAndGo →
+              </a>
+            </td></tr>
+          </table>
+
+          <p style="margin:0;font-size:13px;color:#52525b;line-height:1.6;">
+            Te recomendamos cambiar la contraseña desde Ajustes una vez dentro.
+            Si tienes cualquier duda, responde a este email y te ayudamos.
+          </p>
+        </td></tr>
+
+        <!-- FOOTER -->
+        <tr><td style="background:#111117;border-top:1px solid #27272a;padding:20px 40px;text-align:center;">
+          <div style="font-size:12px;color:#52525b;">
+            © 2025 KickAndGo · <a href="${APP_URL}" style="color:#10b981;text-decoration:none;">kickandgo.app</a>
+          </div>
+        </td></tr>
+
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`
 }
 
 async function altaUnLead(leadId: string) {
@@ -57,13 +129,7 @@ async function altaUnLead(leadId: string) {
       from: RESEND_FROM,
       to: lead.email,
       subject: '¡Bienvenido a KickAndGo! Tus accesos',
-      html: `
-        <p>Hola ${lead.nombre},</p>
-        <p>Ya tienes acceso a <b>KickAndGo</b> durante ${DIAS_PRUEBA} días gratis.</p>
-        <p><b>Usuario:</b> ${lead.email}<br><b>Contraseña:</b> ${password}</p>
-        <p><a href="${APP_URL}/?login=1">Entrar ahora</a></p>
-        <p>Un saludo,<br>El equipo de KickAndGo</p>
-      `,
+      html: emailBienvenida(lead.nombre, lead.email, password),
     })
   } catch (e) {
     emailEnviado = false
