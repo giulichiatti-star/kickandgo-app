@@ -49,3 +49,35 @@ export function colocarTitulares(tits, tipo, formacion) {
 
 export function nTitulares(tipo) { return tipo === '7' ? 7 : tipo === '9' ? 9 : 11 }
 export function nSuplentes(tipo) { return tipo === '7' ? 5 : tipo === '9' ? 7 : 9 }
+
+// Categoría del slot según su posición en la formación (ej. "4-3-3" → slot 0 POR,
+// slots 1-4 DEF, 5-7 MED, 8-10 DEL). Coincide con el criterio de ordenarTitulares,
+// por eso guardar los titulares ya en este orden reproduce la misma colocación en EnVivo.
+export function categoriaSlot(formacion, index) {
+  if (index === 0) return 'POR'
+  const partes = formacion.split('-').map(Number)
+  let acc = 1
+  for (let i = 0; i < partes.length; i++) {
+    const cat = i === 0 ? 'DEF' : i === partes.length - 1 ? 'DEL' : 'MED'
+    if (index < acc + partes[i]) return cat
+    acc += partes[i]
+  }
+  return 'DEL'
+}
+
+// Rol más específico para sugerir jugadores (lateral/central, extremo/delantero
+// centro) según la posición x dentro de su bloque de categoría. Heurística para
+// sugerencias — el buscador libre siempre permite elegir a cualquier jugador.
+export function rolSugeridoSlot(tipo, formacion, index) {
+  const coords = formacionesPara(tipo)[formacion] || Object.values(formacionesPara(tipo))[0]
+  const cat = categoriaSlot(formacion, index)
+  if (cat === 'POR') return 'Portero'
+  if (cat === 'MED') return 'Mediocampista'
+  const mismaCat = coords.map((c, i) => ({ i, x: c[0] })).filter(({ i }) => categoriaSlot(formacion, i) === cat)
+  mismaCat.sort((a, b) => a.x - b.x)
+  const pos = mismaCat.findIndex(m => m.i === index)
+  if (mismaCat.length === 1) return cat === 'DEF' ? 'Central' : 'Delantero centro'
+  if (pos === 0) return cat === 'DEF' ? 'Lateral izquierdo' : 'Extremo'
+  if (pos === mismaCat.length - 1) return cat === 'DEF' ? 'Lateral derecho' : 'Extremo'
+  return cat === 'DEF' ? 'Central' : 'Delantero centro'
+}
