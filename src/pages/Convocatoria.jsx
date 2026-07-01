@@ -1,7 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { listarJugadores, posACat } from '../lib/jugadores'
 import { guardarConvocatoria, ultimaConvocatoria } from '../lib/convocatorias'
-import { getPerfil } from '../lib/perfil'
 import { nTitulares, nSuplentes, formacionesPara, formacionDefecto, categoriaSlot, rolSugeridoSlot } from '../lib/formaciones'
 import { useEquipo } from '../contexts/EquipoContext'
 import { listarLesiones } from '../lib/lesiones'
@@ -12,8 +11,8 @@ export default function Convocatoria() {
   const { equipoActivo } = useEquipo()
   const eid = equipoActivo?.id
   const [jugadores, setJugadores] = useState([])
-  const [asignaciones, setAsignaciones] = useState([]) // array de ids o null, por slot
-  const [suplentes, setSuplentes] = useState([]) // ids
+  const [asignaciones, setAsignaciones] = useState([])
+  const [suplentes, setSuplentes] = useState([])
   const [rival, setRival] = useState('')
   const [fecha, setFecha] = useState('')
   const [cargando, setCargando] = useState(true)
@@ -22,8 +21,13 @@ export default function Convocatoria() {
   const [formacion, setFormacion] = useState('4-3-3')
   const [club, setClub] = useState('')
   const [lesActivas, setLesActivas] = useState([])
-  const [picker, setPicker] = useState(null) // { slot } | { modo:'suplente' } | null
-  const [moviendo, setMoviendo] = useState(null) // índice de slot en modo "mover"
+  const [picker, setPicker] = useState(null) // { slot } | null
+  const [draggingSlot, setDraggingSlot] = useState(null)
+
+  // Drag state sin re-renders en cada pointermove
+  const dragRef = useRef({ slot: null, isDragging: false, startX: 0, startY: 0 })
+  const justDraggedRef = useRef(false)
+
   const MAX_TIT = nTitulares(tipo)
   const MAX_SUP = nSuplentes(tipo)
   const coords = formacionesPara(tipo)[formacion] || Object.values(formacionesPara(tipo))[0]
@@ -32,7 +36,8 @@ export default function Convocatoria() {
     (async () => {
       try {
         const t = equipoActivo?.tipo_equipo || '11'
-        setTipo(t); setClub(equipoActivo?.nombre || '')
+        setTipo(t)
+        setClub(equipoActivo?.nombre || '')
         const formInicial = formacionDefecto(t)
         setFormacion(formInicial)
         const [js, les] = await Promise.all([listarJugadores(eid), listarLesiones(eid).catch(() => [])])
@@ -45,11 +50,11 @@ export default function Convocatoria() {
           setFecha(ult.fecha || '')
           const formUlt = ult.formacion && formacionesPara(t)[ult.formacion] ? ult.formacion : formInicial
           setFormacion(formUlt)
-          const tits = (ult.titulares || []).map((x) => x.id).filter(Boolean)
+          const tits = (ult.titulares || []).map(x => x.id).filter(Boolean)
           const arr = new Array(nSlots).fill(null)
           tits.slice(0, nSlots).forEach((id, i) => { arr[i] = id })
           setAsignaciones(arr)
-          setSuplentes((ult.suplentes || []).map((s) => s.id).filter(Boolean))
+          setSuplentes((ult.suplentes || []).map(s => s.id).filter(Boolean))
         } else {
           setAsignaciones(new Array(nSlots).fill(null))
         }
@@ -58,65 +63,56 @@ export default function Convocatoria() {
     })()
   }, [eid])
 
-  // Al cambiar de formación, conservar los jugadores ya puestos que quepan en los nuevos slots
   function cambiarFormacion(f) {
     setFormacion(f)
     const nuevos = (formacionesPara(tipo)[f] || []).length
-    setAsignaciones((a) => {
+    setAsignaciones(a => {
       const arr = new Array(nuevos).fill(null)
       a.forEach((id, i) => { if (id && i < nuevos) arr[i] = id })
       return arr
     })
   }
 
-  const byId = (id) => jugadores.find((j) => j.id === id)
+  const byId = id => jugadores.find(j => j.id === id)
   const idsEnCampo = asignaciones.filter(Boolean)
-  const yaConvocado = (id) => idsEnCampo.includes(id) || suplentes.includes(id)
+  const yaConvocado = id => idsEnCampo.includes(id) || suplentes.includes(id)
   const hayPortero = asignaciones[0] != null
 
   function asignarSlot(slot, jugadorId) {
-    setAsignaciones((a) => {
+    setAsignaciones(a => {
       const arr = [...a]
-      // liberar si el jugador ya estaba en otro slot
-      const prevIdx = arr.findIndex((id) => id === jugadorId)
+      const prevIdx = arr.findIndex(id => id === jugadorId)
       if (prevIdx !== -1) arr[prevIdx] = null
       arr[slot] = jugadorId
       return arr
     })
-    setSuplentes((s) => s.filter((id) => id !== jugadorId))
+    setSuplentes(s => s.filter(id => id !== jugadorId))
     setPicker(null)
   }
 
   function quitarSlot(slot) {
-    setAsignaciones((a) => { const arr = [...a]; arr[slot] = null; return arr })
+    setAsignaciones(a => { const arr = [...a]; arr[slot] = null; return arr })
     setPicker(null)
   }
 
-  function iniciarMover(slot) {
-    setPicker(null)
-    setMoviendo(slot)
-  }
-
-  function moverA(destino) {
-    if (moviendo === null) return
-    setAsignaciones((a) => {
+  function swapSlots(src, dst) {
+    setAsignaciones(a => {
       const arr = [...a]
-      const tmp = arr[destino]
-      arr[destino] = arr[moviendo]
-      arr[moviendo] = tmp
+      const tmp = arr[dst]
+      arr[dst] = arr[src]
+      arr[src] = tmp
       return arr
     })
-    setMoviendo(null)
   }
 
   function agregarSuplente(jugadorId) {
-    setAsignaciones((a) => a.map((id) => (id === jugadorId ? null : id)))
-    setSuplentes((s) => (s.includes(jugadorId) ? s : [...s, jugadorId]))
+    setAsignaciones(a => a.map(id => id === jugadorId ? null : id))
+    setSuplentes(s => s.includes(jugadorId) ? s : [...s, jugadorId])
     setPicker(null)
   }
 
   function quitarSuplente(id) {
-    setSuplentes((s) => s.filter((x) => x !== id))
+    setSuplentes(s => s.filter(x => x !== id))
   }
 
   function limpiarTodo() {
@@ -126,10 +122,58 @@ export default function Convocatoria() {
     setMsg('')
   }
 
+  // ── Drag & drop con pointer events (touch + mouse) ──────────────────────
+  function onPitchPointerDown(e) {
+    const el = e.target.closest('[data-conv-slot]')
+    if (!el) return
+    const slot = parseInt(el.dataset.convSlot)
+    if (!asignaciones[slot]) return // slot vacío → click lo abre
+    dragRef.current = { slot, isDragging: false, startX: e.clientX, startY: e.clientY }
+    setDraggingSlot(slot)
+    e.currentTarget.setPointerCapture(e.pointerId)
+  }
+
+  function onPitchPointerMove(e) {
+    if (dragRef.current.slot === null) return
+    const dx = e.clientX - dragRef.current.startX
+    const dy = e.clientY - dragRef.current.startY
+    if (Math.sqrt(dx * dx + dy * dy) > 12) dragRef.current.isDragging = true
+  }
+
+  function onPitchPointerUp(e) {
+    const { slot: src, isDragging } = dragRef.current
+    dragRef.current = { slot: null, isDragging: false, startX: 0, startY: 0 }
+    setDraggingSlot(null)
+    if (src === null) return
+
+    if (!isDragging) {
+      // Fue un tap: abrir picker
+      setPicker({ slot: src })
+      return
+    }
+
+    // Fue un drag: encontrar slot destino bajo el dedo
+    justDraggedRef.current = true
+    setTimeout(() => { justDraggedRef.current = false }, 100)
+    const els = document.elementsFromPoint(e.clientX, e.clientY)
+    const targetEl = els.find(el => el.dataset && el.dataset.convSlot !== undefined)
+    if (targetEl) {
+      const dst = parseInt(targetEl.dataset.convSlot)
+      if (dst !== src) swapSlots(src, dst)
+    }
+  }
+
+  // Click solo para slots vacíos (los ocupados los maneja pointerup)
+  function onSlotClick(i) {
+    if (justDraggedRef.current) return
+    if (asignaciones[i]) return
+    setPicker({ slot: i })
+  }
+  // ────────────────────────────────────────────────────────────────────────
+
   function whatsapp() {
-    const fmt = (id) => {
-      const j = byId(id)
-      if (!j) return null
+    const fmt = id => {
+      const j = byId(id); if (!j) return null
       const cat = posACat(j.posicion)
       const ico = cat === 'POR' ? '🧤' : cat === 'DEF' ? '🛡️' : cat === 'MED' ? '⚙️' : '⚡'
       return `  ${ico} #${j.dorsal} ${j.nombre} (${cat})`
@@ -143,19 +187,14 @@ export default function Convocatoria() {
       `⚽ *CONVOCATORIA — FÚTBOL ${tipo}*${club ? `\n🏟️ ${club}` : ''}`,
       rival ? `🆚 Rival: *${rival}*` : null,
       fechaFmt ? `📅 ${fechaFmt}` : null,
-      '',
-      `⭐ *TITULARES (${lineasTit.length}/${MAX_TIT})*`,
-      ...lineasTit,
+      '', `⭐ *TITULARES (${lineasTit.length}/${MAX_TIT})*`, ...lineasTit,
       lineasSup.length ? '' : null,
       lineasSup.length ? `🔄 *SUPLENTES (${lineasSup.length}/${MAX_SUP})*` : null,
-      ...lineasSup,
-      '',
+      ...lineasSup, '',
       `Total convocados: ${lineasTit.length + lineasSup.length} jugadores`,
-      '——————————————',
-      '_KickAndGo_ 🚀',
-    ].filter((l) => l !== null)
-    const texto = encodeURIComponent(lineas.join('\n'))
-    window.open(`https://wa.me/?text=${texto}`, '_blank')
+      '——————————————', '_KickAndGo_ 🚀',
+    ].filter(l => l !== null)
+    window.open(`https://wa.me/?text=${encodeURIComponent(lineas.join('\n'))}`, '_blank')
   }
 
   async function guardar() {
@@ -167,13 +206,13 @@ export default function Convocatoria() {
       return { id: j.id, nombre: j.nombre, dorsal: j.dorsal, posicion: j.posicion, cat }
     }
     const titularesOrdenados = asignaciones
-      .map((id, i) => (id ? empaqueta(id, categoriaSlot(formacion, i)) : null))
+      .map((id, i) => id ? empaqueta(id, categoriaSlot(formacion, i)) : null)
       .filter(Boolean)
     try {
       await guardarConvocatoria({
         rival, fecha, formacion,
         titulares: titularesOrdenados,
-        suplentes: suplentes.map((id) => empaqueta(id, posACat(byId(id)?.posicion))),
+        suplentes: suplentes.map(id => empaqueta(id, posACat(byId(id)?.posicion))),
       }, eid)
       setMsg('✅ Convocatoria guardada')
     } catch (e) { setMsg('⚠️ ' + e.message) }
@@ -181,61 +220,57 @@ export default function Convocatoria() {
 
   if (cargando) return <div className="text-sm text-muted py-10 text-center">Cargando…</div>
 
+  const disponibles = jugadores.filter(j => !yaConvocado(j.id))
+
   return (
     <div>
-      <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+      {/* Header */}
+      <div className="flex items-start justify-between mb-4 gap-3">
         <div>
           <h1 className="text-xl font-extrabold">Convocatoria</h1>
-          <p className="text-xs text-muted">{idsEnCampo.length + suplentes.length} / {MAX_TIT + MAX_SUP} convocados · Fútbol {tipo}</p>
+          <p className="text-xs text-muted mt-0.5">
+            {idsEnCampo.length + suplentes.length} / {MAX_TIT + MAX_SUP} · Fútbol {tipo}
+          </p>
         </div>
-        <div className="flex gap-2">
-          <button className="btn btn-outline" onClick={limpiarTodo}>🧹 Limpiar</button>
-          <button className="btn btn-outline" onClick={whatsapp}
-            style={{ borderColor: '#25d366', color: '#25d366' }}
-            title="Compartir convocatoria por WhatsApp">
-            📲 WhatsApp
-          </button>
-          <button className="btn btn-primary" onClick={guardar}>✓ Confirmar</button>
+        <div className="flex gap-1.5">
+          <button className="btn btn-outline text-xs px-2.5 py-1.5" onClick={limpiarTodo} title="Limpiar">🧹</button>
+          <button className="btn btn-outline text-xs px-2.5 py-1.5" onClick={whatsapp}
+            style={{ borderColor: '#25d366', color: '#25d366' }} title="WhatsApp">📲</button>
+          <button className="btn btn-primary text-sm px-4 py-1.5" onClick={guardar}>✓ Guardar</button>
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-3 mb-4">
+      {/* Inputs */}
+      <div className="grid grid-cols-3 gap-2 mb-3">
         <div>
-          <label className="text-xs text-muted">Rival</label>
-          <input className="field mt-1" value={rival} onChange={(e) => setRival(e.target.value)} placeholder="Próximo rival" />
+          <label className="text-[10px] text-muted uppercase tracking-wide">Rival</label>
+          <input className="field mt-1" value={rival} onChange={e => setRival(e.target.value)} placeholder="Rival" />
         </div>
         <div>
-          <label className="text-xs text-muted">Fecha</label>
-          <input className="field mt-1" type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} />
+          <label className="text-[10px] text-muted uppercase tracking-wide">Fecha</label>
+          <input className="field mt-1" type="date" value={fecha} onChange={e => setFecha(e.target.value)} />
         </div>
         <div>
-          <label className="text-xs text-muted">Formación</label>
-          <select className="field mt-1" value={formacion} onChange={(e) => cambiarFormacion(e.target.value)}>
-            {Object.keys(formacionesPara(tipo)).map(f => (
-              <option key={f} value={f}>{f}</option>
-            ))}
+          <label className="text-[10px] text-muted uppercase tracking-wide">Formación</label>
+          <select className="field mt-1" value={formacion} onChange={e => cambiarFormacion(e.target.value)}>
+            {Object.keys(formacionesPara(tipo)).map(f => <option key={f} value={f}>{f}</option>)}
           </select>
         </div>
       </div>
 
-      {/* Progreso de convocados */}
+      {/* Barra de progreso */}
       <div className="mb-4">
         <div className="flex justify-between text-[11px] text-muted mb-1">
           <span>{idsEnCampo.length}/{MAX_TIT} titulares · {suplentes.length}/{MAX_SUP} suplentes</span>
           <span>{idsEnCampo.length + suplentes.length}/{MAX_TIT + MAX_SUP}</span>
         </div>
-        <div className="h-2 rounded-full overflow-hidden flex bg-white/5">
-          <div style={{ width: `${(idsEnCampo.length / (MAX_TIT + MAX_SUP)) * 100}%`, background: '#2dd4bf' }} />
-          <div style={{ width: `${(suplentes.length / (MAX_TIT + MAX_SUP)) * 100}%`, background: '#3b82f6' }} />
+        <div className="h-1.5 rounded-full overflow-hidden flex bg-white/5">
+          <div style={{ width: `${(idsEnCampo.length / (MAX_TIT + MAX_SUP)) * 100}%`, background: '#2dd4bf', transition: 'width .2s' }} />
+          <div style={{ width: `${(suplentes.length / (MAX_TIT + MAX_SUP)) * 100}%`, background: '#3b82f6', transition: 'width .2s' }} />
         </div>
       </div>
 
       {msg && <div className="text-xs mb-3 text-zinc-300">{msg}</div>}
-      {moviendo !== null && (
-        <div className="text-xs mb-3 font-bold" style={{ color: '#f59e0b' }}>
-          🔄 Elige la posición destino para mover al jugador… <button className="underline ml-2" onClick={() => setMoviendo(null)}>Cancelar</button>
-        </div>
-      )}
 
       {jugadores.length === 0 ? (
         <div className="card p-8 text-center text-sm text-muted">
@@ -243,97 +278,154 @@ export default function Convocatoria() {
         </div>
       ) : (
         <>
-          {/* Pizarra */}
-          <div className="card p-3 mb-4 flex justify-center">
-            <div className="ev2-pitch" style={{
-              borderRadius: 10, position: 'relative',
-              width: '100%', maxWidth: 380, aspectRatio: '3/4',
-            }}>
-              <svg className="ev2-pitch-lines" viewBox="0 0 100 133" preserveAspectRatio="none">
-                <rect x="2" y="2" width="96" height="129" fill="none" stroke="rgba(255,255,255,.25)" strokeWidth="0.5" />
-                <line x1="2" y1="66.5" x2="98" y2="66.5" stroke="rgba(255,255,255,.25)" strokeWidth="0.5" />
-                <circle cx="50" cy="66.5" r="13" fill="none" stroke="rgba(255,255,255,.25)" strokeWidth="0.5" />
-                <rect x="24" y="107" width="52" height="24" fill="none" stroke="rgba(255,255,255,.22)" strokeWidth="0.5" />
-                <rect x="24" y="2" width="52" height="24" fill="none" stroke="rgba(255,255,255,.22)" strokeWidth="0.5" />
-              </svg>
-              {coords.map(([x, y], i) => {
-                const jid = asignaciones[i]
-                const j = jid ? byId(jid) : null
-                const lesion = j ? lesActivas.find(l => l.jugador_id === j.id) : null
-                const enModoMover = moviendo !== null
-                const esOrigenMover = moviendo === i
-                return (
-                  <div key={i}
-                    onClick={() => {
-                      if (enModoMover) { moverA(i); return }
-                      setPicker({ slot: i })
-                    }}
-                    className="ev2-player"
-                    style={{
-                      left: `${x}%`, top: `${y}%`, position: 'absolute', transform: 'translate(-50%,-50%)',
-                      outline: esOrigenMover ? '2px solid #f59e0b' : enModoMover ? '2px dashed rgba(245,158,11,.5)' : 'none',
-                      borderRadius: '50%',
-                    }}>
-                    {j ? (
-                      <>
-                        <Jersey num={j.dorsal} side="local" gk={i === 0} vista="camisetas" />
-                        <div className="ev2-pname">{j.nombre.split(' ')[0]}</div>
-                      </>
-                    ) : (
-                      <div style={{
-                        width: 34, height: 34, borderRadius: '50%', border: '2px dashed rgba(255,255,255,.35)',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, color: 'rgba(255,255,255,.5)',
-                      }}>+</div>
-                    )}
-                    {!j && <div className="ev2-pname" style={{ fontSize: 9 }}>{rolSugeridoSlot(tipo, formacion, i)}</div>}
-                    {lesion && <div style={{ position: 'absolute', top: -4, right: -4, fontSize: 11 }}>🩺</div>}
-                  </div>
-                )
-              })}
+          {/* ── PIZARRA ── */}
+          <div className="card p-3 mb-4">
+            <div className="text-[11px] text-muted mb-2">
+              {draggingSlot !== null
+                ? '🔄 Arrastra a otra posición para intercambiar…'
+                : '⚽ Titulares — toca para asignar · arrastra para mover'}
             </div>
-            <p className="text-[10px] text-muted mt-2">Toca una posición para asignar o cambiar jugador. Si ya tiene jugador, podrás moverlo o quitarlo.</p>
+            <div style={{ display: 'flex', justifyContent: 'center' }}>
+              <div
+                className="ev2-pitch"
+                style={{
+                  borderRadius: 10, position: 'relative',
+                  width: '100%', maxWidth: 340, aspectRatio: '3/4',
+                  touchAction: 'none', userSelect: 'none',
+                }}
+                onPointerDown={onPitchPointerDown}
+                onPointerMove={onPitchPointerMove}
+                onPointerUp={onPitchPointerUp}
+              >
+                <svg className="ev2-pitch-lines" viewBox="0 0 100 133" preserveAspectRatio="none">
+                  <rect x="2" y="2" width="96" height="129" fill="none" stroke="rgba(255,255,255,.25)" strokeWidth="0.5" />
+                  <line x1="2" y1="66.5" x2="98" y2="66.5" stroke="rgba(255,255,255,.25)" strokeWidth="0.5" />
+                  <circle cx="50" cy="66.5" r="13" fill="none" stroke="rgba(255,255,255,.25)" strokeWidth="0.5" />
+                  <rect x="24" y="107" width="52" height="24" fill="none" stroke="rgba(255,255,255,.22)" strokeWidth="0.5" />
+                  <rect x="24" y="2" width="52" height="24" fill="none" stroke="rgba(255,255,255,.22)" strokeWidth="0.5" />
+                </svg>
+                {coords.map(([x, y], i) => {
+                  const jid = asignaciones[i]
+                  const j = jid ? byId(jid) : null
+                  const lesion = j ? lesActivas.find(l => l.jugador_id === j.id) : null
+                  const isDragging = draggingSlot === i
+                  const isDropTarget = draggingSlot !== null && draggingSlot !== i && !!j
+                  return (
+                    <div
+                      key={i}
+                      data-conv-slot={i}
+                      onClick={() => onSlotClick(i)}
+                      className="ev2-player"
+                      style={{
+                        left: `${x}%`, top: `${y}%`,
+                        position: 'absolute', transform: 'translate(-50%,-50%)',
+                        outline: isDragging
+                          ? '2px solid #f59e0b'
+                          : isDropTarget ? '2px dashed rgba(245,158,11,.6)' : 'none',
+                        borderRadius: '50%',
+                        opacity: isDragging ? 0.55 : 1,
+                        cursor: j ? 'grab' : 'pointer',
+                        transition: 'opacity .15s, outline .1s',
+                      }}
+                    >
+                      {j ? (
+                        <>
+                          <Jersey num={j.dorsal} side="local" gk={i === 0} vista="camisetas" />
+                          <div className="ev2-pname">{j.nombre.split(' ')[0]}</div>
+                        </>
+                      ) : (
+                        <div style={{
+                          width: 34, height: 34, borderRadius: '50%',
+                          border: '2px dashed rgba(255,255,255,.35)',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: 16, color: 'rgba(255,255,255,.5)',
+                        }}>+</div>
+                      )}
+                      {!j && <div className="ev2-pname" style={{ fontSize: 9 }}>{rolSugeridoSlot(tipo, formacion, i)}</div>}
+                      {lesion && <div style={{ position: 'absolute', top: -4, right: -4, fontSize: 11 }}>🩺</div>}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
           </div>
 
-          {/* Suplentes */}
+          {/* ── SUPLENTES + PLANTEL DISPONIBLE ── */}
           <div className="card p-3 mb-4">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-extrabold text-azul">🔄 Suplentes</span>
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm font-extrabold" style={{ color: '#3b82f6' }}>🔄 Suplentes</span>
               <span className="text-xs text-muted">{suplentes.length}/{MAX_SUP}</span>
             </div>
-            {suplentes.length === 0 ? (
-              <div className="text-[11px] text-muted py-2">Vacío</div>
-            ) : (
-              <div className="space-y-1 mb-2">
-                {suplentes.map((id) => {
+
+            {/* Suplentes ya seleccionados */}
+            {suplentes.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mb-3">
+                {suplentes.map(id => {
                   const j = byId(id); if (!j) return null
                   return (
-                    <div key={id} className="flex items-center gap-2 text-sm">
-                      <span className="flex-1 truncate">#{j.dorsal} {j.nombre}</span>
-                      <button className="text-[10px] text-muted hover:text-cyan" onClick={() => quitarSuplente(id)}>quitar</button>
+                    <div key={id} className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full"
+                      style={{ background: 'rgba(59,130,246,.12)', border: '1px solid rgba(59,130,246,.3)' }}>
+                      <span>#{j.dorsal} {j.nombre.split(' ')[0]}</span>
+                      <button onClick={() => quitarSuplente(id)}
+                        className="text-muted hover:text-red-400 leading-none ml-0.5"
+                        title="Quitar suplente">✕</button>
                     </div>
                   )
                 })}
               </div>
             )}
-            {suplentes.length < MAX_SUP && (
-              <button className="btn btn-outline text-xs w-full" onClick={() => setPicker({ modo: 'suplente' })}>+ Añadir suplente</button>
+
+            {/* Lista del plantel disponible */}
+            {suplentes.length >= MAX_SUP ? (
+              <div className="text-xs text-muted text-center py-2">
+                Suplentes al completo ({MAX_SUP}/{MAX_SUP})
+              </div>
+            ) : disponibles.length === 0 ? (
+              <div className="text-xs text-muted text-center py-2">
+                Todos los jugadores están en el campo
+              </div>
+            ) : (
+              <>
+                <div className="text-[10px] font-bold text-muted uppercase tracking-wide mb-2">
+                  Plantel disponible — toca para convocar
+                </div>
+                <div className="space-y-1">
+                  {disponibles.map(j => {
+                    const lesion = lesActivas.find(l => l.jugador_id === j.id)
+                    const cat = posACat(j.posicion)
+                    return (
+                      <button key={j.id} onClick={() => agregarSuplente(j.id)}
+                        className="w-full flex items-center gap-2 p-2 rounded-lg border border-borde hover:bg-white/5 text-left transition-colors">
+                        <span className="text-xs font-bold text-muted w-6 shrink-0">#{j.dorsal}</span>
+                        <span className="flex-1 text-sm truncate">{j.nombre}</span>
+                        {lesion && (
+                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded"
+                            style={{ background: 'rgba(239,68,68,0.15)', color: '#fca5a5' }}>🩺</span>
+                        )}
+                        <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-white/5">{cat}</span>
+                        <span className="text-green-400 text-sm font-bold leading-none">+</span>
+                      </button>
+                    )
+                  })}
+                </div>
+              </>
             )}
           </div>
         </>
       )}
 
+      {/* Modal para asignar jugador a un slot del campo */}
       {picker && (
         <SlotPicker
-          picker={picker}
+          slot={picker.slot}
           jugadores={jugadores}
           yaConvocado={yaConvocado}
           lesActivas={lesActivas}
-          slotOcupado={picker.slot != null ? asignaciones[picker.slot] : null}
-          rolSlot={picker.slot != null ? rolSugeridoSlot(tipo, formacion, picker.slot) : null}
-          catSlot={picker.slot != null ? categoriaSlot(formacion, picker.slot) : null}
-          onElegir={(id) => picker.modo === 'suplente' ? agregarSuplente(id) : asignarSlot(picker.slot, id)}
-          onMover={picker.slot != null ? () => iniciarMover(picker.slot) : null}
-          onQuitar={picker.slot != null && asignaciones[picker.slot] ? () => quitarSlot(picker.slot) : null}
+          slotOcupado={asignaciones[picker.slot]}
+          rolSlot={rolSugeridoSlot(tipo, formacion, picker.slot)}
+          catSlot={categoriaSlot(formacion, picker.slot)}
+          onElegir={id => asignarSlot(picker.slot, id)}
+          onQuitar={asignaciones[picker.slot] ? () => quitarSlot(picker.slot) : null}
           onCerrar={() => setPicker(null)}
         />
       )}
@@ -341,20 +433,18 @@ export default function Convocatoria() {
   )
 }
 
-function SlotPicker({ picker, jugadores, yaConvocado, lesActivas, slotOcupado, rolSlot, catSlot, onElegir, onMover, onQuitar, onCerrar }) {
+function SlotPicker({ slot, jugadores, yaConvocado, lesActivas, slotOcupado, rolSlot, catSlot, onElegir, onQuitar, onCerrar }) {
   const [busqueda, setBusqueda] = useState('')
 
-  const sugeridos = useMemo(() => {
-    if (!catSlot) return []
-    return jugadores.filter(j => !yaConvocado(j.id) && posACat(j.posicion) === catSlot)
-  }, [jugadores, catSlot])
+  const sugeridos = useMemo(() =>
+    jugadores.filter(j => !yaConvocado(j.id) && posACat(j.posicion) === catSlot),
+    [jugadores, catSlot]
+  )
 
   const resultados = useMemo(() => {
     if (!busqueda.trim()) return []
     const q = busqueda.trim().toLowerCase()
-    return jugadores.filter(j =>
-      j.nombre.toLowerCase().includes(q) || String(j.dorsal).includes(q)
-    )
+    return jugadores.filter(j => j.nombre.toLowerCase().includes(q) || String(j.dorsal).includes(q))
   }, [jugadores, busqueda])
 
   function Fila({ j }) {
@@ -363,9 +453,11 @@ function SlotPicker({ picker, jugadores, yaConvocado, lesActivas, slotOcupado, r
     return (
       <button onClick={() => onElegir(j.id)}
         className="w-full flex items-center gap-3 p-2 rounded-lg border border-borde hover:bg-white/5 text-left">
-        <span className="flex-1 text-sm">#{j.dorsal} {j.nombre}</span>
+        <span className="text-xs font-bold text-muted w-6 shrink-0">#{j.dorsal}</span>
+        <span className="flex-1 text-sm truncate">{j.nombre}</span>
         {lesion && (
-          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'rgba(239,68,68,0.15)', color: '#fca5a5' }}>🩺 LES</span>
+          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded"
+            style={{ background: 'rgba(239,68,68,0.15)', color: '#fca5a5' }}>🩺 LES</span>
         )}
         <span className="text-[10px] font-extrabold px-2 py-0.5 rounded bg-white/5">{cat}</span>
       </button>
@@ -373,36 +465,44 @@ function SlotPicker({ picker, jugadores, yaConvocado, lesActivas, slotOcupado, r
   }
 
   return (
-    <div onClick={onCerrar} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.6)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-      <div className="card p-5" style={{ maxWidth: 440, width: '100%', maxHeight: '80vh', overflowY: 'auto', border: '1px solid rgba(45,212,191,.3)' }} onClick={(e) => e.stopPropagation()}>
+    <div onClick={onCerrar}
+      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.6)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+      <div className="card p-5"
+        style={{ maxWidth: 440, width: '100%', maxHeight: '80vh', overflowY: 'auto', border: '1px solid rgba(45,212,191,.3)' }}
+        onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-3">
-          <div className="text-sm font-bold">{picker.modo === 'suplente' ? 'Añadir suplente' : `Posición: ${rolSlot}`}</div>
-          <button onClick={onCerrar} className="text-muted">✕</button>
+          <div className="text-sm font-bold">Posición: {rolSlot}</div>
+          <button onClick={onCerrar} className="text-muted text-lg leading-none">✕</button>
         </div>
 
-        {slotOcupado && (
-          <div className="flex gap-2 mb-3">
-            {onMover && <button className="btn btn-outline text-xs flex-1" onClick={onMover}>🔄 Mover a otra posición</button>}
-            {onQuitar && <button className="btn btn-outline text-xs flex-1" style={{ color: '#f87171', borderColor: 'rgba(239,68,68,.3)' }} onClick={onQuitar}>✕ Quitar</button>}
-          </div>
+        {slotOcupado && onQuitar && (
+          <button className="btn btn-outline text-xs w-full mb-3"
+            style={{ color: '#f87171', borderColor: 'rgba(239,68,68,.3)' }}
+            onClick={onQuitar}>
+            ✕ Quitar jugador de esta posición
+          </button>
         )}
 
-        <input className="field mb-3" placeholder="Buscar otro jugador por nombre o dorsal…"
-          value={busqueda} onChange={(e) => setBusqueda(e.target.value)} />
+        <input className="field mb-3" placeholder="Buscar por nombre o dorsal…"
+          value={busqueda} onChange={e => setBusqueda(e.target.value)} autoFocus />
 
         {busqueda.trim() ? (
           <div className="space-y-1.5">
-            {resultados.length === 0 ? (
-              <div className="text-xs text-muted text-center py-4">Sin resultados</div>
-            ) : resultados.map(j => <Fila key={j.id} j={j} />)}
+            {resultados.length === 0
+              ? <div className="text-xs text-muted text-center py-4">Sin resultados</div>
+              : resultados.map(j => <Fila key={j.id} j={j} />)
+            }
           </div>
         ) : (
           <>
-            {catSlot && <div className="text-[10px] font-bold text-muted uppercase tracking-wide mb-2">Sugeridos para esta posición</div>}
+            <div className="text-[10px] font-bold text-muted uppercase tracking-wide mb-2">
+              Sugeridos para esta posición
+            </div>
             <div className="space-y-1.5">
-              {sugeridos.length === 0 ? (
-                <div className="text-xs text-muted text-center py-4">No hay jugadores disponibles de esta posición — usa el buscador.</div>
-              ) : sugeridos.map(j => <Fila key={j.id} j={j} />)}
+              {sugeridos.length === 0
+                ? <div className="text-xs text-muted text-center py-4">No hay disponibles de esta posición — usa el buscador.</div>
+                : sugeridos.map(j => <Fila key={j.id} j={j} />)
+              }
             </div>
           </>
         )}
