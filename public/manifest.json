@@ -2,7 +2,7 @@
   "name": "Kick and Go",
   "short_name": "KickAndGo",
   "description": "Gestión de equipos de fútbol amateur",
-  "start_url": "/",
+  "start_url": "/?pwa=1",
   "display": "standalone",
   "background_color": "#0f0f11",
   "theme_color": "#10b981",

@@ -332,11 +332,21 @@ export default function App() {
 
   if (!supabaseReady) return <FaltanClaves />
   if (!listo) return <div className="min-h-screen grid place-items-center text-muted">Cargando…</div>
-  // Página pública — accesible sin login
+  // Páginas públicas — accesibles sin login
   if (window.location.pathname === '/privacidad') return <Privacidad />
   if (window.location.pathname === '/terminos') return <Terminos />
-  const queryLogin = new URLSearchParams(window.location.search).get('login') === '1'
-  if (window.location.pathname === '/' && !sesion && !queryLogin) return <Landing />
+
+  const params = new URLSearchParams(window.location.search)
+  const queryLogin = params.get('login') === '1'
+  const esPWA = params.get('pwa') === '1' || window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone
+
+  // Usuario con sesión activa en raíz → ir directo al app
+  if (window.location.pathname === '/' && sesion) {
+    window.history.replaceState(null, '', '/inicio')
+  }
+
+  // Sin sesión en raíz: mostrar Landing solo si no es PWA ni viene de link de login
+  if (window.location.pathname === '/' && !sesion && !queryLogin && !esPWA) return <Landing />
   if (!sesion) return <Login />
   if (activo === null) return <div className="min-h-screen grid place-items-center text-muted">Comprobando acceso…</div>
   if (!activo) return <Pendiente onLogout={logout} />
