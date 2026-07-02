@@ -851,6 +851,8 @@ export default function EnVivo() {
       min={min}
       notas={notas} setNotas={setNotas}
       online={online}
+      mostrarPWA={mostrarPWA} instalar={instalar} descartar={descartar}
+      setGf={setGf} setGc={setGc}
     />
     </>
   )
@@ -870,6 +872,8 @@ function MobileEnVivo({
   setCorriendo, iniciarSegundoTiempo, toggleVoz, finalizar,
   durT1, seg, partidoRestaurado, ICONO_MARCA, min,
   notas, setNotas, online,
+  mostrarPWA, instalar, descartar,
+  setGf, setGc,
 }) {
   const ACCIONES = [
     { tipo: 'gol',      tipoRival: 'gol-rival',      ico: '⚽', lbl: 'Gol',        needsPlayer: true,  needsPlayerRival: true  },
