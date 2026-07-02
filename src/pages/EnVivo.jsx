@@ -9,7 +9,7 @@ import { getCompeticion, guardarCompeticion } from '../lib/competicion'
 import { getPerfil } from '../lib/perfil'
 import { useEquipo } from '../contexts/EquipoContext'
 import PWAInstallBanner from '../components/PWAInstallBanner'
-import usePWAInstall from '../hooks/usePWAInstall'
+import { usePWAInstall } from '../hooks/usePWAInstall'
 import { clasificarVoz } from '../lib/voz'
 import { ordenarTitulares } from '../lib/formaciones'
 import Jersey from '../components/Jersey'
@@ -137,7 +137,7 @@ export default function EnVivo() {
   const [mEntraRival, setMEntraRival] = useState('')
   const [toast, setToast] = useState(null)
   const [online, setOnline] = useState(navigator.onLine)
-  const { mostrar: mostrarPWA, instalar, descartar } = usePWAInstall()
+  const { mostrar: mostrarPWA, instalar, descartar } = usePWAInstall('envivo')
   const timer = useRef(null), recRef = useRef(null), escRef = useRef(false), titRef = useRef([])
   const clubRef = useRef(club), rivalRef = useRef(rival), lastVozRef = useRef({ txt: '', ts: 0 })
   titRef.current = titulares
