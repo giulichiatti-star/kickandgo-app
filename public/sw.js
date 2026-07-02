@@ -17,7 +17,7 @@ self.addEventListener('notificationclick', (e) => {
   e.waitUntil(clients.openWindow(e.notification.data?.url || '/'))
 })
 
-const CACHE = 'kickandgo-v1'
+const CACHE = 'kickandgo-v2'
 const SHELL = ['/', '/index.html']
 
 self.addEventListener('install', (e) => {
