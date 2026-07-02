@@ -850,6 +850,7 @@ export default function EnVivo() {
       ICONO_MARCA={ICONO_MARCA}
       min={min}
       notas={notas} setNotas={setNotas}
+      online={online}
     />
     </>
   )
@@ -868,7 +869,7 @@ function MobileEnVivo({
   mSaleRival, setMSaleRival, mEntraRival, setMEntraRival,
   setCorriendo, iniciarSegundoTiempo, toggleVoz, finalizar,
   durT1, seg, partidoRestaurado, ICONO_MARCA, min,
-  notas, setNotas,
+  notas, setNotas, online,
 }) {
   const ACCIONES = [
     { tipo: 'gol',      tipoRival: 'gol-rival',      ico: '⚽', lbl: 'Gol',        needsPlayer: true,  needsPlayerRival: true  },
