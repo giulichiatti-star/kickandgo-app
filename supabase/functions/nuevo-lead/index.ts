@@ -116,9 +116,9 @@ Deno.serve(async (req) => {
     // 1. Insertar lead
     const { data: lead, error: leadErr } = await supabase
       .from('leads')
-      .insert({ nombre, email, telefono, equipo_nombre, estado: 'nuevo', creado: ahora })
+      .insert({ nombre, email, telefono, equipo_nombre, estado: 'nuevo' })
       .select().single()
-    if (leadErr) return new Response(JSON.stringify({ error: leadErr.message }), { status: 400, headers: JSON_HEADERS })
+    if (leadErr) return new Response(JSON.stringify({ error: 'lead_insert: ' + leadErr.message }), { status: 400, headers: JSON_HEADERS })
 
     // 2. Crear cuenta Supabase
     const password = generarPassword()
@@ -127,6 +127,8 @@ Deno.serve(async (req) => {
       password,
       email_confirm: true,
     })
+
+    if (userErr) console.error('createUser error:', userErr.message, userErr.status)
 
     let cuentaCreada = false
     if (!userErr && userData?.user) {

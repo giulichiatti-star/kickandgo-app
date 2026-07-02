@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { listarLeads, actualizarLead, activarLeads, contactarLeads, linkWhatsapp } from '../lib/leads'
-import { listarCuentas, marcarPagado, marcarMora, darDeBaja, reactivar, resetearPassword, proximoVencimiento, eliminarCuenta, marcarFundador } from '../lib/cuentas'
+import { listarCuentas, marcarPagado, marcarMora, darDeBaja, reactivar, resetearPassword, proximoVencimiento, eliminarCuenta, marcarFundador, listarAvisosPago, confirmarAviso } from '../lib/cuentas'
 
 const CUPO_FUNDADORES = 50
 
@@ -51,17 +51,35 @@ const ESTADOS_PLAN = {
 
 export default function AdminLeads() {
   const [tab, setTab] = useState('leads')
+  const [avisosPendientes, setAvisosPendientes] = useState(0)
+
+  useEffect(() => {
+    listarAvisosPago()
+      .then(data => setAvisosPendientes(data.filter(a => a.estado === 'pendiente').length))
+      .catch(() => {})
+  }, [tab])
+
   return (
     <div className="space-y-4">
       <div>
         <h1 className="text-xl font-extrabold">🔐 Panel Admin</h1>
         <p className="text-xs text-muted">Leads, contacto, alta y ciclo de vida de cuentas</p>
       </div>
-      <div className="flex gap-2">
+      <div className="flex gap-2 flex-wrap">
         <button className={`btn text-xs ${tab === 'leads' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setTab('leads')}>Leads</button>
         <button className={`btn text-xs ${tab === 'cuentas' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setTab('cuentas')}>Cuentas</button>
+        <button className={`btn text-xs ${tab === 'pagos' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setTab('pagos')} style={{ position: 'relative' }}>
+          Avisos de pago
+          {avisosPendientes > 0 && (
+            <span style={{ position: 'absolute', top: -6, right: -6, background: '#ef4444', color: '#fff', borderRadius: '50%', width: 16, height: 16, fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              {avisosPendientes}
+            </span>
+          )}
+        </button>
       </div>
-      {tab === 'leads' ? <TabLeads /> : <TabCuentas />}
+      {tab === 'leads' && <TabLeads />}
+      {tab === 'cuentas' && <TabCuentas />}
+      {tab === 'pagos' && <TabPagos />}
     </div>
   )
 }
@@ -439,6 +457,103 @@ function TabCuentas() {
               onToggleFundador={() => accion(marcarFundador, c.id, !c.es_fundador)}
             />
           ))}
+        </div>
+      )}
+      {modalConfirm}
+    </div>
+  )
+}
+
+// ───────────────────────── TAB PAGOS ─────────────────────────
+
+function TabPagos() {
+  const [avisos, setAvisos] = useState([])
+  const [cargando, setCargando] = useState(true)
+  const [error, setError] = useState('')
+  const [procesando, setProcesando] = useState(null)
+  const [modalConfirm, confirmar] = useConfirm()
+
+  async function recargar() {
+    setCargando(true)
+    try { setAvisos(await listarAvisosPago()) }
+    catch (e) { setError(e.message) }
+    finally { setCargando(false) }
+  }
+  useEffect(() => { recargar() }, [])
+
+  async function accionConfirmar(aviso) {
+    confirmar(
+      `¿Confirmar pago de ${aviso.profiles?.club_nombre || aviso.user_id} por ${aviso.metodo}? Se marcará la cuenta como pagada automáticamente.`,
+      async () => {
+        setProcesando(aviso.id)
+        try { await confirmarAviso(aviso); recargar() }
+        catch (e) { setError(e.message) }
+        finally { setProcesando(null) }
+      }
+    )
+  }
+
+  const pendientes = avisos.filter(a => a.estado === 'pendiente')
+  const confirmados = avisos.filter(a => a.estado === 'confirmado')
+
+  return (
+    <div className="space-y-4">
+      {error && (
+        <div className="card p-3 text-xs" style={{ background: 'rgba(239,68,68,.1)', border: '1px solid rgba(239,68,68,.3)', color: '#f87171' }}>⚠️ {error}</div>
+      )}
+
+      <div className="card p-4" style={{ border: '1px solid rgba(245,158,11,.3)' }}>
+        <div className="font-bold text-sm mb-3" style={{ color: '#fbbf24' }}>💳 Avisos pendientes de verificar ({pendientes.length})</div>
+        {cargando ? (
+          <div className="text-xs text-muted">Cargando…</div>
+        ) : pendientes.length === 0 ? (
+          <div className="text-xs text-muted">No hay avisos pendientes. Cuando un cliente pulse "Ya pagué" en el email, aparecerá aquí.</div>
+        ) : (
+          <div className="space-y-2">
+            {pendientes.map(a => (
+              <div key={a.id} className="flex items-center justify-between flex-wrap gap-3 p-3 rounded-lg" style={{ background: 'rgba(245,158,11,.06)', border: '1px solid rgba(245,158,11,.2)' }}>
+                <div>
+                  <div className="text-sm font-bold">{a.profiles?.club_nombre || '—'}</div>
+                  <div className="text-xs text-muted">{a.profiles?.entrenador} · {a.profiles?.email}</div>
+                  <div className="flex items-center gap-2 mt-1 flex-wrap">
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: 'rgba(59,130,246,.12)', color: '#60a5fa' }}>
+                      {a.metodo === 'transferencia' ? '🏦 Transferencia' : '📱 Bizum'}
+                    </span>
+                    <span className="text-[10px] text-muted">
+                      {new Date(a.creado_en).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' })}
+                    </span>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: 'rgba(59,130,246,.12)', color: '#60a5fa' }}>
+                      {a.profiles?.plan_estado}
+                    </span>
+                  </div>
+                </div>
+                <button
+                  className="btn btn-primary text-xs"
+                  disabled={procesando === a.id}
+                  onClick={() => accionConfirmar(a)}>
+                  {procesando === a.id ? '…' : '✅ Confirmar pago'}
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {confirmados.length > 0 && (
+        <div className="card p-4">
+          <div className="font-bold text-sm mb-3 text-muted">Historial confirmados ({confirmados.length})</div>
+          <div className="space-y-2">
+            {confirmados.slice(0, 20).map(a => (
+              <div key={a.id} className="flex items-center justify-between flex-wrap gap-2 p-2 rounded-lg" style={{ background: 'rgba(34,197,94,.05)' }}>
+                <div className="text-xs">
+                  <span className="font-bold">{a.profiles?.club_nombre || '—'}</span>
+                  <span className="text-muted ml-2">{a.metodo === 'transferencia' ? '🏦 Transferencia' : '📱 Bizum'}</span>
+                  <span className="text-muted ml-2">{new Date(a.creado_en).toLocaleDateString('es-ES')}</span>
+                </div>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: 'rgba(34,197,94,.12)', color: '#4ade80' }}>Confirmado</span>
+              </div>
+            ))}
+          </div>
         </div>
       )}
       {modalConfirm}

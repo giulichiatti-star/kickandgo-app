@@ -76,3 +76,33 @@ export async function eliminarCuenta(userId) {
   if (error) throw error
   return data
 }
+
+export async function listarAvisosPago() {
+  const { data, error } = await supabase
+    .from('payment_notifications')
+    .select(`
+      id, metodo, estado, creado_en, user_id,
+      profiles!payment_notifications_user_id_fkey(club_nombre, entrenador, email, plan_estado)
+    `)
+    .order('creado_en', { ascending: false })
+  if (error) throw error
+  return data || []
+}
+
+export async function confirmarAviso(aviso) {
+  // 1. Marcar notificación como confirmada
+  const { error: errNotif } = await supabase
+    .from('payment_notifications')
+    .update({ estado: 'confirmado', confirmado_en: new Date().toISOString() })
+    .eq('id', aviso.id)
+  if (errNotif) throw errNotif
+
+  // 2. Buscar cuenta completa y marcarla pagada
+  const { data: cuenta, error: errCuenta } = await supabase
+    .from('profiles')
+    .select('id, plan_estado, prueba_vence, pago_vence')
+    .eq('id', aviso.user_id)
+    .single()
+  if (errCuenta) throw errCuenta
+  await marcarPagado(cuenta)
+}
