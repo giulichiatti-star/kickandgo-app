@@ -2,9 +2,16 @@ import { useState, useEffect } from 'react'
 
 const KEY_INICIO = 'kg_pwa_prompted_inicio'
 const KEY_ENVIVO = 'kg_pwa_prompted_envivo'
+const KEY_CONVO = 'kg_pwa_prompted_convocatoria'
+
+function keyForContexto(contexto) {
+  if (contexto === 'envivo') return KEY_ENVIVO
+  if (contexto === 'convocatoria') return KEY_CONVO
+  return KEY_INICIO
+}
 
 export function usePWAInstall(contexto = 'inicio') {
-  const KEY = contexto === 'envivo' ? KEY_ENVIVO : KEY_INICIO
+  const KEY = keyForContexto(contexto)
   const [prompt, setPrompt] = useState(null)
   const [mostrar, setMostrar] = useState(false)
 
@@ -25,6 +32,7 @@ export function usePWAInstall(contexto = 'inicio') {
     await prompt.userChoice
     localStorage.setItem(KEY_INICIO, 'true')
     localStorage.setItem(KEY_ENVIVO, 'true')
+    localStorage.setItem(KEY_CONVO, 'done')
     setMostrar(false)
   }
 

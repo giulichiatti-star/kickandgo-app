@@ -5,6 +5,8 @@ import { nTitulares, nSuplentes, formacionesPara, formacionDefecto, categoriaSlo
 import { useEquipo } from '../contexts/EquipoContext'
 import { listarLesiones } from '../lib/lesiones'
 import Jersey from '../components/Jersey'
+import PWAInstallBanner from '../components/PWAInstallBanner'
+import { usePWAInstall } from '../hooks/usePWAInstall'
 import '../ev2.css'
 
 export default function Convocatoria() {
@@ -23,6 +25,8 @@ export default function Convocatoria() {
   const [lesActivas, setLesActivas] = useState([])
   const [picker, setPicker] = useState(null) // { slot } | null
   const [draggingSlot, setDraggingSlot] = useState(null)
+  const [mostrarPWAConvo, setMostrarPWAConvo] = useState(false)
+  const { instalar, descartar: descartarBase } = usePWAInstall('convocatoria')
 
   // Drag state sin re-renders en cada pointermove
   const dragRef = useRef({ slot: null, isDragging: false, startX: 0, startY: 0 })
@@ -215,6 +219,14 @@ export default function Convocatoria() {
         suplentes: suplentes.map(id => empaqueta(id, posACat(byId(id)?.posicion))),
       }, eid)
       setMsg('✅ Convocatoria guardada')
+      // Mostrar banner PWA en las 3 primeras convocatorias
+      const done = localStorage.getItem('kg_pwa_prompted_convocatoria')
+      if (done !== 'done') {
+        const count = parseInt(localStorage.getItem('kg_convo_count') || '0', 10) + 1
+        localStorage.setItem('kg_convo_count', String(count))
+        if (count <= 3) setMostrarPWAConvo(true)
+        if (count >= 3) localStorage.setItem('kg_pwa_prompted_convocatoria', 'done')
+      }
     } catch (e) { setMsg('⚠️ ' + e.message) }
   }
 
@@ -507,6 +519,13 @@ function SlotPicker({ slot, jugadores, yaConvocado, lesActivas, slotOcupado, rol
           </>
         )}
       </div>
+
+      {mostrarPWAConvo && (
+        <PWAInstallBanner
+          onInstalar={async () => { await instalar(); setMostrarPWAConvo(false) }}
+          onDescartar={() => { descartarBase(); setMostrarPWAConvo(false) }}
+        />
+      )}
     </div>
   )
 }
