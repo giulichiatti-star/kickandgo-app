@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Guía Kick and Go</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',Arial,sans-serif;background:#f4f4f5;color:#18181b}
+.print-btn{position:fixed;top:16px;right:16px;z-index:99;background:#10b981;color:#fff;border:none;padding:10px 20px;font-size:13px;font-weight:600;cursor:pointer;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+.print-btn:hover{background:#059669}
+.doc{background:#fff;max-width:760px;margin:24px auto;padding:48px 56px;border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+.cover{text-align:center;padding:40px 0 48px;border-bottom:2px solid #e4e4e7;margin-bottom:40px}
+.cover-logo{display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:20px}
+.cover-logo span{font-size:20px;font-weight:700}
+.cover h1{font-size:28px;font-weight:800;letter-spacing:-.5px;margin-bottom:8px}
+.cover p{font-size:14px;color:#71717a}
+.cover-meta{display:flex;justify-content:center;gap:24px;margin-top:20px;font-size:12px;color:#71717a}
+h2{font-size:16px;font-weight:700;margin:32px 0 14px;padding-bottom:8px;border-bottom:1.5px solid #e4e4e7}
+h3{font-size:13px;font-weight:600;margin:18px 0 8px}
+p,li{font-size:13px;color:#374151;line-height:1.7}
+ul,ol{padding-left:18px;margin:6px 0}
+li{margin-bottom:4px}
+.step-block{background:#f9fafb;border:1px solid #e4e4e7;border-radius:8px;padding:14px 16px;margin:10px 0}
+.step-block .step-title{font-size:12px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
+.step{display:flex;gap:10px;align-items:flex-start;margin-bottom:6px}
+.step:last-child{margin-bottom:0}
+.step-num{width:20px;height:20px;border-radius:50%;background:#10b981;color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px}
+.step-text{font-size:13px;color:#374151;line-height:1.6}
+.badge{display:inline-block;padding:2px 8px;border-radius:100px;font-size:10px;font-weight:600;vertical-align:middle;margin:0 2px}
+.bg-green{background:#dcfce7;color:#166534}
+.bg-yellow{background:#fef9c3;color:#854d0e}
+.bg-red{background:#fee2e2;color:#991b1b}
+.bg-blue{background:#dbeafe;color:#1e40af}
+.bg-gray{background:#f3f4f6;color:#374151}
+.info-box{background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:12px 14px;margin:10px 0;font-size:12px;color:#1e40af;line-height:1.6}
+.warn-box{background:#fffbeb;border:1px solid #fed7aa;border-radius:8px;padding:12px 14px;margin:10px 0;font-size:12px;color:#92400e;line-height:1.6}
+.danger-box{background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:12px 14px;margin:10px 0;font-size:12px;color:#991b1b;line-height:1.6}
+table{width:100%;border-collapse:collapse;font-size:12px;margin:10px 0}
+th{background:#f3f4f6;padding:8px 10px;text-align:left;font-weight:600;color:#374151;border:1px solid #e4e4e7}
+td{padding:8px 10px;border:1px solid #e4e4e7;color:#374151;vertical-align:top}
+tr:nth-child(even) td{background:#fafafa}
+code{background:#f3f4f6;padding:1px 6px;border-radius:4px;font-family:monospace;font-size:12px}
+.toc{background:#f9fafb;border:1px solid #e4e4e7;border-radius:8px;padding:16px 20px;margin-bottom:32px}
+.toc-title{font-size:12px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px}
+.toc-item{font-size:13px;color:#2563eb;padding:3px 0}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0}
+.section-divider{height:1px;background:#e4e4e7;margin:36px 0}
+@media print{
+  .print-btn{display:none}
+  body{background:#fff}
+  .doc{padding:32px 40px;max-width:100%;box-shadow:none;border-radius:0;margin:0}
+  h2{page-break-before:auto}
+  .step-block,.info-box,.warn-box,.danger-box{page-break-inside:avoid}
+}
+</style>
+</head>
+<body>
+<button class="print-btn" onclick="window.print()">⬇ Guardar como PDF</button>
+<div class="doc">
+
+<div class="cover">
+  <div class="cover-logo">
+    <svg width="32" height="32" viewBox="0 0 32 32" fill="none"><rect x="4" y="4" width="5" height="24" rx="1.5" fill="#2dd4bf"/><path d="M11 16 L24 4 L31 4 L17 16 Z" fill="#2dd4bf"/><path d="M11 16 L17 16 L31 28 L24 28 Z" fill="#f59e0b"/></svg>
+    <span>Kick and Go</span>
+  </div>
+  <h1>Guía de procesos y funcionamiento</h1>
+  <p>Manual interno para el administrador — todos los flujos explicados paso a paso</p>
+  <div class="cover-meta">
+    <span>📅 Julio 2026</span>
+    <span>👤 Javier Herrero Jiménez</span>
+    <span>🔗 kickandgo.app</span>
+  </div>
+</div>
+
+<div class="toc">
+  <div class="toc-title">Índice</div>
+  <div class="toc-item">1. URLs y accesos importantes</div>
+  <div class="toc-item">2. Ciclo de vida de un cliente</div>
+  <div class="toc-item">3. Panel Admin — Leads</div>
+  <div class="toc-item">4. Panel Admin — Cuentas y cobros</div>
+  <div class="toc-item">5. Sistema de emails automáticos</div>
+  <div class="toc-item">6. Qué ve y hace el entrenador</div>
+  <div class="toc-item">7. Mantenimiento técnico</div>
+  <div class="toc-item">8. Preguntas frecuentes</div>
+</div>
+
+<h2>1. URLs y accesos importantes</h2>
+<table>
+  <tr><th>Qué es</th><th>URL / Dato</th></tr>
+  <tr><td>App pública (landing)</td><td>kickandgo.app</td></tr>
+  <tr><td>Panel admin</td><td>kickandgo.app/admin</td></tr>
+  <tr><td>Términos y condiciones</td><td>kickandgo.app/terminos</td></tr>
+  <tr><td>Supabase (base de datos)</td><td>supabase.com → proyecto ccoqtywtjijhdyhetlfy</td></tr>
+  <tr><td>Vercel (hosting)</td><td>vercel.com → kickandgo-app</td></tr>
+  <tr><td>Resend (emails)</td><td>resend.com</td></tr>
+  <tr><td>Sentry (errores)</td><td>sentry.io</td></tr>
+  <tr><td>Bizum cobros</td><td>+34 628 58 49 85</td></tr>
+  <tr><td>IBAN cobros</td><td>ES28 1583 0001 1490 5028 3293 — Javier Herrero Jiménez</td></tr>
+</table>
+<div class="info-box">Para acceder al panel admin, entra con tu cuenta en kickandgo.app y navega a /admin. Solo funciona si tu perfil tiene <code>is_admin = true</code> en la base de datos.</div>
+
+<h2>2. Ciclo de vida de un cliente</h2>
+<div class="step-block">
+  <div class="step-title">Flujo completo de un entrenador</div>
+  <div class="step"><div class="step-num">1</div><div class="step-text"><b>Lead entra</b> — rellena el formulario en la landing → aparece en Admin → Leads con estado <span class="badge bg-blue">Nuevo</span></div></div>
+  <div class="step"><div class="step-num">2</div><div class="step-text"><b>Contactar</b> — le envías email o WhatsApp → estado pasa a <span class="badge bg-yellow">Contactado</span>. Marcas si respondió Sí o No.</div></div>
+  <div class="step"><div class="step-num">3</div><div class="step-text"><b>Dar de alta</b> — seleccionas el lead y pulsas "Dar de alta". Se crea la cuenta, se genera contraseña y se envía email automático con credenciales. Estado → <span class="badge bg-green">Activo</span></div></div>
+  <div class="step"><div class="step-num">4</div><div class="step-text"><b>Prueba de 14 días</b> — el entrenador usa la app. A los 11 días recibe aviso por email. Al día 14 recibe email de vencimiento. Tiene 2 días de gracia.</div></div>
+  <div class="step"><div class="step-num">5</div><div class="step-text"><b>Pago</b> — el cliente paga y pulsa "Ya pagué" en el email → aparece en Admin → Avisos de pago. Tú confirmas → cuenta pasa a <span class="badge bg-green">Pagado</span></div></div>
+  <div class="step"><div class="step-num">6</div><div class="step-text"><b>Renovación mensual</b> — cada mes el mismo ciclo: email T−1 día, luego 2 días de gracia, luego suspensión.</div></div>
+  <div class="step"><div class="step-num">7</div><div class="step-text"><b>Baja</b> — si decide irse, pulsas "Dar de baja" → pierde acceso. Datos conservados 30 días por RGPD.</div></div>
+</div>
+<table>
+  <tr><th>Estado</th><th>Qué significa</th><th>Tiene acceso</th></tr>
+  <tr><td><span class="badge bg-blue">En prueba</span></td><td>14 días gratis activos</td><td>Sí</td></tr>
+  <tr><td><span class="badge bg-yellow">Vencido</span></td><td>Prueba terminada, en días de gracia</td><td>Sí (2 días)</td></tr>
+  <tr><td><span class="badge bg-green">Pagado</span></td><td>Suscripción activa</td><td>Sí</td></tr>
+  <tr><td><span class="badge bg-yellow">En mora</span></td><td>Renovación vencida, en gracia</td><td>Sí (2 días)</td></tr>
+  <tr><td><span class="badge bg-red">De baja</span></td><td>Dado de baja manualmente</td><td>No</td></tr>
+  <tr><td><span class="badge bg-gray">Suspendido</span></td><td>Sin pago tras gracia</td><td>No</td></tr>
+</table>
+
+<h2>3. Panel Admin — Leads</h2>
+<h3>¿Cómo contactar a un lead?</h3>
+<div class="step-block">
+  <div class="step"><div class="step-num">1</div><div class="step-text">Ve a <b>Admin → Leads</b></div></div>
+  <div class="step"><div class="step-num">2</div><div class="step-text">Filtra por <b>"Nuevo"</b> o pulsa "Seleccionar todos los nuevos"</div></div>
+  <div class="step"><div class="step-num">3</div><div class="step-text">Opción A: <b>"Contactar por email"</b> — envía email automático de bienvenida<br>Opción B: <b>"Abrir WhatsApp"</b> — abre una pestaña por lead con mensaje ya escrito</div></div>
+  <div class="step"><div class="step-num">4</div><div class="step-text">Marca si el lead <b>"Respondió: Sí / No"</b></div></div>
+  <div class="step"><div class="step-num">5</div><div class="step-text">Usa el campo de <b>notas</b> para anotar seguimiento, cuándo llamar, etc.</div></div>
+</div>
+<h3>¿Cómo dar de alta a un cliente?</h3>
+<div class="step-block">
+  <div class="step"><div class="step-num">1</div><div class="step-text">Selecciona el lead marcando su checkbox</div></div>
+  <div class="step"><div class="step-num">2</div><div class="step-text">Pulsa <b>"Dar de alta"</b> → confirma en el modal</div></div>
+  <div class="step"><div class="step-num">3</div><div class="step-text">El sistema crea la cuenta, genera contraseña y envía email al cliente con sus credenciales</div></div>
+  <div class="step"><div class="step-num">4</div><div class="step-text">Si el email falló, se muestra la contraseña para enviársela por WhatsApp</div></div>
+</div>
+<div class="warn-box">⚠️ Si el email de alta no llega, copia la contraseña del resultado y envíasela manualmente por WhatsApp.</div>
+
+<h2>4. Panel Admin — Cuentas y cobros</h2>
+<h3>Confirmar un pago recibido</h3>
+<div class="step-block">
+  <div class="step"><div class="step-num">1</div><div class="step-text">Si el cliente pulsó "Ya pagué" → ve a <b>Admin → Avisos de pago</b> (badge rojo con el número)</div></div>
+  <div class="step"><div class="step-num">2</div><div class="step-text">Verifica en tu banco o Bizum que el pago llegó</div></div>
+  <div class="step"><div class="step-num">3</div><div class="step-text">Pulsa <b>"Confirmar pago"</b> → la cuenta se marca como Pagada y el contador avanza un mes</div></div>
+</div>
+<h3>Marcar pago manualmente</h3>
+<div class="step-block">
+  <div class="step"><div class="step-num">1</div><div class="step-text">Ve a <b>Admin → Cuentas</b> → encuentra al cliente</div></div>
+  <div class="step"><div class="step-num">2</div><div class="step-text">Pulsa <b>"💳 Marcar pagado"</b> → la fecha de próximo vencimiento se calcula sola</div></div>
+</div>
+<table>
+  <tr><th>Acción</th><th>Cuándo usarla</th></tr>
+  <tr><td>⚠️ Mora</td><td>El cliente avisó que pagará tarde</td></tr>
+  <tr><td>🚫 Dar de baja</td><td>El cliente quiere cancelar definitivamente</td></tr>
+  <tr><td>✅ Reactivar</td><td>Cliente suspendido que ya pagó</td></tr>
+  <tr><td>🔑 Nueva contraseña</td><td>El cliente olvidó su contraseña</td></tr>
+  <tr><td>🔥 Marcar fundador</td><td>Primeros 50 clientes con precio especial</td></tr>
+  <tr><td>🗑️ Eliminar cuenta</td><td>Borrar todos los datos — solo si el cliente lo pide (RGPD)</td></tr>
+</table>
+<div class="danger-box">🗑️ Eliminar cuenta es IRREVERSIBLE. Borra jugadores, partidos, entrenamientos, convocatorias y tarjetas. Solo hacerlo si el cliente lo solicita explícitamente.</div>
+
+<h2>5. Sistema de emails automáticos</h2>
+<p>Los emails se envían solos cada día a las 9:00h. No tienes que hacer nada.</p>
+<table>
+  <tr><th>Cuándo</th><th>Para quién</th><th>Asunto del email</th></tr>
+  <tr><td>T−3 días</td><td>Clientes en prueba</td><td>"Quedan 3 días de tu prueba gratuita"</td></tr>
+  <tr><td>T=0 (vencimiento)</td><td>Clientes en prueba</td><td>"Tu prueba gratuita termina hoy"</td></tr>
+  <tr><td>T+2 (suspensión)</td><td>Prueba sin pagar</td><td>"No hemos constatado tu pago…"</td></tr>
+  <tr><td>T−1 día</td><td>Clientes de pago</td><td>"Tu suscripción vence mañana"</td></tr>
+  <tr><td>T+2 (suspensión)</td><td>Pago vencido</td><td>"No hemos constatado tu pago…"</td></tr>
+</table>
+<p style="margin-top:10px">Todos los emails incluyen botones <b>"Ya pagué con transferencia"</b> y <b>"Ya pagué con Bizum"</b>. Al pulsar, el sistema registra el aviso y aparece en el panel.</p>
+<div class="info-box">Para verificar que los crons están activos: Supabase → SQL Editor → <code>select * from cron.job;</code></div>
+
+<h2>6. Qué ve y hace el entrenador</h2>
+<div class="two-col">
+  <div class="step-block">
+    <div class="step-title">Módulos disponibles</div>
+    <div class="step"><div class="step-num" style="background:#3b82f6">1</div><div class="step-text"><b>Inicio</b> — resumen del equipo</div></div>
+    <div class="step"><div class="step-num" style="background:#3b82f6">2</div><div class="step-text"><b>Plantilla</b> — jugadores, posiciones, estadísticas</div></div>
+    <div class="step"><div class="step-num" style="background:#3b82f6">3</div><div class="step-text"><b>Convocatoria</b> — pizarra táctica</div></div>
+    <div class="step"><div class="step-num" style="background:#3b82f6">4</div><div class="step-text"><b>En Vivo</b> — goles, cambios, tarjetas</div></div>
+    <div class="step"><div class="step-num" style="background:#3b82f6">5</div><div class="step-text"><b>Entrenamientos</b> — planificar semana</div></div>
+    <div class="step"><div class="step-num" style="background:#3b82f6">6</div><div class="step-text"><b>Estadísticas</b> — rendimiento individual y colectivo</div></div>
+    <div class="step"><div class="step-num" style="background:#3b82f6">7</div><div class="step-text"><b>Amonestaciones</b> — tarjetas, sanciones, lesiones</div></div>
+    <div class="step"><div class="step-num" style="background:#3b82f6">8</div><div class="step-text"><b>Torneo</b> — tabla de posiciones</div></div>
+  </div>
+  <div class="step-block">
+    <div class="step-title">Flujo típico de partido</div>
+    <div class="step"><div class="step-num">1</div><div class="step-text"><b>Convocatoria</b> → elige rival, fecha, formación → selecciona titulares en la pizarra → guarda → envía por WhatsApp</div></div>
+    <div class="step"><div class="step-num">2</div><div class="step-text"><b>En Vivo</b> → ve la formación → registra goles, cambios y tarjetas en tiempo real (funciona sin internet)</div></div>
+    <div class="step"><div class="step-num">3</div><div class="step-text">Al terminar, el partido queda guardado en Estadísticas e Inicio automáticamente</div></div>
+  </div>
+</div>
+<div class="info-box">Uso offline: el entrenador debe abrir la app una vez con wifi e instalarla en pantalla de inicio. Luego funciona sin cobertura en el campo.</div>
+
+<h2>7. Mantenimiento técnico</h2>
+<h3>Qué revisar cada semana</h3>
+<ul>
+  <li>Admin → Avisos de pago: confirmar los pendientes</li>
+  <li>Admin → Cuentas → "Alertas de cobro": ver quién está por vencer</li>
+  <li>Sentry (sentry.io): revisar si hay errores nuevos</li>
+</ul>
+<h3>Qué hacer si un email no llegó</h3>
+<div class="step-block">
+  <div class="step"><div class="step-num">1</div><div class="step-text">Entra en <b>resend.com</b> → Emails → filtra por el email del cliente</div></div>
+  <div class="step"><div class="step-num">2</div><div class="step-text">Si aparece "Bounced" → el email del cliente está mal escrito, corrígelo en Supabase → profiles</div></div>
+  <div class="step"><div class="step-num">3</div><div class="step-text">Si no aparece → verifica los crons: Supabase → SQL Editor → <code>select * from cron.job;</code></div></div>
+</div>
+<h3>Cómo resetear contraseña de un cliente</h3>
+<div class="step-block">
+  <div class="step"><div class="step-num">1</div><div class="step-text">Admin → Cuentas → busca al cliente → <b>"🔑 Nueva contraseña"</b></div></div>
+  <div class="step"><div class="step-num">2</div><div class="step-text">Copia la contraseña (solo se muestra una vez)</div></div>
+  <div class="step"><div class="step-num">3</div><div class="step-text">Envíasela por WhatsApp y dile que la cambie desde Ajustes</div></div>
+</div>
+<h3>Cómo hacer deploy de un cambio</h3>
+<div class="step-block">
+  <div class="step"><div class="step-num">1</div><div class="step-text">Terminal en la carpeta <code>/Documents/5_test/kickandgo-app</code></div></div>
+  <div class="step"><div class="step-num">2</div><div class="step-text"><code>git add -A && git commit -m "descripción" && git push</code></div></div>
+  <div class="step"><div class="step-num">3</div><div class="step-text">Vercel despliega automáticamente en 1-2 minutos</div></div>
+</div>
+<h3>Coste mensual del sistema</h3>
+<table>
+  <tr><th>Servicio</th><th>Coste</th></tr>
+  <tr><td>Supabase</td><td>Gratis hasta ~500 usuarios / luego ~25€/mes</td></tr>
+  <tr><td>Vercel</td><td>Gratis (plan hobby)</td></tr>
+  <tr><td>Resend</td><td>Gratis hasta 3.000 emails/mes</td></tr>
+  <tr><td>Sentry</td><td>Gratis (plan developer)</td></tr>
+</table>
+
+<h2>8. Preguntas frecuentes</h2>
+<h3>Un cliente dice que no puede entrar</h3>
+<ul>
+  <li>Verifica en Admin → Cuentas que la cuenta esté activa y no suspendida</li>
+  <li>Si olvidó contraseña → resetéala desde Admin</li>
+  <li>Si está suspendida → confirma el pago o reactiva manualmente</li>
+</ul>
+<h3>Un cliente quiere cancelar</h3>
+<ul>
+  <li>Solo parar: pulsa "Dar de baja" → pierde acceso, datos conservados</li>
+  <li>Quiere borrar datos (RGPD): pulsa "Eliminar cuenta" — irreversible</li>
+  <li>Tiene 14 días de desistimiento desde el primer pago real</li>
+</ul>
+<h3>El cliente quiere cambiar su email</h3>
+<ul>
+  <li>Supabase → Authentication → Users → editar usuario → cambiar email</li>
+</ul>
+
+<div class="section-divider"></div>
+<p style="text-align:center;font-size:12px;color:#9ca3af">Kick and Go · Guía interna v1.0 · Julio 2026 · Javier Herrero Jiménez</p>
+
+</div>
+</body>
+</html>
