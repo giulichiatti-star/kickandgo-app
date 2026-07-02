@@ -134,6 +134,7 @@ export default function EnVivo() {
   const [mSaleRival, setMSaleRival] = useState('')
   const [mEntraRival, setMEntraRival] = useState('')
   const [toast, setToast] = useState(null)
+  const [online, setOnline] = useState(navigator.onLine)
   const timer = useRef(null), recRef = useRef(null), escRef = useRef(false), titRef = useRef([])
   const clubRef = useRef(club), rivalRef = useRef(rival), lastVozRef = useRef({ txt: '', ts: 0 })
   titRef.current = titulares
@@ -214,6 +215,14 @@ export default function EnVivo() {
     return () => clearInterval(timer.current)
   }, [corriendo, tiempo, durT1])
   useEffect(() => () => { try { recRef.current?.stop() } catch {} }, [])
+
+  useEffect(() => {
+    const on = () => setOnline(true)
+    const off = () => setOnline(false)
+    window.addEventListener('online', on)
+    window.addEventListener('offline', off)
+    return () => { window.removeEventListener('online', on); window.removeEventListener('offline', off) }
+  }, [])
 
   /* Auto-activar voz cuando se conecta un micrófono o auriculares con mic */
   useEffect(() => {
@@ -915,6 +924,12 @@ function MobileEnVivo({
         <div style={{ background:'rgba(245,158,11,0.15)', borderBottom:'1px solid rgba(245,158,11,0.3)', color:'#fcd34d', padding:'8px 14px', display:'flex', justifyContent:'space-between', alignItems:'center', fontSize:11, fontWeight:700 }}>
           <span>🔄 Partido restaurado</span>
           <button onClick={() => { localStorage.removeItem('kg_envivo'); window.location.reload() }} style={{ fontSize:10, opacity:.7 }}>Descartar</button>
+        </div>
+      )}
+
+      {!online && (
+        <div style={{ background:'rgba(245,158,11,0.12)', borderBottom:'1px solid rgba(245,158,11,0.25)', color:'#fcd34d', padding:'7px 14px', fontSize:11, fontWeight:600, display:'flex', alignItems:'center', gap:6 }}>
+          <span>📵</span> Sin conexión — los datos se guardan en tu móvil y se sincronizan al recuperar señal
         </div>
       )}
 
