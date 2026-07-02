@@ -441,6 +441,13 @@ export default function Convocatoria() {
           onCerrar={() => setPicker(null)}
         />
       )}
+
+      {mostrarPWAConvo && (
+        <PWAInstallBanner
+          onInstalar={async () => { await instalar(); setMostrarPWAConvo(false) }}
+          onDescartar={() => { descartarBase(); setMostrarPWAConvo(false) }}
+        />
+      )}
     </div>
   )
 }
@@ -519,13 +526,6 @@ function SlotPicker({ slot, jugadores, yaConvocado, lesActivas, slotOcupado, rol
           </>
         )}
       </div>
-
-      {mostrarPWAConvo && (
-        <PWAInstallBanner
-          onInstalar={async () => { await instalar(); setMostrarPWAConvo(false) }}
-          onDescartar={() => { descartarBase(); setMostrarPWAConvo(false) }}
-        />
-      )}
     </div>
   )
 }

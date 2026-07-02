@@ -128,7 +128,7 @@ export default function Disciplina() {
       setMsg(''); await refrescar()
       // Notificar si el jugador queda en riesgo de sanción
       if (formT.tipo === 'amarilla') {
-        const nuevasCuentas = contarTarjetas(formT.jugador_id)
+        const nuevasCuentas = cuentaT(formT.jugador_id)
         if (nuevasCuentas.am >= LIMITE - 1) {
           notificarRiesgoSancion(nombreJ(formT.jugador_id), nuevasCuentas.am + 1).catch(() => {})
         }
