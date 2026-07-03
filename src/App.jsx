@@ -149,8 +149,8 @@ function OfflineBanner() {
 
   return (
     <div
-      className="fixed top-0 left-0 right-0 z-[9999] flex items-center justify-center gap-2 py-2 text-[12px] font-bold"
-      style={{ background: cfg.bg, color: '#fff', backdropFilter: 'blur(8px)', borderBottom: `1px solid ${cfg.border}`, transition: 'background .3s' }}
+      className="fixed top-0 left-0 right-0 z-[10000] flex items-center justify-center gap-2 py-2 text-[12px] font-bold"
+      style={{ background: cfg.bg, color: '#fff', backdropFilter: 'blur(8px)', borderBottom: `1px solid ${cfg.border}`, transition: 'background .3s', paddingTop: 'max(8px, env(safe-area-inset-top))' }}
     >
       {cfg.msg}
       {modoCache && (
