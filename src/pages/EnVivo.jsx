@@ -944,23 +944,23 @@ function MobileEnVivo({
       {/* TOPBAR */}
       <div style={{ background:'#16161a', borderBottom:'1px solid #27272a', padding:'10px 14px 8px' }}>
         {/* Marcador */}
-        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
-          <div style={{ textAlign:'center', flex:1 }}>
-            <div style={{ fontSize:13, fontWeight:800, color:'#fafafa', lineHeight:1.2 }}>{club}</div>
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8, gap:8 }}>
+          <div style={{ textAlign:'center', flex:1, minWidth:0 }}>
+            <div style={{ fontSize:12, fontWeight:800, color:'#fafafa', lineHeight:1.2, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{club}</div>
             <div onClick={() => setLocalVisitante(v => v==='local'?'visitante':'local')}
               style={{ fontSize:9, color: localVisitante==='local'?'#10b981':'#f59e0b', cursor:'pointer', marginTop:2 }}>
               {localVisitante==='local'?'🏠 Local':'✈️ Visitante'}
             </div>
           </div>
-          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:2, padding:'0 12px' }}>
-            <div style={{ fontSize:34, fontWeight:900, color:'#fafafa', letterSpacing:4, lineHeight:1 }}>{gf} - {gc}</div>
-            <div style={{ fontSize:14, fontWeight:800, color: descanso?'#f59e0b':'#2dd4bf', letterSpacing:1 }}>
+          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:2, flexShrink:0 }}>
+            <div style={{ fontSize:26, fontWeight:900, color:'#fafafa', letterSpacing:2, lineHeight:1 }}>{gf} - {gc}</div>
+            <div style={{ fontSize:13, fontWeight:800, color: descanso?'#f59e0b':'#2dd4bf', letterSpacing:1 }}>
               {descanso ? 'DESC' : `${minMostrado}'`}
             </div>
             <div style={{ fontSize:9, color:'#71717a', textTransform:'uppercase', letterSpacing:.5 }}>{textoperiodo()}</div>
           </div>
-          <div style={{ textAlign:'center', flex:1 }}>
-            <div style={{ fontSize:13, fontWeight:800, color:'#fafafa', lineHeight:1.2 }}>{rival}</div>
+          <div style={{ textAlign:'center', flex:1, minWidth:0 }}>
+            <div style={{ fontSize:12, fontWeight:800, color:'#fafafa', lineHeight:1.2, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{rival}</div>
             <div style={{ fontSize:9, color:'#71717a', marginTop:2 }}>Visitante</div>
           </div>
         </div>
