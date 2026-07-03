@@ -128,4 +128,17 @@
 @media (max-width:768px) {
   .ev2-desktop-only { display: none !important; }
   .ev2-mobile-layout { display: block; }
+
+  /* Campo más alto en móvil para que los jugadores no queden apilados */
+  .ev2-pitch { aspect-ratio: 4/3; }
+
+  /* Jugadores más pequeños en móvil */
+  .ev2-player { width: 38px; }
+  .ev2-player svg { width: 26px !important; height: 26px !important; }
+  .ev2-jwrap svg { width: 26px !important; height: 26px !important; }
+  .ev2-jnum { font-size: 9px; }
+  .ev2-chip-disc { width: 24px; height: 24px; font-size: 10px; }
+  .ev2-pname { font-size: 7px; max-width: 40px; }
+  .ev2-pmark { width: 12px; height: 12px; font-size: 8px; }
+  .ev2-pmarks { top: -6px; right: -8px; }
 }
