@@ -4,7 +4,7 @@ import { cacheSet, cacheGet } from './cache'
 export async function listarJugadores(equipoId) {
   const key = 'jugadores_' + (equipoId || 'all')
   try {
-    let q = supabase.from('jugadores').select('*').eq('activo', true).order('dorsal', { ascending: true })
+    let q = supabase.from('jugadores').select('*').order('dorsal', { ascending: true })
     if (equipoId) q = q.eq('equipo_id', equipoId)
     const { data, error } = await q
     if (error) throw error
