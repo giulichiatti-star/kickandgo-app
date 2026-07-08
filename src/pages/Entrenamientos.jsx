@@ -2,7 +2,9 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   COLOR_CAT, listarBiblioteca, listarEntrenos, guardarEntreno, borrarEntreno,
   crearEjercicio, actualizarEjercicio, borrarEjercicio,
+  listarEjerciciosBase, ejercicioMatcheaQuery,
 } from '../lib/entrenamientos'
+import EjercicioBaseModal from '../components/EjercicioBaseModal'
 import { listarPartidos } from '../lib/partidos'
 import { getPerfil } from '../lib/perfil'
 import { listarJugadores } from '../lib/jugadores'
@@ -74,6 +76,7 @@ export default function Entrenamientos() {
   const [dias, setDias]             = useState({})
   const [diaSel, setDiaSel]         = useState(0)
   const [bibCat, setBibCat]         = useState('Todas')
+  const [vistaTab, setVistaTab]     = useState('sesiones') // 'sesiones' | 'base'
   const [bibQ, setBibQ]             = useState('')
   const [msg, setMsg]               = useState('')
   const [showBib, setShowBib]       = useState(false)
@@ -255,14 +258,36 @@ ${ses.notas ? `<div class="notas"><h3>Notas del entrenador</h3><p>${ses.notas}</
       <div className="flex items-center justify-between mb-4 gap-2">
         <div>
           <h1 className="text-xl font-extrabold">Entrenamientos</h1>
-          <p className="text-[11px] text-muted">{fCorta(isos[0])} – {fCorta(isos[6])} · {minS} min totales</p>
+          <p className="text-[11px] text-muted">{vistaTab === 'sesiones' ? `${fCorta(isos[0])} – ${fCorta(isos[6])} · ${minS} min totales` : 'Biblioteca de ejercicios base'}</p>
         </div>
-        <div className="flex items-center gap-1.5">
-          <button className="ent2-week-btn" onClick={() => setSemana((s) => s - 1)}>‹</button>
-          <button className="ent2-week-btn" onClick={() => setSemana(0)}>Hoy</button>
-          <button className="ent2-week-btn" onClick={() => setSemana((s) => s + 1)}>›</button>
-        </div>
+        {vistaTab === 'sesiones' && (
+          <div className="flex items-center gap-1.5">
+            <button className="ent2-week-btn" onClick={() => setSemana((s) => s - 1)}>‹</button>
+            <button className="ent2-week-btn" onClick={() => setSemana(0)}>Hoy</button>
+            <button className="ent2-week-btn" onClick={() => setSemana((s) => s + 1)}>›</button>
+          </div>
+        )}
       </div>
+
+      {/* ── Tabs vista ── */}
+      <div style={{ display:'flex', gap:6, marginBottom:14, padding:4, background:'#141416', border:'1px solid #27272a', borderRadius:10 }}>
+        <button onClick={() => setVistaTab('sesiones')}
+          style={{ flex:1, padding:'8px 12px', borderRadius:7, border:'none', cursor:'pointer', fontSize:12, fontWeight:700,
+            background: vistaTab==='sesiones' ? '#27272a' : 'transparent',
+            color: vistaTab==='sesiones' ? '#fafafa' : '#71717a' }}>
+          📅 Sesiones
+        </button>
+        <button onClick={() => setVistaTab('base')}
+          style={{ flex:1, padding:'8px 12px', borderRadius:7, border:'none', cursor:'pointer', fontSize:12, fontWeight:700,
+            background: vistaTab==='base' ? '#27272a' : 'transparent',
+            color: vistaTab==='base' ? '#fafafa' : '#71717a' }}>
+          📚 Ejercicios base
+        </button>
+      </div>
+
+      {vistaTab === 'base' && <EjerciciosBaseView />}
+
+      {vistaTab === 'sesiones' && <>
 
       {/* ── Tabs días ── */}
       <div className="ent2-day-tabs mb-4">
@@ -442,6 +467,8 @@ ${ses.notas ? `<div class="notas"><h3>Notas del entrenador</h3><p>${ses.notas}</
           <button className="btn btn-primary text-xs" onClick={guardarSemana}>💾 Guardar semana</button>
         </div>
       </div>
+
+      </>}
 
       {/* ── Modal gestión biblioteca ── */}
       {showGestion && (
@@ -668,6 +695,93 @@ function GestionBiblioteca({ biblioteca, onClose, onRefrescar, crearEjercicio, a
         </div>
         <button className="btn btn-primary w-full mt-4 text-sm" onClick={() => abrir(null)}>+ Añadir ejercicio</button>
       </div>
+    </div>
+  )
+}
+
+/* ══ Biblioteca de ejercicios base (pestaña) ═══════════════ */
+function EjerciciosBaseView() {
+  const [ejercicios, setEjercicios] = useState([])
+  const [cargando, setCargando] = useState(true)
+  const [error, setError] = useState('')
+  const [query, setQuery] = useState('')
+  const [cat, setCat] = useState('Todas')
+  const [seleccionado, setSeleccionado] = useState(null)
+
+  useEffect(() => {
+    (async () => {
+      try { setEjercicios(await listarEjerciciosBase()) }
+      catch (e) { setError(e.message) }
+      finally { setCargando(false) }
+    })()
+  }, [])
+
+  const cats = useMemo(() => ['Todas', ...Array.from(new Set(ejercicios.map((e) => e.categoria).filter(Boolean)))], [ejercicios])
+  const filtrados = useMemo(() => {
+    return ejercicios.filter((e) =>
+      (cat === 'Todas' || e.categoria === cat) &&
+      ejercicioMatcheaQuery(e, query)
+    )
+  }, [ejercicios, cat, query])
+
+  if (cargando) return <div className="text-sm text-muted py-10 text-center">Cargando ejercicios…</div>
+  if (error) return <div className="text-sm py-6 text-center" style={{ color:'#ef4444' }}>⚠️ {error}</div>
+
+  return (
+    <div>
+      <div style={{ display:'flex', gap:8, marginBottom:12, flexWrap:'wrap' }}>
+        <input
+          type="text"
+          placeholder="Buscar por nombre, tag o palabra (control, posesión, presión…)"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          style={{ flex:'1 1 240px', background:'#141416', border:'1px solid #27272a', borderRadius:8, padding:'9px 12px', color:'#fafafa', fontSize:12, outline:'none' }}
+        />
+      </div>
+
+      <div style={{ display:'flex', gap:6, marginBottom:14, flexWrap:'wrap' }}>
+        {cats.map((c) => (
+          <button key={c} onClick={() => setCat(c)}
+            style={{ padding:'5px 12px', borderRadius:20, border:`1px solid ${cat===c?'#2dd4bf':'#27272a'}`, background: cat===c?'rgba(45,212,191,.12)':'transparent', color: cat===c?'#2dd4bf':'#71717a', fontSize:11, fontWeight:700, cursor:'pointer' }}>
+            {c}
+          </button>
+        ))}
+      </div>
+
+      {filtrados.length === 0 ? (
+        <div className="text-sm text-muted py-10 text-center">Sin ejercicios que coincidan con la búsqueda.</div>
+      ) : (
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(220px,1fr))', gap:12 }}>
+          {filtrados.map((e) => (
+            <button key={e.id} onClick={() => setSeleccionado(e)}
+              style={{ background:'#18181b', border:'1px solid #27272a', borderRadius:10, padding:0, overflow:'hidden', cursor:'pointer', textAlign:'left', display:'flex', flexDirection:'column' }}>
+              <div style={{ aspectRatio:'16/10', background:'#0f0f11', overflow:'hidden' }}>
+                {e.imagen_url ? (
+                  <img src={e.imagen_url} alt={e.nombre} style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }} />
+                ) : (
+                  <div style={{ width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center', color:'#3f3f46', fontSize:10 }}>Sin imagen</div>
+                )}
+              </div>
+              <div style={{ padding:'10px 12px' }}>
+                <div style={{ fontSize:9, fontWeight:700, color:'#10b981', letterSpacing:1, textTransform:'uppercase', marginBottom:3 }}>{e.categoria || 'General'}</div>
+                <div style={{ fontSize:12, fontWeight:700, color:'#fafafa', lineHeight:1.3, marginBottom:6 }}>{e.nombre}</div>
+                {(e.tags_ofensivos?.length > 0 || e.tags_defensivos?.length > 0) && (
+                  <div style={{ display:'flex', flexWrap:'wrap', gap:3 }}>
+                    {(e.tags_ofensivos || []).slice(0, 2).map((t) => (
+                      <span key={t} style={{ fontSize:9, fontWeight:600, color:'#6ee7b7', background:'rgba(16,185,129,.1)', border:'1px solid rgba(16,185,129,.25)', padding:'1px 6px', borderRadius:4 }}>{t}</span>
+                    ))}
+                    {(e.tags_defensivos || []).slice(0, 2).map((t) => (
+                      <span key={t} style={{ fontSize:9, fontWeight:600, color:'#fca5a5', background:'rgba(239,68,68,.1)', border:'1px solid rgba(239,68,68,.25)', padding:'1px 6px', borderRadius:4 }}>{t}</span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {seleccionado && <EjercicioBaseModal ejercicio={seleccionado} onClose={() => setSeleccionado(null)} />}
     </div>
   )
 }

@@ -41,6 +41,64 @@ export async function listarBiblioteca() {
   return data.length ? data : BIBLIOTECA_BASE
 }
 
+// Solo ejercicios base (predefinidos, compartidos entre todos los entrenadores)
+export async function listarEjerciciosBase() {
+  const { data, error } = await supabase
+    .from('ejercicios_biblioteca')
+    .select('*')
+    .eq('activo', true)
+    .eq('es_base', true)
+    .order('categoria', { ascending: true })
+  if (error) return []
+  return data || []
+}
+
+// Diccionario de sinónimos por tag — permite que buscar "control", "posesión", etc.
+// devuelva ejercicios cuyo tag oficial es "Controles orientados", "Circulación", etc.
+export const SINONIMOS_TAGS = {
+  'amplitud ofensiva': ['amplitud', 'banda', 'extremo', 'ancho', 'abrir'],
+  'cambios de orientación': ['cambio', 'orientación', 'campo abierto', 'switch'],
+  'pases filtrados': ['filtrado', 'entre líneas', 'penetración', 'pase interior'],
+  'pase y circulación': ['circulación', 'posesión', 'tiki-taka', 'salida', 'mantener balón', 'pases'],
+  'tiro': ['tiro', 'remate', 'disparo', 'chut'],
+  'conducción': ['conducción', 'llevar balón', 'progresar con balón'],
+  'desmarques': ['desmarque', 'movimiento sin balón', 'apoyo'],
+  'controles orientados': ['control', 'primer toque', 'dominio', 'recepción orientada'],
+  'tercer hombre': ['tercer hombre', 'combinación'],
+  'regate': ['regate', 'dribbling', 'uno contra uno'],
+  'pared': ['pared', 'combinación corta', 'uno-dos'],
+  'cobertura de balón': ['proteger balón', 'cobertura'],
+  'último pase': ['asistencia', 'último pase', 'centro'],
+  'entrada': ['entrada', 'tackle', 'barrida'],
+  'acoso': ['presión', 'pressing', 'acoso', 'robo'],
+  'cierre línea de pase': ['cortar pase', 'tapar', 'cierre línea'],
+  'ayudas defensivas': ['ayuda', 'ayudas defensivas', 'apoyo defensivo'],
+  'anticipación': ['anticipación', 'leer jugada', 'adelantarse'],
+  'basculaciones': ['bascular', 'basculación', 'desplazamiento defensivo'],
+  'interceptación': ['interceptar', 'interceptación', 'cortar'],
+  'cobertura': ['cobertura', 'segunda línea'],
+  'temporización': ['temporizar', 'temporización', 'ralentizar'],
+  'presión tras pérdida': ['presión tras pérdida', 'contrapresión', 'gegenpressing', 'recuperar rápido'],
+  'vigilancias': ['vigilancia', 'marcaje preventivo'],
+}
+
+// Devuelve true si el ejercicio matchea la búsqueda:
+// nombre + descripción + tags + sinónimos de tags
+export function ejercicioMatcheaQuery(ej, query) {
+  if (!query || !query.trim()) return true
+  const q = query.trim().toLowerCase()
+  const hay = (s) => (s || '').toLowerCase().includes(q)
+  if (hay(ej.nombre) || hay(ej.descripcion) || hay(ej.categoria)) return true
+  if (hay(ej.complejidad) || hay(ej.competitividad)) return true
+  const allTags = [...(ej.tags_ofensivos || []), ...(ej.tags_defensivos || [])]
+  for (const tag of allTags) {
+    if (hay(tag)) return true
+    const sinonimos = SINONIMOS_TAGS[tag.toLowerCase()] || []
+    if (sinonimos.some((s) => s.toLowerCase().includes(q) || q.includes(s.toLowerCase()))) return true
+  }
+  return false
+}
+
 export async function crearEjercicio(ej) {
   const { data: u } = await supabase.auth.getUser()
   const { data, error } = await supabase.from('ejercicios_biblioteca')
