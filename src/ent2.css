@@ -79,3 +79,58 @@
 .ent2-btn-del2 { font-size:13px; padding:4px 8px; border-radius:7px; border:1px solid #27272a; color:#a1a1aa; background:transparent; cursor:pointer; }
 .ent2-btn-del2:hover { border-color:#ef4444; color:#ef4444; }
 .line-clamp-1 { overflow:hidden; display:-webkit-box; -webkit-line-clamp:1; -webkit-box-orient:vertical; }
+.line-clamp-2 { overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
+
+/* ── Layout 2 columnas (desktop) ────────────────────── */
+.ent2-layout { display:grid; grid-template-columns:1fr; gap:14px; }
+@media(min-width:960px) { .ent2-layout { grid-template-columns:260px 1fr; align-items:start; } }
+
+/* ── Sidebar semana ──────────────────────────────────── */
+.ent2-week-side { display:flex; flex-direction:column; gap:8px; }
+.ent2-week-side-h { font-size:10px; font-weight:800; color:#71717a; text-transform:uppercase; letter-spacing:1.2px; padding:0 4px 4px; display:flex; align-items:center; justify-content:space-between; }
+.ent2-week-card { background:#1c1c20; border:1.5px solid #27272a; border-radius:12px; padding:12px 13px; cursor:pointer; transition:all .15s; }
+.ent2-week-card:hover { border-color:#3f3f46; }
+.ent2-week-card.active { border-color:#2dd4bf; background:rgba(45,212,191,.06); }
+.ent2-week-card-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; }
+.ent2-week-card-day { font-size:13px; font-weight:800; color:#fff; }
+.ent2-week-card.active .ent2-week-card-day { color:#2dd4bf; }
+.ent2-week-card-badge { font-size:9px; font-weight:800; padding:2px 7px; border-radius:5px; letter-spacing:.4px; }
+.ent2-week-card-badge.ok { background:rgba(34,197,94,.14); color:#4ade80; }
+.ent2-week-card-badge.pend { background:rgba(245,158,11,.14); color:#f59e0b; }
+.ent2-week-card-badge.empty { background:rgba(113,113,122,.12); color:#71717a; }
+.ent2-week-card-sub { font-size:10.5px; color:#71717a; margin-bottom:8px; }
+.ent2-week-card-list { display:flex; flex-direction:column; gap:3px; }
+.ent2-week-card-item { display:flex; align-items:center; justify-content:space-between; gap:6px; font-size:10.5px; color:#a1a1aa; }
+.ent2-week-card-item-dot { display:inline-block; width:6px; height:6px; border-radius:50%; margin-right:5px; vertical-align:middle; }
+.ent2-week-card-item-min { color:#71717a; font-size:10px; font-weight:600; }
+.ent2-week-card-empty { font-size:10.5px; color:#52525b; font-style:italic; }
+
+/* ── KPIs sesión ──────────────────────────────────────── */
+.ent2-kpis { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-bottom:14px; }
+@media(max-width:640px) { .ent2-kpis { grid-template-columns:repeat(2,1fr); } }
+.ent2-kpi { background:#141416; border:1px solid #27272a; border-radius:10px; padding:10px 12px; min-width:0; }
+.ent2-kpi-label { display:flex; align-items:center; gap:5px; font-size:10px; font-weight:700; color:#71717a; text-transform:uppercase; letter-spacing:.5px; margin-bottom:5px; }
+.ent2-kpi-val { font-size:16px; font-weight:800; color:#fafafa; line-height:1.15; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.ent2-kpi-val.accent { color:#2dd4bf; }
+
+/* ── Timeline ejercicios ──────────────────────────────── */
+.ent2-tl { display:flex; flex-direction:column; gap:10px; }
+.ent2-tl-item { display:flex; gap:10px; background:#0f0f11; border:1px solid #27272a; border-radius:12px; padding:10px; align-items:flex-start; }
+.ent2-tl-item:hover { border-color:#3f3f46; }
+.ent2-tl-num { flex-shrink:0; width:34px; display:flex; flex-direction:column; align-items:center; gap:4px; padding-top:4px; }
+.ent2-tl-num-badge { width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:900; color:#0f0f11; }
+.ent2-tl-num-min { font-size:10px; font-weight:700; color:#a1a1aa; }
+.ent2-tl-thumb { flex-shrink:0; width:88px; height:56px; border-radius:8px; overflow:hidden; background:repeating-linear-gradient(90deg,#1c8043 0 25%,#1a7a3f 25% 50%); border:1px solid #27272a; position:relative; }
+.ent2-tl-thumb img { width:100%; height:100%; object-fit:cover; display:block; }
+.ent2-tl-thumb-empty { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:18px; }
+.ent2-tl-body { flex:1; min-width:0; }
+.ent2-tl-title { font-size:13px; font-weight:700; color:#fafafa; line-height:1.3; margin-bottom:4px; }
+.ent2-tl-meta { display:flex; gap:8px; align-items:center; flex-wrap:wrap; font-size:10.5px; }
+.ent2-tl-cat { font-size:9px; font-weight:800; letter-spacing:.5px; text-transform:uppercase; padding:2px 7px; border-radius:5px; }
+.ent2-tl-info { color:#a1a1aa; font-weight:600; }
+.ent2-tl-intens { font-weight:700; }
+.ent2-tl-intens.baja { color:#22c55e; }
+.ent2-tl-intens.media { color:#f59e0b; }
+.ent2-tl-intens.alta { color:#ef4444; }
+.ent2-tl-menu { flex-shrink:0; align-self:flex-start; background:transparent; color:#71717a; border:none; font-size:16px; cursor:pointer; padding:4px 6px; line-height:1; }
+.ent2-tl-menu:hover { color:#fafafa; }

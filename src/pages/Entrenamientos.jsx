@@ -317,10 +317,55 @@ ${ses.notas ? `<div class="notas"><h3>Notas del entrenador</h3><p>${ses.notas}</
         />
       )}
 
-      {vistaTab === 'sesiones' && <>
+      {vistaTab === 'sesiones' && <div className="ent2-layout">
 
-      {/* ── Tabs días ── */}
-      <div className="ent2-day-tabs mb-4">
+      {/* ── Sidebar semana (desktop) ── */}
+      <aside className="ent2-week-side hidden lg:flex">
+        <div className="ent2-week-side-h">
+          <span>Semana actual</span>
+          <span style={{ color:'#a1a1aa' }}>{minS}′</span>
+        </div>
+        {isos.map((d, i) => {
+          const ses_i = dias[d] || { ejercicios: [], id: null, objetivo: '' }
+          const tiene = ses_i.ejercicios.length > 0
+          const minDia = dur(d)
+          const activo = diaSel === i
+          const badge = ses_i.id ? { cls: 'ok', txt: '✓ Completado' } : tiene ? { cls: 'pend', txt: 'Pendiente' } : { cls: 'empty', txt: '—' }
+          return (
+            <div key={d} className={`ent2-week-card ${activo ? 'active' : ''}`} onClick={() => setDiaSel(i)}>
+              <div className="ent2-week-card-top">
+                <span className="ent2-week-card-day">{DIAS_L[i]}</span>
+                <span className={`ent2-week-card-badge ${badge.cls}`}>{badge.txt}</span>
+              </div>
+              <div className="ent2-week-card-sub">{fCorta(d)} · {minDia}′</div>
+              <div className="ent2-week-card-list">
+                {ses_i.ejercicios.length === 0 ? (
+                  <span className="ent2-week-card-empty">Sin ejercicios</span>
+                ) : ses_i.ejercicios.slice(0, 4).map((x, k) => {
+                  const color = COLOR_CAT[x.categoria] || '#2dd4bf'
+                  return (
+                    <div key={k} className="ent2-week-card-item">
+                      <span className="truncate flex items-center" style={{ minWidth:0 }}>
+                        <span className="ent2-week-card-item-dot" style={{ background: color }} />
+                        <span className="truncate">{x.nombre}</span>
+                      </span>
+                      <span className="ent2-week-card-item-min">{x.duracion_min}′</span>
+                    </div>
+                  )
+                })}
+                {ses_i.ejercicios.length > 4 && (
+                  <span className="ent2-week-card-empty">+{ses_i.ejercicios.length - 4} más</span>
+                )}
+              </div>
+            </div>
+          )
+        })}
+      </aside>
+
+      <div className="min-w-0">
+
+      {/* ── Tabs días (móvil) ── */}
+      <div className="ent2-day-tabs mb-4 lg:hidden">
         {isos.map((d, i) => {
           const tiene = (dias[d]?.ejercicios || []).length > 0
           return (
@@ -343,8 +388,8 @@ ${ses.notas ? `<div class="notas"><h3>Notas del entrenador</h3><p>${ses.notas}</
         {/* Cabecera del día */}
         <div className="flex items-start justify-between mb-3 gap-2 flex-wrap">
           <div>
-            <div className="text-base font-extrabold">{DIAS_L[diaSel]}</div>
-            <div className="text-[11px] text-muted">{fCorta(isoS)} · {dur(isoS)} min totales</div>
+            <div className="text-base font-extrabold">Sesión · {DIAS_L[diaSel]} {fCorta(isoS)}</div>
+            <div className="text-[11px] text-muted">{ses.ejercicios.length} ejercicios</div>
           </div>
           <div className="flex gap-1.5 flex-wrap justify-end">
             <button className="ent2-btn-ia" onClick={iaDia}>✨ IA</button>
@@ -360,7 +405,27 @@ ${ses.notas ? `<div class="notas"><h3>Notas del entrenador</h3><p>${ses.notas}</
           </div>
         </div>
 
-        {/* Objetivo */}
+        {/* KPIs */}
+        <div className="ent2-kpis">
+          <div className="ent2-kpi">
+            <div className="ent2-kpi-label">⏱ Duración</div>
+            <div className="ent2-kpi-val accent">{dur(isoS)}′</div>
+          </div>
+          <div className="ent2-kpi">
+            <div className="ent2-kpi-label">🏋 Ejercicios</div>
+            <div className="ent2-kpi-val">{ses.ejercicios.length}</div>
+          </div>
+          <div className="ent2-kpi">
+            <div className="ent2-kpi-label">👥 Plantilla</div>
+            <div className="ent2-kpi-val">{jugadores.length}</div>
+          </div>
+          <div className="ent2-kpi" title={ses.objetivo || 'Sin objetivo'}>
+            <div className="ent2-kpi-label">🎯 Objetivo</div>
+            <div className="ent2-kpi-val" style={{ fontSize:13, fontWeight:700 }}>{ses.objetivo || '—'}</div>
+          </div>
+        </div>
+
+        {/* Objetivo (editable) */}
         <input
           className="ent2-obj-input mb-3"
           placeholder="Objetivo del día (ej: Trabajo táctico defensivo)…"
@@ -368,54 +433,62 @@ ${ses.notas ? `<div class="notas"><h3>Notas del entrenador</h3><p>${ses.notas}</
           onChange={(e) => upd(isoS, { objetivo: e.target.value })}
         />
 
-        {/* Lista de ejercicios con descripción completa */}
+        {/* Timeline de ejercicios */}
         {ses.ejercicios.length === 0 ? (
           <div className="ent2-empty">Sin ejercicios · Pulsa <b className="text-cyan">+ Añadir ejercicio</b> abajo</div>
         ) : (
-          <div className="space-y-3 mb-3">
+          <div className="ent2-tl mb-3">
             {ses.ejercicios.map((x, k) => {
               const color = COLOR_CAT[x.categoria] || '#2dd4bf'
+              const inten = (x.intensidad || 'Media').toLowerCase()
+              const [expandido, ] = [false, null]
               return (
-                <div key={k} className="ent2-ej-card">
-                  {/* Número + nombre + borrar */}
-                  <div className="ent2-ejc-top">
-                    <span className="ent2-ejc-num" style={{ background: color }}>{k + 1}</span>
-                    <div className="flex-1 min-w-0">
-                      <div className="ent2-ejc-nombre">{x.nombre}</div>
-                      <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                        <span className="ent2-ejc-cat" style={{ background: color + '22', color }}>{x.categoria}</span>
-                        <span className="text-[11px] text-muted">⏱ {x.duracion_min} min</span>
-                        <span className="text-[11px] text-muted">🔥 {x.intensidad}</span>
-                        {x.zona_muscular && <span className="text-[11px] text-muted">💪 {x.zona_muscular}</span>}
+                <details key={k} className="ent2-tl-item" style={{ display:'block' }}>
+                  <summary style={{ display:'flex', gap:10, alignItems:'flex-start', cursor:'pointer', listStyle:'none' }}>
+                    <div className="ent2-tl-num">
+                      <div className="ent2-tl-num-badge" style={{ background: color }}>{k + 1}</div>
+                      <div className="ent2-tl-num-min">{x.duracion_min}′</div>
+                    </div>
+                    <div className="ent2-tl-thumb">
+                      {x.imagen_url ? (
+                        <img src={x.imagen_url} alt={x.nombre} />
+                      ) : (
+                        <div className="ent2-tl-thumb-empty">⚽</div>
+                      )}
+                    </div>
+                    <div className="ent2-tl-body">
+                      <div className="ent2-tl-title">{x.nombre}</div>
+                      <div className="ent2-tl-meta">
+                        <span className="ent2-tl-cat" style={{ background: color + '22', color }}>{x.categoria}</span>
+                        <span className="ent2-tl-info">👥 {(x.jugadores || []).length || jugadores.length}</span>
+                        <span className={`ent2-tl-intens ${inten}`}>🔥 {x.intensidad}</span>
                       </div>
                     </div>
-                    <button className="ent2-ejc-del" onClick={() => delEj(k)}>✕</button>
-                  </div>
+                    <button className="ent2-tl-menu" onClick={(e) => { e.preventDefault(); e.stopPropagation(); delEj(k) }} title="Quitar">✕</button>
+                  </summary>
 
-                  {/* Descripción editable */}
-                  <div className="mt-2">
+                  {/* Detalle expandido: descripción + duración editable */}
+                  <div style={{ marginTop:10, paddingTop:10, borderTop:'1px solid #27272a' }}>
                     <div className="text-[10px] text-muted uppercase tracking-wide mb-1 font-semibold">Descripción / instrucciones</div>
                     <textarea
                       className="ent2-desc-input"
                       rows={3}
-                      placeholder="Describe cómo se ejecuta este ejercicio: materiales, reglas, variantes, tiempo por serie…"
+                      placeholder="Describe cómo se ejecuta este ejercicio: materiales, reglas, variantes…"
                       value={x.descripcion || ''}
                       onChange={(e) => updEj(k, 'descripcion', e.target.value)}
                     />
+                    <div className="flex items-center gap-3 mt-2">
+                      <label className="text-[11px] text-muted">Duración:</label>
+                      <input
+                        type="number" min={1} max={120}
+                        className="ent2-dur-input"
+                        value={x.duracion_min || 15}
+                        onChange={(e) => updEj(k, 'duracion_min', +e.target.value)}
+                      />
+                      <span className="text-[11px] text-muted">min</span>
+                    </div>
                   </div>
-
-                  {/* Duración editable inline */}
-                  <div className="flex items-center gap-3 mt-2">
-                    <label className="text-[11px] text-muted">Duración:</label>
-                    <input
-                      type="number" min={1} max={120}
-                      className="ent2-dur-input"
-                      value={x.duracion_min || 15}
-                      onChange={(e) => updEj(k, 'duracion_min', +e.target.value)}
-                    />
-                    <span className="text-[11px] text-muted">min</span>
-                  </div>
-                </div>
+                </details>
               )
             })}
           </div>
@@ -498,7 +571,8 @@ ${ses.notas ? `<div class="notas"><h3>Notas del entrenador</h3><p>${ses.notas}</
         </div>
       </div>
 
-      </>}
+      </div>
+      </div>}
 
       {/* ── Modal gestión biblioteca ── */}
       {showGestion && (
