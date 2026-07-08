@@ -127,7 +127,11 @@
 /* ── MOBILE: ocultar desktop, mostrar mobile layout ── */
 @media (max-width:768px) {
   .ev2-desktop-only { display: none !important; }
-  .ev2-mobile-layout { display: block; }
+  .ev2-mobile-layout {
+    display: block;
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
 
   /* Campo más alto en móvil para que los jugadores no queden apilados */
   .ev2-pitch { aspect-ratio: 4/3; }
