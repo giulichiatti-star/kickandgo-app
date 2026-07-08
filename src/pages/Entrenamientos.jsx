@@ -217,6 +217,9 @@ export default function Entrenamientos() {
     const club  = perfil?.club_nombre || 'Mi Equipo'
     const fecha = fLarga(isoS)
     const total = dur(isoS)
+    const origin = window.location.origin
+    const imgSrc = (u) => u ? (u.startsWith('http') ? u : origin + u) : ''
+    const tagsHtml = (arr, cls) => (arr || []).map(t => `<span class="tag ${cls}">${t}</span>`).join('')
     const items = ses.ejercicios.map((x, i) => `
       <div class="ej">
         <div class="ej-head">
@@ -226,7 +229,14 @@ export default function Entrenamientos() {
             <div class="ej-meta">${x.categoria} &nbsp;·&nbsp; ${x.duracion_min} min &nbsp;·&nbsp; Intensidad: ${x.intensidad}${x.zona_muscular ? ' &nbsp;·&nbsp; ' + x.zona_muscular : ''}</div>
           </div>
         </div>
+        ${x.imagen_url ? `<div class="ej-img"><img src="${imgSrc(x.imagen_url)}" alt="${x.nombre}"/></div>` : ''}
+        ${x.complejidad ? `<div class="ej-block"><div class="ej-block-h">Complejidad</div><div class="ej-block-b">${x.complejidad}</div></div>` : ''}
+        ${x.competitividad ? `<div class="ej-block"><div class="ej-block-h">Competitividad</div><div class="ej-block-b">${x.competitividad}</div></div>` : ''}
         ${x.descripcion ? `<div class="ej-desc">${x.descripcion}</div>` : ''}
+        ${(x.tags_ofensivos?.length || x.tags_defensivos?.length) ? `<div class="ej-tags">
+          ${x.tags_ofensivos?.length ? `<div class="ej-tag-col"><div class="ej-tag-h">Ofensivos</div><div class="ej-tag-b">${tagsHtml(x.tags_ofensivos, 'of')}</div></div>` : ''}
+          ${x.tags_defensivos?.length ? `<div class="ej-tag-col"><div class="ej-tag-h">Defensivos</div><div class="ej-tag-b">${tagsHtml(x.tags_defensivos, 'def')}</div></div>` : ''}
+        </div>` : ''}
       </div>`).join('')
 
     const html = `<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">
@@ -237,12 +247,23 @@ export default function Entrenamientos() {
   h1{font-size:22px;font-weight:800;margin-bottom:4px}
   .sub{font-size:13px;color:#555;margin-bottom:20px}
   .obj{background:#f0fdf4;border-left:4px solid #16a34a;padding:10px 14px;border-radius:6px;font-size:13px;font-weight:600;color:#15803d;margin-bottom:20px}
-  .ej{border:1px solid #e5e7eb;border-radius:10px;padding:14px 16px;margin-bottom:12px;break-inside:avoid}
-  .ej-head{display:flex;gap:12px;align-items:flex-start;margin-bottom:8px}
+  .ej{border:1px solid #e5e7eb;border-radius:10px;padding:14px 16px;margin-bottom:14px;break-inside:avoid;page-break-inside:avoid}
+  .ej-head{display:flex;gap:12px;align-items:flex-start;margin-bottom:10px}
   .ej-num{width:28px;height:28px;border-radius:50%;background:#111;color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0}
   .ej-nombre{font-size:14px;font-weight:700;line-height:1.2}
   .ej-meta{font-size:11px;color:#6b7280;margin-top:3px}
-  .ej-desc{font-size:12.5px;color:#374151;line-height:1.6;background:#f9fafb;border-radius:6px;padding:8px 10px}
+  .ej-img{margin:0 0 10px;border-radius:8px;overflow:hidden;border:1px solid #e5e7eb}
+  .ej-img img{width:100%;display:block;max-height:340px;object-fit:contain;background:#0f5132}
+  .ej-block{margin:6px 0}
+  .ej-block-h{font-size:10px;font-weight:800;color:#059669;text-transform:uppercase;letter-spacing:.6px;margin-bottom:3px}
+  .ej-block-b{font-size:12px;color:#374151;line-height:1.55}
+  .ej-desc{font-size:12.5px;color:#374151;line-height:1.6;background:#f9fafb;border-radius:6px;padding:8px 10px;margin-top:8px}
+  .ej-tags{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px}
+  .ej-tag-h{font-size:10px;font-weight:800;color:#6b7280;text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px}
+  .ej-tag-b{display:flex;flex-wrap:wrap;gap:4px}
+  .tag{font-size:10px;font-weight:600;padding:2px 7px;border-radius:5px;border:1px solid}
+  .tag.of{color:#065f46;background:#d1fae5;border-color:#a7f3d0}
+  .tag.def{color:#991b1b;background:#fee2e2;border-color:#fecaca}
   .notas{border:1px solid #e5e7eb;border-radius:10px;padding:14px;margin-top:20px}
   .notas h3{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#6b7280;margin-bottom:8px}
   .notas p{font-size:13px;color:#374151;line-height:1.6;white-space:pre-wrap}
@@ -263,7 +284,17 @@ ${ses.notas ? `<div class="notas"><h3>Notas del entrenador</h3><p>${ses.notas}</
     w.document.write(html)
     w.document.close()
     w.focus()
-    setTimeout(() => w.print(), 500)
+    // Esperar a que carguen todas las imágenes antes de imprimir para que no salga en blanco
+    const doPrint = () => { try { w.print() } catch {} }
+    const imgs = w.document.images
+    if (!imgs.length) return setTimeout(doPrint, 400)
+    let pend = imgs.length
+    const done = () => { if (--pend <= 0) setTimeout(doPrint, 200) }
+    Array.from(imgs).forEach((im) => {
+      if (im.complete) done()
+      else { im.onload = done; im.onerror = done }
+    })
+    setTimeout(doPrint, 4000) // fallback si alguna imagen no responde
   }
 
   /* Biblioteca filtrada */
@@ -467,8 +498,33 @@ ${ses.notas ? `<div class="notas"><h3>Notas del entrenador</h3><p>${ses.notas}</
                     <button className="ent2-tl-menu" onClick={(e) => { e.preventDefault(); e.stopPropagation(); delEj(k) }} title="Quitar">✕</button>
                   </summary>
 
-                  {/* Detalle expandido: descripción + duración editable */}
+                  {/* Detalle expandido: campo grande + descripción + duración editable */}
                   <div style={{ marginTop:10, paddingTop:10, borderTop:'1px solid #27272a' }}>
+                    {x.imagen_url && (
+                      <div style={{ marginBottom:12, borderRadius:10, overflow:'hidden', border:'1px solid #27272a', background:'#0f0f11' }}>
+                        <img src={x.imagen_url} alt={x.nombre} style={{ width:'100%', display:'block', maxHeight:420, objectFit:'contain' }} />
+                      </div>
+                    )}
+                    {(x.tags_ofensivos?.length > 0 || x.tags_defensivos?.length > 0) && (
+                      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:12 }}>
+                        {x.tags_ofensivos?.length > 0 && (
+                          <div>
+                            <div className="text-[10px] text-muted uppercase tracking-wide mb-1 font-semibold">Ofensivos</div>
+                            <div style={{ display:'flex', flexWrap:'wrap', gap:4 }}>
+                              {x.tags_ofensivos.map(t => <span key={t} style={{ fontSize:10, fontWeight:600, color:'#6ee7b7', background:'rgba(16,185,129,.1)', border:'1px solid rgba(16,185,129,.3)', padding:'2px 7px', borderRadius:5 }}>{t}</span>)}
+                            </div>
+                          </div>
+                        )}
+                        {x.tags_defensivos?.length > 0 && (
+                          <div>
+                            <div className="text-[10px] text-muted uppercase tracking-wide mb-1 font-semibold">Defensivos</div>
+                            <div style={{ display:'flex', flexWrap:'wrap', gap:4 }}>
+                              {x.tags_defensivos.map(t => <span key={t} style={{ fontSize:10, fontWeight:600, color:'#fca5a5', background:'rgba(239,68,68,.1)', border:'1px solid rgba(239,68,68,.3)', padding:'2px 7px', borderRadius:5 }}>{t}</span>)}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
                     <div className="text-[10px] text-muted uppercase tracking-wide mb-1 font-semibold">Descripción / instrucciones</div>
                     <textarea
                       className="ent2-desc-input"
