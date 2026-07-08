@@ -58,6 +58,12 @@ function norm(e) {
     intensidad:   e.intensidad || 'Media',
     zona_muscular:e.zona_muscular || e.zona || '',
     es_base:      e.es_base ?? false,
+    imagen_url:   e.imagen_url || null,
+    tags_ofensivos: e.tags_ofensivos || [],
+    tags_defensivos: e.tags_defensivos || [],
+    complejidad:  e.complejidad || '',
+    competitividad: e.competitividad || '',
+    jugadores:    e.jugadores || [],
   }
 }
 
@@ -190,6 +196,22 @@ export default function Entrenamientos() {
   const delEj   = (i) => upd(isoS, { ejercicios: ses.ejercicios.filter((_, k) => k !== i) })
   const updEj   = (i, campo, val) => upd(isoS, { ejercicios: ses.ejercicios.map((x, k) => k === i ? { ...x, [campo]: val } : x) })
 
+  // Añade un ejercicio base a un día específico con overrides personalizados.
+  // Preserva imagen_url + tags + complejidad + competitividad para el panel de la sesión.
+  const addEjercicioBase = (diaISO, ej, overrides) => {
+    const actual = dias[diaISO]?.ejercicios || []
+    const nuevo = norm({
+      ...ej,
+      id: undefined,          // dentro de la sesión no conserva el id de biblioteca
+      duracion_min: overrides.duracion_min ?? ej.duracion_min ?? 15,
+      intensidad: overrides.intensidad ?? ej.intensidad ?? 'Media',
+      jugadores: overrides.jugadores || [],
+    })
+    upd(diaISO, { ejercicios: [...actual, nuevo] })
+    setMsg(`✓ Añadido a ${DIAS_L[isos.indexOf(diaISO)] || 'la sesión'}`)
+    setTimeout(() => setMsg(''), 3500)
+  }
+
   /* PDF */
   function imprimirPDF() {
     const club  = perfil?.club_nombre || 'Mi Equipo'
@@ -285,7 +307,15 @@ ${ses.notas ? `<div class="notas"><h3>Notas del entrenador</h3><p>${ses.notas}</
         </button>
       </div>
 
-      {vistaTab === 'base' && <EjerciciosBaseView />}
+      {vistaTab === 'base' && (
+        <EjerciciosBaseView
+          isos={isos}
+          dias={dias}
+          diaSel={diaSel}
+          jugadores={jugadores}
+          onAddEjercicio={addEjercicioBase}
+        />
+      )}
 
       {vistaTab === 'sesiones' && <>
 
@@ -700,7 +730,7 @@ function GestionBiblioteca({ biblioteca, onClose, onRefrescar, crearEjercicio, a
 }
 
 /* ══ Biblioteca de ejercicios base (pestaña) ═══════════════ */
-function EjerciciosBaseView() {
+function EjerciciosBaseView({ isos, dias, diaSel, jugadores, onAddEjercicio }) {
   const [ejercicios, setEjercicios] = useState([])
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
@@ -781,7 +811,19 @@ function EjerciciosBaseView() {
         </div>
       )}
 
-      {seleccionado && <EjercicioBaseModal ejercicio={seleccionado} onClose={() => setSeleccionado(null)} />}
+      {seleccionado && (
+        <EjercicioBaseModal
+          ejercicio={seleccionado}
+          onClose={() => setSeleccionado(null)}
+          isos={isos}
+          diaSel={diaSel}
+          jugadores={jugadores}
+          onAdd={(diaISO, overrides) => {
+            onAddEjercicio(diaISO, seleccionado, overrides)
+            setSeleccionado(null)
+          }}
+        />
+      )}
     </div>
   )
 }
