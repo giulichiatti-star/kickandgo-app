@@ -65,6 +65,28 @@ function p(text: string) {
   return `<p style="font-size:14px;color:#52525b;line-height:1.65;margin:0 0 12px">${text}</p>`
 }
 
+// Email sin bloque de pago (para onboarding/tips durante la prueba)
+function wrapEmailInfo(badge: string, badgeBg: string, badgeFg: string, title: string, body: string) {
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f4f4f5;font-family:Arial,sans-serif">
+<table width="100%" cellpadding="0" cellspacing="0" style="padding:32px 16px"><tr><td align="center">
+<table width="100%" style="max-width:520px;background:#fff;border-radius:12px;border:1px solid #e4e4e7;overflow:hidden">
+<tr><td style="padding:22px 32px 20px;border-bottom:1px solid #f0f0f0;text-align:center">${LOGO}</td></tr>
+<tr><td style="padding:28px 32px">
+  <span style="display:inline-block;padding:3px 12px;border-radius:100px;font-size:11px;font-weight:600;background:${badgeBg};color:${badgeFg};margin-bottom:14px">${badge}</span>
+  <h1 style="font-size:20px;font-weight:500;color:#18181b;margin:0 0 14px;line-height:1.35">${title}</h1>
+  ${body}
+  <p style="font-size:14px;color:#52525b;line-height:1.65;margin:22px 0 0">
+    Un saludo,<br>
+    <b style="color:#18181b">Lucas</b><br>
+    <span style="color:#71717a;font-size:12px">Fundador de Kick and Go</span>
+  </p>
+</td></tr>
+</table>
+</td></tr></table>
+</body></html>`
+}
+
 Deno.serve(async () => {
   const today = new Date(); today.setHours(0, 0, 0, 0)
 
@@ -93,6 +115,20 @@ Deno.serve(async () => {
 
     // ── EN PRUEBA ─────────────────────────────────────────────────
     if (p_.plan_estado === 'prueba' && p_.prueba_vence) {
+
+      // Día 3 de la prueba (11 días antes de vencer, prueba de 14 días)
+      if (dayOffset(p_.prueba_vence, 11)) {
+        const html = wrapEmailInfo(
+          'Tips para tu equipo', '#dcfce7', '#166534',
+          '3 cosas que la mayoría descubre en su primera semana',
+          p(`Hola ${nombre}, llevas unos días con Kick and Go — te dejo 3 funciones que suelen sorprender a los entrenadores:`) +
+          p(`<b>1. Voz en En Vivo</b> — durante el partido di <i>"Gol de Mateo"</i> o <i>"Amarilla al 8"</i> y queda registrado. Cero botones.`) +
+          p(`<b>2. Convocatoria como pizarra táctica</b> — arrastra jugadores a la formación, mándala por WhatsApp con un clic.`) +
+          p(`<b>3. Análisis IA</b> — el asistente estudia tus partidos y sugiere qué mejorar, formaciones óptimas y rivales complicados.`) +
+          p(`¿Alguna duda concreta? Respóndeme a este email.`)
+        )
+        if (await sendEmail(email, '3 funciones que quizá no has probado — Kick and Go', html)) sent++
+      }
 
       if (dayOffset(p_.prueba_vence, 3)) {
         const html = wrapEmail(

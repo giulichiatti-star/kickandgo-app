@@ -89,7 +89,7 @@ export async function listarAvisosPago() {
   return data || []
 }
 
-export async function confirmarAviso(aviso) {
+export async function confirmarAviso(aviso, { enviarEmail = false } = {}) {
   // 1. Marcar notificación como confirmada
   const { error: errNotif } = await supabase
     .from('payment_notifications')
@@ -105,4 +105,10 @@ export async function confirmarAviso(aviso) {
     .single()
   if (errCuenta) throw errCuenta
   await marcarPagado(cuenta)
+
+  // 3. Opcional: email de confirmación al cliente
+  if (enviarEmail) {
+    try { await supabase.functions.invoke('enviar-confirmacion-pago', { body: { userId: aviso.user_id } }) }
+    catch (e) { console.error('Email confirmación falló:', e) }
+  }
 }

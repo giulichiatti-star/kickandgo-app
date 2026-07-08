@@ -11,7 +11,7 @@ const APP_URL = 'https://kickandgo.app'
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 const resend = new Resend(RESEND_API_KEY)
 
-const DIAS_PRUEBA = 15
+const DIAS_PRUEBA = 14
 
 function generarPassword() {
   return crypto.randomUUID().replace(/-/g, '').slice(0, 12)
@@ -61,7 +61,7 @@ function emailBienvenida(nombre: string, email: string, password: string) {
           </table>
 
           <!-- CTA -->
-          <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
+          <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:32px;">
             <tr><td align="center">
               <a href="${APP_URL}/login" style="display:inline-block;background:#10b981;color:#022c22;font-size:16px;font-weight:800;text-decoration:none;padding:16px 40px;border-radius:12px;">
                 Entrar a KickAndGo →
@@ -69,9 +69,29 @@ function emailBienvenida(nombre: string, email: string, password: string) {
             </td></tr>
           </table>
 
-          <p style="margin:0;font-size:13px;color:#52525b;line-height:1.6;">
+          <!-- TIPS -->
+          <div style="font-size:11px;font-weight:700;color:#10b981;letter-spacing:2px;text-transform:uppercase;margin-bottom:14px;">Para empezar rápido</div>
+          <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
+            <tr><td style="padding:0 0 14px;font-size:14px;color:#d4d4d8;line-height:1.6;">
+              <b style="color:#fafafa;">1. Añade tu plantilla</b> en la sección Plantilla (o importa por CSV si ya la tienes).
+            </td></tr>
+            <tr><td style="padding:0 0 14px;font-size:14px;color:#d4d4d8;line-height:1.6;">
+              <b style="color:#fafafa;">2. Registra un partido</b> para ver estadísticas al instante.
+            </td></tr>
+            <tr><td style="padding:0;font-size:14px;color:#d4d4d8;line-height:1.6;">
+              <b style="color:#fafafa;">3. Prueba En Vivo</b> el día del próximo partido — se controla desde el móvil.
+            </td></tr>
+          </table>
+
+          <p style="margin:0 0 20px;font-size:13px;color:#52525b;line-height:1.6;">
             Te recomendamos cambiar la contraseña desde Ajustes una vez dentro.
-            Si tienes cualquier duda, responde a este email y te ayudamos.
+            Si necesitas ayuda con algo, responde a este email y te respondemos.
+          </p>
+
+          <p style="margin:0;font-size:14px;color:#a1a1aa;line-height:1.6;">
+            Un saludo,<br>
+            <b style="color:#fafafa;">Lucas</b><br>
+            <span style="color:#71717a;font-size:12px;">Fundador de Kick and Go</span>
           </p>
         </td></tr>
 

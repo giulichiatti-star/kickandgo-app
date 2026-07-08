@@ -471,6 +471,7 @@ function TabPagos() {
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
   const [procesando, setProcesando] = useState(null)
+  const [enviarEmail, setEnviarEmail] = useState({}) // { [avisoId]: boolean }
   const [modalConfirm, confirmar] = useConfirm()
 
   async function recargar() {
@@ -482,11 +483,12 @@ function TabPagos() {
   useEffect(() => { recargar() }, [])
 
   async function accionConfirmar(aviso) {
+    const conEmail = !!enviarEmail[aviso.id]
     confirmar(
-      `¿Confirmar pago de ${aviso.profiles?.club_nombre || aviso.user_id} por ${aviso.metodo}? Se marcará la cuenta como pagada automáticamente.`,
+      `¿Confirmar pago de ${aviso.profiles?.club_nombre || aviso.user_id} por ${aviso.metodo}? Se marcará la cuenta como pagada automáticamente${conEmail ? ' y se enviará email al cliente' : ''}.`,
       async () => {
         setProcesando(aviso.id)
-        try { await confirmarAviso(aviso); recargar() }
+        try { await confirmarAviso(aviso, { enviarEmail: conEmail }); recargar() }
         catch (e) { setError(e.message) }
         finally { setProcesando(null) }
       }
@@ -527,12 +529,22 @@ function TabPagos() {
                     </span>
                   </div>
                 </div>
-                <button
-                  className="btn btn-primary text-xs"
-                  disabled={procesando === a.id}
-                  onClick={() => accionConfirmar(a)}>
-                  {procesando === a.id ? '…' : '✅ Confirmar pago'}
-                </button>
+                <div className="flex items-center gap-3">
+                  <label className="flex items-center gap-1.5 text-[11px] text-muted cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={!!enviarEmail[a.id]}
+                      onChange={(e) => setEnviarEmail(s => ({ ...s, [a.id]: e.target.checked }))}
+                    />
+                    Enviar email
+                  </label>
+                  <button
+                    className="btn btn-primary text-xs"
+                    disabled={procesando === a.id}
+                    onClick={() => accionConfirmar(a)}>
+                    {procesando === a.id ? '…' : '✅ Confirmar pago'}
+                  </button>
+                </div>
               </div>
             ))}
           </div>
