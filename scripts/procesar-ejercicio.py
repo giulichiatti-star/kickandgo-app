@@ -41,6 +41,40 @@ def cover_with_patch(im, box, dx, dy):
     im.paste(patch, (x1, y1), mask)
 
 
+def fill_white_bands(im):
+    """Detecta franjas blancas en los bordes (arriba/abajo) — típicas cuando el modal
+    no llena todo el recorte — y las rellena con textura de césped adyacente."""
+    px = im.load()
+    W, H = im.size
+
+    def is_white_row(y, thr=0.85):
+        white = 0
+        for x in range(0, W, 3):  # muestreo cada 3px
+            r, g, b = px[x, y]
+            if r > 220 and g > 220 and b > 220:
+                white += 1
+        return white / (W // 3) > thr
+
+    # Franja inferior
+    bottom = H - 1
+    while bottom > H // 2 and is_white_row(bottom):
+        bottom -= 1
+    if bottom < H - 3:
+        # Copiar la última fila verde y estirarla hacia abajo
+        good_strip = im.crop((0, max(0, bottom - 30), W, bottom + 1))
+        for y in range(bottom + 1, H, 30):
+            im.paste(good_strip, (0, y))
+
+    # Franja superior
+    top = 0
+    while top < H // 2 and is_white_row(top):
+        top += 1
+    if top > 3:
+        good_strip = im.crop((0, top, W, min(H, top + 30)))
+        for y in range(0, top, 30):
+            im.paste(good_strip, (0, y - 30 if y >= 30 else 0))
+
+
 def procesar(src, dst):
     im = Image.open(src).convert('RGB')
     # Recorte si la imagen aún tiene tamaño de captura completa
@@ -50,6 +84,8 @@ def procesar(src, dst):
     cover_with_patch(im, STAR_BOX, 0, 65)
     # Eliminar botón "Ver vídeo" (parche de arriba hacia abajo)
     cover_with_patch(im, VIDEO_BOX, 0, -80)
+    # Rellenar bandas blancas del modal (si el modal no llenaba todo el recorte)
+    fill_white_bands(im)
     os.makedirs(os.path.dirname(dst), exist_ok=True)
     im.save(dst, 'JPEG', quality=92)
 
