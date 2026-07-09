@@ -21,8 +21,9 @@ from PIL import Image, ImageFilter, ImageDraw
 
 # Coordenadas fijas para capturas de 1280x800 del web alonbalon
 CROP_BOX = (172, 220, 172 + 573, 220 + 325)  # left, top, right, bottom
-STAR_BOX = (5, 5, 55, 55)
-VIDEO_BOX = (440, 275, 568, 320)
+STAR_BOX = (0, 0, 65, 65)
+# Ampliado en Y para cubrir modales desplazados (algunas capturas tienen el modal más arriba)
+VIDEO_BOX = (425, 245, 573, 325)
 
 
 def cover_with_patch(im, box, dx, dy):
