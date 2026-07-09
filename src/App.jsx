@@ -6,6 +6,7 @@ import Logo from './components/Logo'
 import Login from './pages/Login'
 import Privacidad from './pages/Privacidad'
 import Inicio from './pages/Inicio'
+import Calendario from './pages/Calendario'
 import Plantilla from './pages/Plantilla'
 import Convocatoria from './pages/Convocatoria'
 import EnVivo from './pages/EnVivo'
@@ -92,10 +93,12 @@ const IC = {
   clima:       <svg viewBox="0 0 24 24"><path d="M17.5 19H9a7 7 0 110-14 7 7 0 016.71 5H17.5a3.5 3.5 0 010 7z"/></svg>,
   asistente:   <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>,
   temporada:   <svg viewBox="0 0 24 24"><path d="M12 2l3 6.5L22 9.3l-5 4.8 1.2 6.9L12 17.7l-6.2 3.3L7 14.1 2 9.3l7-0.8z"/></svg>,
+  calendario:  <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>,
 }
 
 const NAV_PRINCIPAL = [
   { to: '/inicio',        label: 'Inicio',            svg: IC.inicio },
+  { to: '/calendario',    label: 'Calendario',        svg: IC.calendario },
   { to: '/plantilla',     label: 'Equipo',            svg: IC.equipo },
   { to: '/convocatoria',  label: 'Convocatoria',      svg: IC.convocatoria },
   { to: '/entrenamientos',label: 'Entrenamientos',    svg: IC.entrenos },
@@ -356,6 +359,7 @@ export default function App() {
     <Shell onLogout={logout} esAdmin={esAdmin}>
       <Routes>
         <Route path="/inicio" element={<Inicio />} />
+        <Route path="/calendario" element={<Calendario />} />
         <Route path="/plantilla" element={<Plantilla />} />
         <Route path="/convocatoria" element={<Convocatoria />} />
         <Route path="/envivo" element={<EnVivo />} />

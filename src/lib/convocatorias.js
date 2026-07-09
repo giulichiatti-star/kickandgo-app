@@ -16,6 +16,14 @@ export async function guardarConvocatoria({ rival, fecha, formacion, titulares, 
   return data
 }
 
+export async function listarConvocatorias(equipoId) {
+  let q = supabase.from('convocatorias').select('*').order('fecha', { ascending: true })
+  if (equipoId) q = q.eq('equipo_id', equipoId)
+  const { data, error } = await q
+  if (error) throw error
+  return data || []
+}
+
 export async function ultimaConvocatoria(equipoId) {
   let q = supabase.from('convocatorias').select('*').order('creado', { ascending: false }).limit(1)
   if (equipoId) q = q.eq('equipo_id', equipoId)
