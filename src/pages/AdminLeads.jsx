@@ -466,8 +466,8 @@ function TabCuentas() {
 
 // ───────────────────────── TAB PAGOS ─────────────────────────
 
-const PRECIO_STD = 19
-const PRECIO_FUND = 9
+const PRECIO_STD = 25
+const PRECIO_FUND = 20
 
 function TabPagos() {
   const [avisos, setAvisos] = useState([])
