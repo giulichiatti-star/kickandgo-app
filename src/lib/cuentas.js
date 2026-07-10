@@ -78,15 +78,20 @@ export async function eliminarCuenta(userId) {
 }
 
 export async function listarAvisosPago() {
-  const { data, error } = await supabase
+  // Join manual (sin depender del nombre de la FK en Supabase, que puede no estar declarada)
+  const { data: notif, error } = await supabase
     .from('payment_notifications')
-    .select(`
-      id, metodo, estado, creado_en, user_id,
-      profiles!payment_notifications_user_id_fkey(club_nombre, entrenador, email, plan_estado)
-    `)
+    .select('id, metodo, estado, creado_en, user_id')
     .order('creado_en', { ascending: false })
   if (error) throw error
-  return data || []
+  if (!notif?.length) return []
+  const ids = [...new Set(notif.map(n => n.user_id))]
+  const { data: profs } = await supabase
+    .from('profiles')
+    .select('id, club_nombre, entrenador, email, plan_estado')
+    .in('id', ids)
+  const map = Object.fromEntries((profs || []).map(p => [p.id, p]))
+  return notif.map(n => ({ ...n, profiles: map[n.user_id] || null }))
 }
 
 export async function confirmarAviso(aviso, { enviarEmail = false } = {}) {
