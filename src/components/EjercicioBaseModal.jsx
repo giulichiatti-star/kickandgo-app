@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import DiagramaEjercicio from './DiagramaEjercicio'
 
 const DIAS_CORTOS = ['Lu','Ma','Mi','Ju','Vi','Sá','Do']
 const DIAS_LARGOS = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo']
@@ -62,7 +63,7 @@ export default function EjercicioBaseModal({ ejercicio, onClose, isos, diaSel, j
                 <img src={ejercicio.imagen_url} alt={ejercicio.nombre}
                   style={{ width:'100%', height:'100%', objectFit:'cover' }} />
               ) : (
-                <div style={{ position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center', color:'#3f3f46', fontSize:11 }}>Sin imagen</div>
+                <DiagramaEjercicio nombre={ejercicio.nombre} categoria={ejercicio.categoria} />
               )}
               {ejercicio.video_url && (
                 <a href={ejercicio.video_url} target="_blank" rel="noopener noreferrer"

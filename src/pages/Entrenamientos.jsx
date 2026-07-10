@@ -5,6 +5,7 @@ import {
   listarEjerciciosBase, ejercicioMatcheaQuery,
 } from '../lib/entrenamientos'
 import EjercicioBaseModal from '../components/EjercicioBaseModal'
+import DiagramaEjercicio from '../components/DiagramaEjercicio'
 import { listarPartidos } from '../lib/partidos'
 import { getPerfil } from '../lib/perfil'
 import { listarJugadores } from '../lib/jugadores'
@@ -919,7 +920,7 @@ function EjerciciosBaseView({ isos, dias, diaSel, jugadores, onAddEjercicio }) {
                 {e.imagen_url ? (
                   <img src={e.imagen_url} alt={e.nombre} style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }} />
                 ) : (
-                  <div style={{ width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center', color:'#3f3f46', fontSize:10 }}>Sin imagen</div>
+                  <DiagramaEjercicio nombre={e.nombre} categoria={e.categoria} />
                 )}
               </div>
               <div style={{ padding:'10px 12px' }}>
