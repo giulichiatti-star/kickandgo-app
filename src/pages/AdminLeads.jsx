@@ -466,21 +466,71 @@ function TabCuentas() {
 
 // ───────────────────────── TAB PAGOS ─────────────────────────
 
+const PRECIO_STD = 19
+const PRECIO_FUND = 9
+
 function TabPagos() {
   const [avisos, setAvisos] = useState([])
+  const [cuentas, setCuentas] = useState([])
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
   const [procesando, setProcesando] = useState(null)
   const [enviarEmail, setEnviarEmail] = useState({}) // { [avisoId]: boolean }
+  const [filtroEstado, setFiltroEstado] = useState('todos')
+  const [busq, setBusq] = useState('')
   const [modalConfirm, confirmar] = useConfirm()
 
   async function recargar() {
     setCargando(true)
-    try { setAvisos(await listarAvisosPago()) }
+    try {
+      const [a, c] = await Promise.all([listarAvisosPago(), listarCuentas()])
+      setAvisos(a); setCuentas(c)
+    }
     catch (e) { setError(e.message) }
     finally { setCargando(false) }
   }
   useEffect(() => { recargar() }, [])
+
+  // ─── Cálculos KPIs ───
+  const stats = useMemo(() => {
+    const now = new Date()
+    const iniMes = new Date(now.getFullYear(), now.getMonth(), 1)
+    const confirmadosMes = avisos.filter(a => a.estado === 'confirmado' && new Date(a.creado_en) >= iniMes)
+    // Split por método (mes actual)
+    const bizumMes = confirmadosMes.filter(a => a.metodo === 'bizum').length
+    const transfMes = confirmadosMes.filter(a => a.metodo === 'transferencia').length
+    // Ingresos: cuentas pagando (según es_fundador)
+    const pagando = cuentas.filter(c => c.plan_estado === 'pagado')
+    const mrr = pagando.reduce((s, c) => s + (c.es_fundador ? PRECIO_FUND : PRECIO_STD), 0)
+    // Ingresos del mes: sumar por cuenta asociada al aviso confirmado
+    const ingresosMes = confirmadosMes.reduce((s, a) => {
+      const c = cuentas.find(x => x.id === a.user_id)
+      return s + (c?.es_fundador ? PRECIO_FUND : PRECIO_STD)
+    }, 0)
+    return {
+      ingresosMes,
+      mrr,
+      pagando: pagando.length,
+      prueba: cuentas.filter(c => c.plan_estado === 'prueba').length,
+      mora: cuentas.filter(c => c.plan_estado === 'mora').length,
+      baja: cuentas.filter(c => c.plan_estado === 'baja').length,
+      pendientes: avisos.filter(a => a.estado === 'pendiente').length,
+      bizumMes, transfMes,
+    }
+  }, [avisos, cuentas])
+
+  // ─── Tabla estado con último método usado por cuenta ───
+  const cuentasVista = useMemo(() => {
+    const ultimoMetodo = {}
+    avisos.forEach(a => {
+      if (a.estado === 'confirmado' && !ultimoMetodo[a.user_id]) ultimoMetodo[a.user_id] = a.metodo
+    })
+    const q = busq.trim().toLowerCase()
+    return cuentas
+      .filter(c => filtroEstado === 'todos' ? true : c.plan_estado === filtroEstado)
+      .filter(c => !q || (c.club_nombre||'').toLowerCase().includes(q) || (c.entrenador||'').toLowerCase().includes(q) || (c.email||'').toLowerCase().includes(q))
+      .map(c => ({ ...c, _metodo: ultimoMetodo[c.id] || null }))
+  }, [cuentas, avisos, filtroEstado, busq])
 
   async function accionConfirmar(aviso) {
     const conEmail = !!enviarEmail[aviso.id]
@@ -498,11 +548,36 @@ function TabPagos() {
   const pendientes = avisos.filter(a => a.estado === 'pendiente')
   const confirmados = avisos.filter(a => a.estado === 'confirmado')
 
+  const kpi = (label, val, color) => (
+    <div className="card p-3" style={{ minWidth: 0 }}>
+      <div className="text-[10px] font-bold uppercase tracking-wider text-muted">{label}</div>
+      <div className="text-lg font-extrabold mt-1" style={{ color: color || '#fafafa', letterSpacing: '-0.5px' }}>{val}</div>
+    </div>
+  )
+
   return (
     <div className="space-y-4">
       {error && (
         <div className="card p-3 text-xs" style={{ background: 'rgba(239,68,68,.1)', border: '1px solid rgba(239,68,68,.3)', color: '#f87171' }}>⚠️ {error}</div>
       )}
+
+      {/* ─── KPIs Resumen ─── */}
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
+        {kpi('Ingresos mes', `${stats.ingresosMes} €`, '#4ade80')}
+        {kpi('MRR estimado', `${stats.mrr} €`, '#34d399')}
+        {kpi('Pagando', stats.pagando, '#4ade80')}
+        {kpi('En prueba', stats.prueba, '#60a5fa')}
+        {kpi('En mora', stats.mora, '#f87171')}
+        {kpi('Pendientes', stats.pendientes, '#fbbf24')}
+      </div>
+      <div className="card p-3">
+        <div className="text-[10px] font-bold uppercase tracking-wider text-muted mb-2">Métodos usados este mes</div>
+        <div className="flex gap-3 flex-wrap text-xs">
+          <span className="px-2 py-1 rounded-lg" style={{ background:'rgba(59,130,246,.12)', color:'#93c5fd' }}>📱 Bizum: <b>{stats.bizumMes}</b></span>
+          <span className="px-2 py-1 rounded-lg" style={{ background:'rgba(139,92,246,.12)', color:'#c4b5fd' }}>🏦 Transferencia: <b>{stats.transfMes}</b></span>
+          <span className="px-2 py-1 rounded-lg" style={{ background:'rgba(113,113,122,.15)', color:'#a1a1aa' }}>De baja: <b>{stats.baja}</b></span>
+        </div>
+      </div>
 
       <div className="card p-4" style={{ border: '1px solid rgba(245,158,11,.3)' }}>
         <div className="font-bold text-sm mb-3" style={{ color: '#fbbf24' }}>💳 Avisos pendientes de verificar ({pendientes.length})</div>
@@ -568,6 +643,80 @@ function TabPagos() {
           </div>
         </div>
       )}
+      {/* ─── Tabla estado de pagos ─── */}
+      <div className="card p-4">
+        <div className="flex items-center justify-between gap-3 flex-wrap mb-3">
+          <div className="font-bold text-sm">📊 Estado de pagos ({cuentasVista.length})</div>
+          <div className="flex gap-2 flex-wrap">
+            <input
+              type="text" placeholder="Buscar club / entrenador…" value={busq}
+              onChange={e => setBusq(e.target.value)}
+              className="text-xs px-2 py-1 rounded-lg"
+              style={{ background:'#0f0f11', border:'1px solid #27272a', color:'#fafafa', minWidth: 180 }}
+            />
+            <select value={filtroEstado} onChange={e => setFiltroEstado(e.target.value)}
+              className="text-xs px-2 py-1 rounded-lg"
+              style={{ background:'#0f0f11', border:'1px solid #27272a', color:'#fafafa' }}>
+              <option value="todos">Todos</option>
+              <option value="pagado">Pagando</option>
+              <option value="mora">En mora</option>
+              <option value="prueba">En prueba</option>
+              <option value="baja">De baja</option>
+            </select>
+          </div>
+        </div>
+        {cargando ? (
+          <div className="text-xs text-muted">Cargando…</div>
+        ) : cuentasVista.length === 0 ? (
+          <div className="text-xs text-muted text-center py-4">Sin resultados</div>
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table className="w-full text-xs" style={{ borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ color:'#71717a', textAlign:'left' }}>
+                  <th className="py-2 pr-3" style={{ fontWeight: 600 }}>Club</th>
+                  <th className="py-2 pr-3" style={{ fontWeight: 600 }}>Estado</th>
+                  <th className="py-2 pr-3" style={{ fontWeight: 600 }}>Último pago</th>
+                  <th className="py-2 pr-3" style={{ fontWeight: 600 }}>Próx. venc.</th>
+                  <th className="py-2 pr-3" style={{ fontWeight: 600 }}>Método</th>
+                  <th className="py-2 pr-3" style={{ fontWeight: 600 }}>Precio</th>
+                </tr>
+              </thead>
+              <tbody>
+                {cuentasVista.map(c => {
+                  const est = ESTADOS_PLAN[c.plan_estado] || ESTADOS_PLAN.prueba
+                  const precio = c.es_fundador ? PRECIO_FUND : PRECIO_STD
+                  return (
+                    <tr key={c.id} style={{ borderTop: '1px solid #27272a' }}>
+                      <td className="py-2 pr-3">
+                        <div className="font-bold">{c.club_nombre || '—'} {c.es_fundador && <span style={{ color:'#f5a623' }}>🔥</span>}</div>
+                        <div className="text-muted text-[10px]">{c.entrenador}</div>
+                      </td>
+                      <td className="py-2 pr-3">
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: est.bg, color: est.fg }}>
+                          {est.label}
+                        </span>
+                      </td>
+                      <td className="py-2 pr-3 text-muted">
+                        {c.ultimo_pago_en ? new Date(c.ultimo_pago_en).toLocaleDateString('es-ES') : '—'}
+                      </td>
+                      <td className="py-2 pr-3 text-muted">
+                        {c.pago_vence ? new Date(c.pago_vence).toLocaleDateString('es-ES')
+                          : c.prueba_vence ? `Prueba: ${new Date(c.prueba_vence).toLocaleDateString('es-ES')}` : '—'}
+                      </td>
+                      <td className="py-2 pr-3">
+                        {c._metodo === 'bizum' ? '📱 Bizum' : c._metodo === 'transferencia' ? '🏦 Transferencia' : <span className="text-muted">—</span>}
+                      </td>
+                      <td className="py-2 pr-3 font-bold">{precio} €</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
       {modalConfirm}
     </div>
   )
