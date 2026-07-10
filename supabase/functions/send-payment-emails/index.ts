@@ -116,8 +116,8 @@ Deno.serve(async () => {
     // ── EN PRUEBA ─────────────────────────────────────────────────
     if (p_.plan_estado === 'prueba' && p_.prueba_vence) {
 
-      // Día 3 de la prueba (11 días antes de vencer, prueba de 14 días)
-      if (dayOffset(p_.prueba_vence, 11)) {
+      // Día 3 de la prueba (12 días antes de vencer, prueba de 15 días)
+      if (dayOffset(p_.prueba_vence, 12)) {
         const html = wrapEmailInfo(
           'Tips para tu equipo', '#dcfce7', '#166534',
           '3 cosas que la mayoría descubre en su primera semana',
@@ -146,7 +146,7 @@ Deno.serve(async () => {
         const html = wrapEmail(
           'Tu período de prueba ha finalizado', '#fef3c7', '#92400e',
           'Tu prueba gratuita termina hoy',
-          p(`Hola ${nombre}, esperamos que estos 14 días hayan sido muy útiles para ti y tu equipo. A partir de hoy tu acceso queda limitado.`) +
+          p(`Hola ${nombre}, esperamos que estos 15 días hayan sido muy útiles para ti y tu equipo. A partir de hoy tu acceso queda limitado.`) +
           p(`Tienes <b>2 días más</b> para continuar sin interrupciones — solo necesitas completar el pago. Después suspendemos la cuenta hasta recibirlo.`),
           '¿Dudas antes de decidir? Estamos aquí.',
           uid

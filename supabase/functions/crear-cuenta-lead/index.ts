@@ -11,7 +11,7 @@ const APP_URL = 'https://kickandgo.app'
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 const resend = new Resend(RESEND_API_KEY)
 
-const DIAS_PRUEBA = 14
+const DIAS_PRUEBA = 15
 
 function generarPassword() {
   return crypto.randomUUID().replace(/-/g, '').slice(0, 12)
