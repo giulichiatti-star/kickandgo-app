@@ -75,17 +75,20 @@ const QUICK = [
 const RADIAL = [
   { tipo: 'gol', ico: '⚽', lbl: 'Gol' },
   { tipo: 'asistencia', ico: '🅰️', lbl: 'Asist.' },
-  { tipo: 'tiro', ico: '🎯', lbl: 'Tiro' },
+  { tipo: 'tiro-puerta', ico: '🎯', lbl: 'Tiro puerta' },
+  { tipo: 'tiro-fuera', ico: '🚫', lbl: 'Tiro fuera' },
   { tipo: 'amarilla', ico: '🟨', lbl: 'Amarilla' },
   { tipo: 'roja', ico: '🟥', lbl: 'Roja' },
   { tipo: 'falta', ico: '⚠️', lbl: 'Falta' },
 ]
-const ICONO_MARCA = { gol: '⚽', 'gol-rival': '⚽', asistencia: '🅰️', amarilla: '🟨', 'amarilla-rival': '🟨', roja: '🟥', 'roja-rival': '🟥', cambio: '🔄', 'cambio-rival': '🔄' }
+const ICONO_MARCA = { gol: '⚽', 'gol-rival': '⚽', asistencia: '🅰️', amarilla: '🟨', 'amarilla-rival': '🟨', roja: '🟥', 'roja-rival': '🟥', cambio: '🔄', 'cambio-rival': '🔄', 'tiro-puerta': '🎯', 'tiro-puerta-rival': '🎯', 'tiro-fuera': '🚫', 'tiro-fuera-rival': '🚫' }
 const META = {
   gol: { label: 'Gol' }, 'gol-rival': { label: 'Gol rival' }, asistencia: { label: 'Asistencia' },
   amarilla: { label: 'Amarilla' }, 'amarilla-rival': { label: 'Amarilla rival' },
   roja: { label: 'Roja' }, 'roja-rival': { label: 'Roja rival' },
   tiro: { label: 'Tiro' }, 'tiro-rival': { label: 'Tiro rival' },
+  'tiro-puerta': { label: 'Tiro a puerta' }, 'tiro-puerta-rival': { label: 'Tiro a puerta rival' },
+  'tiro-fuera': { label: 'Tiro fuera' }, 'tiro-fuera-rival': { label: 'Tiro fuera rival' },
   corner: { label: 'Córner' }, 'corner-rival': { label: 'Córner rival' },
   'falta-favor': { label: 'Falta a favor' }, falta: { label: 'Falta en contra' },
   robo: { label: 'Robo' }, perdida: { label: 'Pérdida' }, offside: { label: 'Fuera de juego' }, cambio: { label: 'Cambio' }, 'cambio-rival': { label: 'Cambio rival' },
@@ -118,6 +121,7 @@ export default function EnVivo() {
   const [partidoRestaurado, setPartidoRestaurado] = useState(false)
   const [eventos, setEventos] = useState([])
   const [marks, setMarks] = useState({})
+  const [rivalDorsales, setRivalDorsales] = useState(() => RIVAL_DEMO.map(r => r.dorsal))
   const [sel, setSel] = useState(null) // {id,dorsal,nombre}
   const [escuchando, setEscuchando] = useState(false)
   const [oido, setOido] = useState('')
@@ -308,21 +312,28 @@ export default function EnVivo() {
     window.addEventListener('touchend', onUp)
   }
   const rivalForm = formsDe(tipo)[formacionRival] || Object.values(formsDe(tipo))[0]
-  const puntosRival = RIVAL_DEMO.slice(0, rivalForm.length).map((j, i) => ({
-    ...j, x: 100 - rivalForm[i][0], y: rivalForm[i][1], gk: i === 0, side: 'rival',
+  const puntosRival = rivalDorsales.slice(0, rivalForm.length).map((dorsal, i) => ({
+    id: `r-${dorsal}`, dorsal, nombre: 'Rival ' + dorsal, cat: i === 0 ? 'POR' : 'MED',
+    x: 100 - rivalForm[i][0], y: rivalForm[i][1], gk: i === 0, side: 'rival',
   }))
 
   function bump(s) { setStats((p) => ({ ...p, [s]: (p[s] || 0) + 1 })) }
 
   function registrar(tipoEv, jug) {
     const ev = { min, tipo: tipoEv, icon: ICONO_MARCA[tipoEv] || '•', label: (META[tipoEv]?.label || tipoEv), jugador: jug ? `#${jug.dorsal} ${jug.nombre}` : null, jugador_id: jug?.id || null }
-    if (tipoEv === 'gol') { setGf((g) => g + 1); bump('tiros') }
+    if (tipoEv === 'gol') { setGf((g) => g + 1); bump('tiros'); bump('tirosPuerta') }
     if (tipoEv === 'gol-rival') setGc((g) => g + 1)
     if (tipoEv === 'tiro') bump('tiros')
+    if (tipoEv === 'tiro-puerta') { bump('tiros'); bump('tirosPuerta') }
+    if (tipoEv === 'tiro-fuera') { bump('tiros'); bump('tirosFuera') }
     if (tipoEv === 'corner') bump('corners')
     if (tipoEv === 'falta' || tipoEv === 'falta-favor') bump('faltas')
     if (tipoEv === 'amarilla') bump('amarillas')
-    if (jug && ICONO_MARCA[tipoEv]) setMarks((m) => ({ ...m, [jug.id]: [...(m[jug.id] || []), ICONO_MARCA[tipoEv]] }))
+    if (jug && ICONO_MARCA[tipoEv]) {
+      // Si es del rival y jug fue creado sobre la marcha con id=`r-${dorsal}`, usa esa key
+      const key = jug.id || (jug.dorsal != null ? `r-${jug.dorsal}` : null)
+      if (key) setMarks((m) => ({ ...m, [key]: [...(m[key] || []), ICONO_MARCA[tipoEv]] }))
+    }
     // doble amarilla = roja — usar updater para leer el array más reciente
     setEventos((prev) => {
       const lista = [ev, ...prev]
@@ -351,6 +362,12 @@ export default function EnVivo() {
 
   function cambioRival() {
     if (!saleRival.trim() || !entraRival.trim()) return
+    const saleN = parseInt(saleRival, 10)
+    const entraN = parseInt(entraRival, 10)
+    if (!isNaN(saleN) && !isNaN(entraN)) {
+      setRivalDorsales(rd => rd.map(d => d === saleN ? entraN : d))
+      setMarks(m => ({ ...m, [`r-${entraN}`]: [...(m[`r-${entraN}`] || []), '🔄'] }))
+    }
     setEventos((e) => [{ min, tipo: 'cambio-rival', icon: '🔄', label: `Cambio ${rival}`, jugador: `Sale #${saleRival} · Entra #${entraRival}` }, ...e])
     setSaleRival(''); setEntraRival('')
   }
@@ -853,6 +870,7 @@ export default function EnVivo() {
       online={online}
       mostrarPWA={mostrarPWA} instalar={instalar} descartar={descartar}
       setGf={setGf} setGc={setGc}
+      setRivalDorsales={setRivalDorsales}
     />
     </>
   )
@@ -873,14 +891,15 @@ function MobileEnVivo({
   durT1, seg, partidoRestaurado, ICONO_MARCA, min,
   notas, setNotas, online,
   mostrarPWA, instalar, descartar,
-  setGf, setGc,
+  setGf, setGc, setRivalDorsales,
 }) {
   const ACCIONES = [
     { tipo: 'gol',        tipoRival: 'gol-rival',       ico: '⚽',  lbl: 'Gol',       needsPlayer: true, needsPlayerRival: true },
     { tipo: 'asistencia', tipoRival: 'asistencia',      ico: '🅰️', lbl: 'Asist.',    needsPlayer: true, needsPlayerRival: false },
     { tipo: 'amarilla', tipoRival: 'amarilla-rival',  ico: '🟨', lbl: 'Amarilla',   needsPlayer: true,  needsPlayerRival: true  },
     { tipo: 'roja',     tipoRival: 'roja-rival',      ico: '🟥', lbl: 'Roja',       needsPlayer: true,  needsPlayerRival: true  },
-    { tipo: 'tiro',     tipoRival: 'tiro-rival',      ico: '🎯', lbl: 'Tiro',       needsPlayer: false, needsPlayerRival: false },
+    { tipo: 'tiro-puerta', tipoRival: 'tiro-puerta-rival', ico: '🎯', lbl: 'Tiro puerta', needsPlayer: false, needsPlayerRival: false },
+    { tipo: 'tiro-fuera',  tipoRival: 'tiro-fuera-rival',  ico: '🚫', lbl: 'Tiro fuera',  needsPlayer: false, needsPlayerRival: false },
     { tipo: 'corner',   tipoRival: 'corner-rival',    ico: '⛳', lbl: 'Córner',     needsPlayer: false, needsPlayerRival: false },
     { tipo: 'offside',  tipoRival: 'offside',         ico: '🚩', lbl: 'F. juego',   needsPlayer: false, needsPlayerRival: false },
     { tipo: 'cambio',   tipoRival: 'cambio-rival',    ico: '🔄', lbl: 'Cambio',     needsPlayer: 'cambio', needsPlayerRival: 'cambio-rival' },
@@ -911,6 +930,12 @@ function MobileEnVivo({
 
   function confirmCambioRival() {
     if (!mSaleRival.trim() || !mEntraRival.trim()) return
+    const saleN = parseInt(mSaleRival, 10)
+    const entraN = parseInt(mEntraRival, 10)
+    if (!isNaN(saleN) && !isNaN(entraN) && setRivalDorsales) {
+      setRivalDorsales(rd => rd.map(d => d === saleN ? entraN : d))
+      setMarks(m => ({ ...m, [`r-${entraN}`]: [...(m[`r-${entraN}`] || []), '🔄'] }))
+    }
     setEventos(e => [{ min, tipo: 'cambio-rival', icon: '🔄', label: `Cambio ${rival}`, jugador: `Sale #${mSaleRival} · Entra #${mEntraRival}` }, ...e])
     setMSaleRival(''); setMEntraRival('')
     setMobileSheet(null)
@@ -1030,17 +1055,25 @@ function MobileEnVivo({
           </svg>
           <div className="ev2-pname-banner l">{club.toUpperCase()}</div>
           <div className="ev2-pname-banner r">{rival.toUpperCase()}</div>
-          {puntosLocal.map(p => (
-            <div key={p.id} className="ev2-player" style={{ left:`${p.x}%`, top:`${p.y}%`, position:'absolute', transform:'translate(-50%,-50%)' }}>
-              <Jersey num={p.dorsal} side={p.side} gk={p.gk} vista={vista} />
-              <div className="ev2-pname">{(p.nombre||'').split(' ')[0]}</div>
-            </div>
-          ))}
-          {puntosRival.map(p => (
-            <div key={p.id} className="ev2-player" style={{ left:`${p.x}%`, top:`${p.y}%`, position:'absolute', transform:'translate(-50%,-50%)' }}>
-              <Jersey num={p.dorsal} side={p.side} gk={p.gk} vista={vista} />
-            </div>
-          ))}
+          {puntosLocal.map(p => {
+            const ms = marks[p.id] || []
+            return (
+              <div key={p.id} className="ev2-player" style={{ left:`${p.x}%`, top:`${p.y}%`, position:'absolute', transform:'translate(-50%,-50%)' }}>
+                <Jersey num={p.dorsal} side={p.side} gk={p.gk} vista={vista} />
+                <div className="ev2-pname">{(p.nombre||'').split(' ')[0]}</div>
+                {ms.length > 0 && <div className="ev2-pmarks">{ms.map((m, k) => <span key={k} className="ev2-pmark">{m}</span>)}</div>}
+              </div>
+            )
+          })}
+          {puntosRival.map(p => {
+            const ms = marks[p.id] || []
+            return (
+              <div key={p.id} className="ev2-player" style={{ left:`${p.x}%`, top:`${p.y}%`, position:'absolute', transform:'translate(-50%,-50%)' }}>
+                <Jersey num={p.dorsal} side={p.side} gk={p.gk} vista={vista} />
+                {ms.length > 0 && <div className="ev2-pmarks">{ms.map((m, k) => <span key={k} className="ev2-pmark">{m}</span>)}</div>}
+              </div>
+            )
+          })}
         </div>
       </div>
 
