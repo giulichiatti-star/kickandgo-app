@@ -81,17 +81,21 @@ const RADIAL = [
   { tipo: 'roja', ico: '🟥', lbl: 'Roja' },
   { tipo: 'falta', ico: '⚠️', lbl: 'Falta' },
 ]
-const ICONO_MARCA = { gol: '⚽', 'gol-rival': '⚽', asistencia: '🅰️', amarilla: '🟨', 'amarilla-rival': '🟨', roja: '🟥', 'roja-rival': '🟥', cambio: '🔄', 'cambio-rival': '🔄', 'tiro-puerta': '🎯', 'tiro-puerta-rival': '🎯', 'tiro-fuera': '🚫', 'tiro-fuera-rival': '🚫' }
+const ICONO_MARCA = { gol: '⚽', 'gol-rival': '⚽', asistencia: '🅰️', 'asistencia-rival': '🅰️', amarilla: '🟨', 'amarilla-rival': '🟨', roja: '🟥', 'roja-rival': '🟥', cambio: '🔄', 'cambio-rival': '🔄', 'tiro-puerta': '🎯', 'tiro-puerta-rival': '🎯', 'tiro-fuera': '🚫', 'tiro-fuera-rival': '🚫', falta: '⚠️', 'falta-rival': '⚠️', offside: '🚩', 'offside-rival': '🚩' }
 const META = {
-  gol: { label: 'Gol' }, 'gol-rival': { label: 'Gol rival' }, asistencia: { label: 'Asistencia' },
+  gol: { label: 'Gol' }, 'gol-rival': { label: 'Gol rival' },
+  asistencia: { label: 'Asistencia' }, 'asistencia-rival': { label: 'Asistencia rival' },
   amarilla: { label: 'Amarilla' }, 'amarilla-rival': { label: 'Amarilla rival' },
   roja: { label: 'Roja' }, 'roja-rival': { label: 'Roja rival' },
   tiro: { label: 'Tiro' }, 'tiro-rival': { label: 'Tiro rival' },
   'tiro-puerta': { label: 'Tiro a puerta' }, 'tiro-puerta-rival': { label: 'Tiro a puerta rival' },
   'tiro-fuera': { label: 'Tiro fuera' }, 'tiro-fuera-rival': { label: 'Tiro fuera rival' },
   corner: { label: 'Córner' }, 'corner-rival': { label: 'Córner rival' },
-  'falta-favor': { label: 'Falta a favor' }, falta: { label: 'Falta en contra' },
-  robo: { label: 'Robo' }, perdida: { label: 'Pérdida' }, offside: { label: 'Fuera de juego' }, cambio: { label: 'Cambio' }, 'cambio-rival': { label: 'Cambio rival' },
+  falta: { label: 'Falta (nuestra)' }, 'falta-rival': { label: 'Falta del rival' },
+  'falta-favor': { label: 'Falta a favor' },
+  robo: { label: 'Robo' }, perdida: { label: 'Pérdida' },
+  offside: { label: 'Fuera de juego' }, 'offside-rival': { label: 'Fuera de juego rival' },
+  cambio: { label: 'Cambio' }, 'cambio-rival': { label: 'Cambio rival' },
 }
 function mmss(s) { return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}` }
 
@@ -322,13 +326,18 @@ export default function EnVivo() {
   function registrar(tipoEv, jug) {
     const ev = { min, tipo: tipoEv, icon: ICONO_MARCA[tipoEv] || '•', label: (META[tipoEv]?.label || tipoEv), jugador: jug ? `#${jug.dorsal} ${jug.nombre}` : null, jugador_id: jug?.id || null }
     if (tipoEv === 'gol') { setGf((g) => g + 1); bump('tiros'); bump('tirosPuerta') }
-    if (tipoEv === 'gol-rival') setGc((g) => g + 1)
+    if (tipoEv === 'gol-rival') { setGc((g) => g + 1); bump('tirosPuertaRival') }
     if (tipoEv === 'tiro') bump('tiros')
     if (tipoEv === 'tiro-puerta') { bump('tiros'); bump('tirosPuerta') }
     if (tipoEv === 'tiro-fuera') { bump('tiros'); bump('tirosFuera') }
+    if (tipoEv === 'tiro-puerta-rival') bump('tirosPuertaRival')
+    if (tipoEv === 'tiro-fuera-rival') bump('tirosFueraRival')
     if (tipoEv === 'corner') bump('corners')
+    if (tipoEv === 'corner-rival') bump('cornersRival')
     if (tipoEv === 'falta' || tipoEv === 'falta-favor') bump('faltas')
+    if (tipoEv === 'falta-rival') bump('faltasRival')
     if (tipoEv === 'amarilla') bump('amarillas')
+    if (tipoEv === 'amarilla-rival') bump('amarillasRival')
     if (jug && ICONO_MARCA[tipoEv]) {
       // Si es del rival y jug fue creado sobre la marcha con id=`r-${dorsal}`, usa esa key
       const key = jug.id || (jug.dorsal != null ? `r-${jug.dorsal}` : null)
@@ -894,15 +903,16 @@ function MobileEnVivo({
   setGf, setGc, setRivalDorsales,
 }) {
   const ACCIONES = [
-    { tipo: 'gol',        tipoRival: 'gol-rival',       ico: '⚽',  lbl: 'Gol',       needsPlayer: true, needsPlayerRival: true },
-    { tipo: 'asistencia', tipoRival: 'asistencia',      ico: '🅰️', lbl: 'Asist.',    needsPlayer: true, needsPlayerRival: false },
-    { tipo: 'amarilla', tipoRival: 'amarilla-rival',  ico: '🟨', lbl: 'Amarilla',   needsPlayer: true,  needsPlayerRival: true  },
-    { tipo: 'roja',     tipoRival: 'roja-rival',      ico: '🟥', lbl: 'Roja',       needsPlayer: true,  needsPlayerRival: true  },
-    { tipo: 'tiro-puerta', tipoRival: 'tiro-puerta-rival', ico: '🎯', lbl: 'Tiro puerta', needsPlayer: false, needsPlayerRival: false },
-    { tipo: 'tiro-fuera',  tipoRival: 'tiro-fuera-rival',  ico: '🚫', lbl: 'Tiro fuera',  needsPlayer: false, needsPlayerRival: false },
-    { tipo: 'corner',   tipoRival: 'corner-rival',    ico: '⛳', lbl: 'Córner',     needsPlayer: false, needsPlayerRival: false },
-    { tipo: 'offside',  tipoRival: 'offside',         ico: '🚩', lbl: 'F. juego',   needsPlayer: false, needsPlayerRival: false },
-    { tipo: 'cambio',   tipoRival: 'cambio-rival',    ico: '🔄', lbl: 'Cambio',     needsPlayer: 'cambio', needsPlayerRival: 'cambio-rival' },
+    { tipo: 'gol',        tipoRival: 'gol-rival',        ico: '⚽',  lbl: 'Gol',         needsPlayer: true,  needsPlayerRival: true },
+    { tipo: 'asistencia', tipoRival: 'asistencia-rival', ico: '🅰️', lbl: 'Asist.',      needsPlayer: true,  needsPlayerRival: true },
+    { tipo: 'amarilla',   tipoRival: 'amarilla-rival',   ico: '🟨', lbl: 'Amarilla',    needsPlayer: true,  needsPlayerRival: true },
+    { tipo: 'roja',       tipoRival: 'roja-rival',       ico: '🟥', lbl: 'Roja',        needsPlayer: true,  needsPlayerRival: true },
+    { tipo: 'falta',      tipoRival: 'falta-rival',      ico: '⚠️', lbl: 'Falta',       needsPlayer: true,  needsPlayerRival: true },
+    { tipo: 'tiro-puerta', tipoRival: 'tiro-puerta-rival', ico: '🎯', lbl: 'Tiro puerta', needsPlayer: false, needsPlayerRival: true },
+    { tipo: 'tiro-fuera',  tipoRival: 'tiro-fuera-rival',  ico: '🚫', lbl: 'Tiro fuera',  needsPlayer: false, needsPlayerRival: true },
+    { tipo: 'offside',    tipoRival: 'offside-rival',    ico: '🚩', lbl: 'F. juego',    needsPlayer: false, needsPlayerRival: true },
+    { tipo: 'corner',     tipoRival: 'corner-rival',     ico: '⛳', lbl: 'Córner',      needsPlayer: false, needsPlayerRival: false },
+    { tipo: 'cambio',     tipoRival: 'cambio-rival',     ico: '🔄', lbl: 'Cambio',      needsPlayer: 'cambio', needsPlayerRival: 'cambio-rival' },
   ]
 
   function handleNuestro(a) {
@@ -1155,12 +1165,20 @@ function MobileEnVivo({
                   {e.jugador && <div style={{ fontSize:10, color:'#71717a' }}>{e.jugador}</div>}
                 </div>
                 <button onClick={() => {
-                  if (e.tipo === 'gol') { setGf((g) => Math.max(0, g - 1)); setStats((s) => ({ ...s, tiros: Math.max(0, s.tiros - 1) })) }
-                  if (e.tipo === 'gol-rival') setGc((g) => Math.max(0, g - 1))
-                  if (e.tipo === 'tiro') setStats((s) => ({ ...s, tiros: Math.max(0, s.tiros - 1) }))
-                  if (e.tipo === 'corner') setStats((s) => ({ ...s, corners: Math.max(0, s.corners - 1) }))
-                  if (e.tipo === 'falta' || e.tipo === 'falta-favor') setStats((s) => ({ ...s, faltas: Math.max(0, s.faltas - 1) }))
-                  if (e.tipo === 'amarilla') setStats((s) => ({ ...s, amarillas: Math.max(0, s.amarillas - 1) }))
+                  const bajar = (campo) => setStats((s) => ({ ...s, [campo]: Math.max(0, (s[campo] || 0) - 1) }))
+                  if (e.tipo === 'gol') { setGf((g) => Math.max(0, g - 1)); bajar('tiros'); bajar('tirosPuerta') }
+                  if (e.tipo === 'gol-rival') { setGc((g) => Math.max(0, g - 1)); bajar('tirosPuertaRival') }
+                  if (e.tipo === 'tiro') bajar('tiros')
+                  if (e.tipo === 'tiro-puerta') { bajar('tiros'); bajar('tirosPuerta') }
+                  if (e.tipo === 'tiro-fuera') { bajar('tiros'); bajar('tirosFuera') }
+                  if (e.tipo === 'tiro-puerta-rival') bajar('tirosPuertaRival')
+                  if (e.tipo === 'tiro-fuera-rival') bajar('tirosFueraRival')
+                  if (e.tipo === 'corner') bajar('corners')
+                  if (e.tipo === 'corner-rival') bajar('cornersRival')
+                  if (e.tipo === 'falta' || e.tipo === 'falta-favor') bajar('faltas')
+                  if (e.tipo === 'falta-rival') bajar('faltasRival')
+                  if (e.tipo === 'amarilla') bajar('amarillas')
+                  if (e.tipo === 'amarilla-rival') bajar('amarillasRival')
                   const ico = ICONO_MARCA[e.tipo]
                   if (ico && e.jugador_id) {
                     setMarks((m) => {
