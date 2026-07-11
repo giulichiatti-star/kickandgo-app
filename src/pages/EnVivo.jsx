@@ -463,7 +463,7 @@ export default function EnVivo() {
 
   return (
     <>
-    <div className="ev2-wrap" style={{ margin: '-20px -16px' }}>
+    <div className="ev2-wrap">
       {valorModal && (
         <ValoracionModal
           titulares={titulares}
