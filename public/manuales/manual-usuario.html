@@ -1,0 +1,445 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"/>
+<title>Kick and Go — Manual de usuario</title>
+<style>
+  @page { size: A4; margin: 22mm 18mm 22mm 18mm; }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, "Helvetica Neue", Arial, sans-serif; font-size: 10.5pt; line-height: 1.55; color: #18181b; margin: 0; }
+  h1 { font-size: 26pt; font-weight: 800; margin: 0 0 4pt; letter-spacing: -0.5px; color: #0f0f11; page-break-before: always; }
+  h1:first-of-type { page-break-before: auto; }
+  h2 { font-size: 14pt; font-weight: 700; margin: 20pt 0 6pt; color: #059669; page-break-after: avoid; }
+  h3 { font-size: 11.5pt; font-weight: 700; margin: 12pt 0 4pt; color: #18181b; page-break-after: avoid; }
+  p { margin: 0 0 8pt; }
+  ul, ol { margin: 0 0 10pt 18pt; padding: 0; }
+  li { margin-bottom: 3pt; }
+  .sub { color: #71717a; font-size: 10pt; margin: 0 0 14pt; }
+  .cover { text-align: center; padding-top: 60pt; page-break-after: always; }
+  .cover .logo { font-size: 42pt; font-weight: 800; color: #059669; letter-spacing: -1.5px; margin-bottom: 10pt; }
+  .cover .tag { font-size: 13pt; color: #52525b; margin-bottom: 60pt; }
+  .cover .title { font-size: 22pt; font-weight: 700; margin-bottom: 8pt; }
+  .cover .version { color: #71717a; font-size: 10pt; margin-top: 30pt; }
+  .toc { page-break-after: always; }
+  .toc h1 { page-break-before: auto; }
+  .toc-item { display: flex; justify-content: space-between; padding: 4pt 0; border-bottom: 0.3pt dotted #d4d4d8; font-size: 10.5pt; }
+  .toc-item .num { color: #059669; font-weight: 700; margin-right: 6pt; }
+  .module { page-break-inside: avoid; margin-bottom: 6pt; }
+  .callout { background: #fef3c7; border-left: 3pt solid #f59e0b; padding: 8pt 12pt; margin: 10pt 0; font-size: 10pt; page-break-inside: avoid; }
+  .callout b { color: #92400e; }
+  .flow { background: #ecfdf5; border-left: 3pt solid #059669; padding: 8pt 12pt; margin: 10pt 0; font-size: 10pt; page-break-inside: avoid; }
+  .flow b { color: #065f46; }
+  .card { border: 0.6pt solid #d4d4d8; border-radius: 4pt; padding: 10pt 12pt; margin: 8pt 0; page-break-inside: avoid; }
+  .steps { counter-reset: st; padding-left: 0; list-style: none; margin-left: 0; }
+  .steps li { position: relative; padding-left: 24pt; margin-bottom: 6pt; }
+  .steps li::before { counter-increment: st; content: counter(st); position: absolute; left: 0; top: 0; width: 16pt; height: 16pt; border-radius: 50%; background: #059669; color: #fff; font-size: 9pt; font-weight: 700; display: flex; align-items: center; justify-content: center; line-height: 1; }
+  strong { color: #0f0f11; }
+  .tag { display: inline-block; background: #f4f4f5; border: 0.5pt solid #d4d4d8; border-radius: 3pt; padding: 1pt 5pt; font-size: 8.5pt; color: #52525b; margin-right: 3pt; }
+  .footer { position: fixed; bottom: 8mm; left: 18mm; right: 18mm; font-size: 8pt; color: #a1a1aa; display: flex; justify-content: space-between; }
+  hr { border: none; border-top: 0.5pt solid #e4e4e7; margin: 14pt 0; }
+</style>
+</head>
+<body>
+
+<div class="footer"><span>Kick and Go — Manual de usuario</span><span>kickandgo.app</span></div>
+
+<!-- PORTADA -->
+<section class="cover">
+  <div class="logo">⚽ Kick and Go</div>
+  <div class="tag">La app para entrenadores de fútbol amateur</div>
+  <div class="title">Manual de usuario</div>
+  <p style="max-width:380pt;margin:0 auto;color:#52525b">Guía completa módulo a módulo, cómo se conectan tus datos y qué te aporta cada pantalla. Pensada para consulta.</p>
+  <div class="version">v1 · Julio 2026</div>
+</section>
+
+<!-- ÍNDICE -->
+<section class="toc">
+  <h1>Índice</h1>
+  <div class="toc-item"><span><span class="num">01</span> Cómo se conectan los datos</span><span>4</span></div>
+  <div class="toc-item"><span><span class="num">02</span> Inicio (Dashboard)</span><span>5</span></div>
+  <div class="toc-item"><span><span class="num">03</span> Equipo (Plantilla)</span><span>5</span></div>
+  <div class="toc-item"><span><span class="num">04</span> Convocatoria</span><span>6</span></div>
+  <div class="toc-item"><span><span class="num">05</span> En Vivo</span><span>7</span></div>
+  <div class="toc-item"><span><span class="num">06</span> Partidos</span><span>8</span></div>
+  <div class="toc-item"><span><span class="num">07</span> Entrenamientos</span><span>8</span></div>
+  <div class="toc-item"><span><span class="num">08</span> Calendario</span><span>9</span></div>
+  <div class="toc-item"><span><span class="num">09</span> Estadísticas</span><span>10</span></div>
+  <div class="toc-item"><span><span class="num">10</span> Rivales / Torneo</span><span>10</span></div>
+  <div class="toc-item"><span><span class="num">11</span> Predicciones</span><span>11</span></div>
+  <div class="toc-item"><span><span class="num">12</span> Disciplina (Amonestaciones)</span><span>11</span></div>
+  <div class="toc-item"><span><span class="num">13</span> Pizarra táctica</span><span>12</span></div>
+  <div class="toc-item"><span><span class="num">14</span> Clima</span><span>12</span></div>
+  <div class="toc-item"><span><span class="num">15</span> Asistente IA</span><span>13</span></div>
+  <div class="toc-item"><span><span class="num">16</span> Plan Temporada</span><span>13</span></div>
+  <div class="toc-item"><span><span class="num">17</span> Informes</span><span>14</span></div>
+  <div class="toc-item"><span><span class="num">18</span> Club y ajustes</span><span>14</span></div>
+  <div class="toc-item"><span><span class="num">19</span> Preguntas frecuentes</span><span>15</span></div>
+</section>
+
+<!-- 01 -->
+<h1>01 · Cómo se conectan los datos</h1>
+<p class="sub">Antes de ver módulo por módulo, esta es la lógica que hace todo Kick and Go: introduces algo una vez y aparece automáticamente donde tenga que aparecer.</p>
+
+<h2>El circuito principal</h2>
+<div class="card">
+  <p><strong>Plantilla → Convocatoria → En Vivo → Partidos → Estadísticas</strong></p>
+  <p>Los jugadores que das de alta en <strong>Plantilla</strong> están disponibles en todos los demás módulos. Cuando montas una <strong>Convocatoria</strong>, la pizarra ya sabe posiciones y dorsales. En <strong>En Vivo</strong> la alineación ya viene puesta. Cuando termina el partido, el resultado y los eventos se guardan en <strong>Partidos</strong>. Y <strong>Estadísticas</strong> se recalcula solo.</p>
+</div>
+
+<h2>Los "hilos secundarios"</h2>
+<ul>
+  <li><strong>Tarjetas En Vivo → Disciplina:</strong> cada amarilla/roja registrada durante el partido genera automáticamente el conteo y las alertas por acumulación.</li>
+  <li><strong>Entrenamientos → Calendario:</strong> cada sesión que planificas aparece en el calendario semanal y mensual.</li>
+  <li><strong>Convocatoria → Calendario:</strong> el partido convocado también aparece en el calendario, junto a los entrenos.</li>
+  <li><strong>Lesiones (dentro de Plantilla) → Convocatoria:</strong> los jugadores lesionados se marcan con 🩺 y no se pueden convocar.</li>
+  <li><strong>Rivales → Predicciones:</strong> el historial contra cada rival y su racha alimenta las probabilidades del próximo partido.</li>
+  <li><strong>Todos los módulos → Asistente IA:</strong> el asistente responde preguntas cruzando toda la información que has cargado.</li>
+</ul>
+
+<div class="flow">
+  <b>La regla de oro:</b> Todo lo que introduces se guarda una vez, y se muestra donde haga falta. Nunca hay que rellenar el mismo dato en dos módulos distintos.
+</div>
+
+<!-- 02 -->
+<h1>02 · Inicio (Dashboard)</h1>
+
+<h3>Qué es</h3>
+<p>La pantalla que ves al abrir la app. Resumen de todo — no se introduce nada aquí, solo se lee.</p>
+
+<h3>Qué muestra</h3>
+<ul>
+  <li><strong>KPIs principales:</strong> racha reciente, próximo partido, jugadores disponibles, lesionados.</li>
+  <li><strong>Formación probable</strong> del próximo partido según la última convocatoria.</li>
+  <li><strong>Probabilidades</strong> del próximo partido (mismas de Predicciones).</li>
+  <li><strong>Últimos 5 partidos</strong> con resultado.</li>
+  <li><strong>Rendimiento jugadores</strong>: goleadores, asistentes, MVP.</li>
+  <li><strong>Widget de disciplina</strong>: quiénes están a una tarjeta de sanción.</li>
+</ul>
+
+<div class="flow"><b>Se alimenta de:</b> Partidos, Convocatoria, Estadísticas, Disciplina.</div>
+
+<!-- 03 -->
+<h1>03 · Equipo (Plantilla)</h1>
+
+<h3>Qué es</h3>
+<p>La lista completa de tus jugadores. Es el módulo <strong>madre</strong> — sin plantilla, ningún otro módulo funciona.</p>
+
+<h3>Cómo se usa</h3>
+<ol class="steps">
+  <li>Pulsa "Agregar jugador".</li>
+  <li>Rellena nombre, dorsal, posición (Portero/Defensa/Medio/Delantero), pie dominante y fecha de nacimiento.</li>
+  <li>Guarda. Aparece en la lista.</li>
+  <li>Toca cualquier jugador para editar, marcar lesión, dar de baja temporal, ver su historial.</li>
+</ol>
+
+<h3>Importar en bloque</h3>
+<p>Si tienes una lista en Excel/CSV, en la parte superior tienes "Importar". Subes el archivo y detecta columnas (nombre, dorsal, posición). Ahorra 30 minutos si tienes 20 jugadores.</p>
+
+<h3>Lesiones</h3>
+<p>Dentro del jugador, "Marcar lesión" con fecha estimada de alta. Mientras está lesionado sale con 🩺 en toda la app y no se puede convocar. Cuando da alta, vuelve a estar disponible.</p>
+
+<div class="flow"><b>Alimenta a:</b> Convocatoria, En Vivo, Estadísticas, Disciplina, Asistente IA — literalmente a todos los módulos.</div>
+
+<!-- 04 -->
+<h1>04 · Convocatoria</h1>
+
+<h3>Qué es</h3>
+<p>La forma de decidir quién juega el próximo partido y en qué posición. Es una pizarra táctica interactiva.</p>
+
+<h3>Cómo se usa</h3>
+<ol class="steps">
+  <li>Introduce el rival y la fecha.</li>
+  <li>Elige la formación (4-3-3, 4-4-2, 3-5-2… para F11; 2-3-1, 3-2-1… para F7).</li>
+  <li>El campo muestra 11 (o 7) puntos vacíos. Toca cada uno.</li>
+  <li>Se abren los jugadores <strong>sugeridos por posición</strong> (los defensas para el hueco de defensa, etc.). Puedes buscar cualquier otro por nombre si quieres colocar a alguien "fuera de puesto".</li>
+  <li>Los que quedan fuera de los 11 pasan a suplentes. Los que no convocas quedan como "fuera".</li>
+  <li>Botón "WhatsApp": genera el mensaje con la convocatoria formateada y lo abre en tu WhatsApp con el grupo del equipo pre-seleccionable.</li>
+</ol>
+
+<div class="callout"><b>Ojo:</b> los jugadores marcados como lesionados o sancionados no aparecen para convocar. Es a propósito, para evitar errores.</div>
+
+<div class="flow"><b>Alimenta a:</b> En Vivo (con la alineación ya cargada), Calendario (el partido queda agendado).</div>
+
+<!-- 05 -->
+<h1>05 · En Vivo</h1>
+
+<h3>Qué es</h3>
+<p>La pantalla que usas <strong>durante</strong> el partido. Diseñada para el móvil, con botones grandes y voz.</p>
+
+<h3>Antes del silbato inicial</h3>
+<p>La formación y los 11 iniciales ya están cargados desde la Convocatoria. Solo tienes que darle a "Iniciar partido".</p>
+
+<h3>Durante el partido</h3>
+<ul>
+  <li><strong>Marcador:</strong> + y − para goles.</li>
+  <li><strong>Reloj:</strong> arranca automáticamente, se pausa en el descanso.</li>
+  <li><strong>Registrar evento:</strong> gol, asistencia, cambio, amarilla, roja, lesión. Cada evento pide el jugador implicado.</li>
+  <li><strong>Voz:</strong> toca el micro y di:
+    <ul>
+      <li>"Gol de Mateo" → suma 1 al marcador propio + registra goleador.</li>
+      <li>"Amarilla al 8" (o al nombre) → tarjeta amarilla al jugador con dorsal 8.</li>
+      <li>"Cambio, entra Nico, sale Pablo" → cambio registrado.</li>
+    </ul>
+  </li>
+</ul>
+
+<h3>Al terminar</h3>
+<p>Botón "Finalizar partido" → guarda el resultado y todos los eventos. Ya no hay que "pasarlos a limpio" — están en Partidos.</p>
+
+<div class="flow"><b>Alimenta a:</b> Partidos (el registro completo), Estadísticas (rendimiento), Disciplina (tarjetas contadas).</div>
+
+<!-- 06 -->
+<h1>06 · Partidos</h1>
+
+<h3>Qué es</h3>
+<p>Histórico de todos los partidos jugados. Puedes registrar partidos aquí manualmente si no usaste En Vivo (por ejemplo partidos anteriores a instalar la app).</p>
+
+<h3>Cómo se usa</h3>
+<ol class="steps">
+  <li>Botón "Registrar partido".</li>
+  <li>Rival, local/visitante, formación, resultado.</li>
+  <li>Cambios y notas del partido.</li>
+  <li>Añade eventos: goles, tarjetas, MVP.</li>
+  <li>Guardar.</li>
+</ol>
+
+<h3>Detalle de cada partido</h3>
+<p>Al tocar un partido ves el cronograma completo: goles, cambios, tarjetas por orden temporal.</p>
+
+<div class="flow"><b>Alimenta a:</b> Estadísticas, Predicciones, Dashboard.</div>
+
+<!-- 07 -->
+<h1>07 · Entrenamientos</h1>
+
+<h3>Qué es</h3>
+<p>Planificador semanal de sesiones. Tienes una biblioteca de más de 70 ejercicios base ya listos con imagen, categoría y descripción.</p>
+
+<h3>Dos pestañas</h3>
+<ul>
+  <li><strong>Sesiones:</strong> las semanas planificadas. Sidebar con la semana en curso, timeline con los ejercicios de cada día.</li>
+  <li><strong>Ejercicios base:</strong> biblioteca completa filtrable por categoría (Partidos reducidos, Finalizaciones, Posesiones, Balón parado, Presión…) y buscable por tag (control, presión, remate…).</li>
+</ul>
+
+<h3>Crear una sesión</h3>
+<ol class="steps">
+  <li>En la pestaña "Sesiones", elige el día.</li>
+  <li>En "Ejercicios base", pulsa el ejercicio que quieres añadir.</li>
+  <li>Se abre el modal: ajustas duración, intensidad y jugadores participantes.</li>
+  <li>"Añadir a la sesión". Aparece en el timeline del día.</li>
+  <li>Repite hasta tener los 4-6 bloques de la sesión.</li>
+</ol>
+
+<h3>Segmentos de una sesión (orden fijo)</h3>
+<p>Cada sesión tiene 8 segmentos posibles: Precalentamiento · Preparación física · Portería · Defensivo · Mediocampo · Delantera · Conjunto · Estiramiento.</p>
+
+<h3>Exportar la sesión</h3>
+<p>Botón "PDF" arriba a la derecha: descarga la sesión con las imágenes de cada ejercicio para tenerlo en papel el día del entreno.</p>
+
+<div class="flow"><b>Alimenta a:</b> Calendario (aparece agendado), Asistente IA (puede sugerir sesiones basadas en tus datos).</div>
+
+<!-- 08 -->
+<h1>08 · Calendario</h1>
+
+<h3>Qué es</h3>
+<p>Vista global de entrenamientos y convocatorias en un mismo sitio. 3 vistas: <strong>Mes, Semana, Día</strong>.</p>
+
+<h3>Cómo se usa</h3>
+<ul>
+  <li>Vista <strong>Mes</strong>: cuadrícula 7×5 con "pastillas" verdes por cada entreno y azules por cada convocatoria. Si un día tiene nota, aparece 📝.</li>
+  <li>Vista <strong>Semana</strong>: 7 columnas verticales con los eventos completos.</li>
+  <li>Vista <strong>Día</strong>: detalle grande con secciones Entrenos y Convocatorias, con notas expandibles.</li>
+</ul>
+
+<h3>Notas</h3>
+<p>Cada entreno y cada convocatoria puede llevar una nota (por ejemplo: "Ojo con Martín, viene de esguince"). Se ven con un chip 📝 y al tocar se abre en modal.</p>
+
+<div class="flow"><b>Se alimenta de:</b> Entrenamientos + Convocatoria. No se introduce nada directamente aquí — es una vista.</div>
+
+<!-- 09 -->
+<h1>09 · Estadísticas</h1>
+
+<h3>Qué es</h3>
+<p>Análisis del rendimiento individual y colectivo. Solo tiene sentido cuando tienes al menos <strong>3 partidos registrados</strong>.</p>
+
+<h3>Qué muestra</h3>
+<ul>
+  <li><strong>Colectivo:</strong> partidos jugados, victorias/empates/derrotas, goles a favor y en contra, promedio por partido, portería a cero.</li>
+  <li><strong>Individual:</strong> ranking de goleadores, asistentes, minutos jugados, tarjetas.</li>
+  <li><strong>Comparativas:</strong> local vs visitante, victorias vs derrotas (qué cambia en la formación).</li>
+  <li><strong>Racha:</strong> últimos 5 partidos con tendencia.</li>
+</ul>
+
+<div class="flow"><b>Se alimenta de:</b> Partidos (100%). Se recalcula solo cada vez que registras un partido.</div>
+
+<!-- 10 -->
+<h1>10 · Rivales / Torneo</h1>
+
+<h3>Qué es</h3>
+<p>La tabla de posiciones de tu liga y la ficha detallada de cada rival.</p>
+
+<h3>Cómo se rellena</h3>
+<p>Puedes cargar la liga manualmente (equipo por equipo) o importar los rivales desde un CSV. Cada equipo tiene: nombre, pts, PJ, PG, PE, PP, GF, GC y racha de últimos 5.</p>
+
+<h3>Ficha de un rival</h3>
+<p>Al tocar un rival: sus últimos partidos, sus goleadores, su tendencia, y el historial que tienes contra ellos (si ya jugaron antes).</p>
+
+<div class="flow"><b>Alimenta a:</b> Predicciones (con el historial y la racha), Asistente IA.</div>
+
+<!-- 11 -->
+<h1>11 · Predicciones</h1>
+
+<h3>Qué es</h3>
+<p>Probabilidades del próximo partido en base a tus datos reales. No es magia: se calcula con racha, local/visitante, historial contra el rival y xG (goles esperados).</p>
+
+<h3>Qué muestra</h3>
+<ul>
+  <li>Probabilidad de victoria / empate / derrota.</li>
+  <li>Resultado más probable.</li>
+  <li>Factores clave que están influyendo (racha positiva, jugar en casa, rival en mala forma…).</li>
+</ul>
+
+<div class="callout"><b>Ojo:</b> las predicciones no sustituyen tu intuición como entrenador. Son una segunda opinión matemática basada en datos.</div>
+
+<div class="flow"><b>Se alimenta de:</b> Partidos, Rivales, Convocatoria.</div>
+
+<!-- 12 -->
+<h1>12 · Disciplina (Amonestaciones)</h1>
+
+<h3>Qué es</h3>
+<p>Control de tarjetas amarillas y rojas por jugador, con alertas de sanción cuando se acumulan.</p>
+
+<h3>Cómo se llena</h3>
+<p>Automáticamente desde <strong>En Vivo</strong>. Si registras una amarilla durante el partido, aparece aquí sin tener que introducirla otra vez. También puedes registrarla manualmente desde "Registrar tarjeta".</p>
+
+<h3>Alertas</h3>
+<p>La app aplica las reglas típicas (por defecto: 5 amarillas = 1 partido de sanción, roja directa = 1 o más). Cuando un jugador está a 1 tarjeta de sanción, aparece con un aviso en Dashboard y no se le puede convocar sin ver primero el aviso.</p>
+
+<div class="flow"><b>Se alimenta de:</b> En Vivo, Partidos. <strong>Alimenta a:</strong> Convocatoria (bloquea sancionados), Dashboard (widget de riesgo).</div>
+
+<!-- 13 -->
+<h1>13 · Pizarra táctica</h1>
+
+<h3>Qué es</h3>
+<p>Pizarra libre para dibujar movimientos, jugadas ensayadas o explicar tácticas.</p>
+
+<h3>Cómo se usa</h3>
+<ol class="steps">
+  <li>Elige formación de base.</li>
+  <li>Los jugadores aparecen como fichas en el campo. Los arrastras.</li>
+  <li>Dibuja flechas de movimiento, líneas de pase, zonas de presión.</li>
+  <li>Guarda como imagen o PDF para compartir con el equipo.</li>
+</ol>
+
+<div class="flow">No se conecta con otros módulos — es una herramienta suelta de dibujo.</div>
+
+<!-- 14 -->
+<h1>14 · Clima</h1>
+
+<h3>Qué es</h3>
+<p>Previsión meteorológica del día del partido en la ubicación del campo.</p>
+
+<h3>Qué muestra</h3>
+<ul>
+  <li>Temperatura, sensación térmica, viento, humedad, probabilidad de lluvia.</li>
+  <li>Alerta si se prevé lluvia fuerte o calor extremo — con recomendaciones (hidratación, calentamiento más corto…).</li>
+</ul>
+
+<div class="flow"><b>Se alimenta de:</b> el próximo partido en Convocatoria. No introduces nada.</div>
+
+<!-- 15 -->
+<h1>15 · Asistente IA</h1>
+
+<h3>Qué es</h3>
+<p>Un asistente conversacional que responde preguntas sobre <strong>tu equipo</strong>, usando todos los datos que has cargado. Todo se calcula localmente — no hay IA externa que cueste dinero.</p>
+
+<h3>Preguntas que puedes hacer</h3>
+<ul>
+  <li>"¿En qué puesto voy en la liga?"</li>
+  <li>"¿Quién es mi máximo goleador?"</li>
+  <li>"¿Cómo llegamos al partido del sábado?"</li>
+  <li>"¿Quién está a una amarilla de sanción?"</li>
+  <li>"¿Qué formación funciona mejor de local?"</li>
+</ul>
+
+<div class="flow"><b>Se alimenta de:</b> literalmente todos los módulos anteriores.</div>
+
+<!-- 16 -->
+<h1>16 · Plan Temporada</h1>
+
+<h3>Qué es</h3>
+<p>Vista macro de la temporada: pretemporada, competición, parones, objetivos por fase.</p>
+
+<h3>Cómo se usa</h3>
+<ol class="steps">
+  <li>Define fecha de inicio y fin de temporada.</li>
+  <li>Marca hitos: primeros amistosos, fecha de inicio de liga, parón de Navidad, playoff.</li>
+  <li>Objetivos por fase (por ejemplo: pretemporada = trabajar físico, primera vuelta = asentar la formación, segunda vuelta = pelear puestos altos).</li>
+</ol>
+
+<div class="flow">Complementa a Entrenamientos: los entrenos se planifican con el objetivo macro de la fase en mente.</div>
+
+<!-- 17 -->
+<h1>17 · Informes</h1>
+
+<h3>Qué es</h3>
+<p>Generación de PDFs a partir de tus datos, listos para compartir con directiva, padres o federación.</p>
+
+<h3>Tipos de informe</h3>
+<ul>
+  <li>Resumen de temporada (todos los partidos + estadísticas colectivas).</li>
+  <li>Ficha individual de jugador (partidos, goles, minutos, tarjetas).</li>
+  <li>Convocatoria del sábado en PDF profesional.</li>
+  <li>Sesión de entreno con imágenes de ejercicios.</li>
+</ul>
+
+<div class="flow"><b>Se alimenta de:</b> todo lo que hayas registrado. Los PDFs se generan bajo demanda.</div>
+
+<!-- 18 -->
+<h1>18 · Club y ajustes</h1>
+
+<h3>Qué se configura aquí</h3>
+<ul>
+  <li>Datos del club: nombre, escudo, colores.</li>
+  <li>Datos del entrenador: nombre, teléfono, email.</li>
+  <li>Tipo de fútbol: F11 o F7 (⚠️ no se puede cambiar después de crear el equipo).</li>
+  <li>Notificaciones push: qué avisos quieres recibir.</li>
+  <li>Reglas de disciplina personalizadas si tu liga tiene reglas distintas a las por defecto.</li>
+  <li>Suscripción: ver plan, precio, próxima renovación, cancelar cuando quieras.</li>
+</ul>
+
+<!-- 19 -->
+<h1>19 · Preguntas frecuentes</h1>
+
+<h3>¿Puedo gestionar varios equipos?</h3>
+<p>Sí, con el selector arriba a la izquierda del menú. Cada equipo tiene su propia plantilla, calendario y estadísticas.</p>
+
+<h3>¿Se puede usar sin internet?</h3>
+<p>Sí. Los cambios se guardan localmente y se sincronizan cuando vuelve la conexión.</p>
+
+<h3>¿Los datos son míos?</h3>
+<p>Sí. Puedes exportar todo cuando quieras y darte de baja borra tus datos según GDPR.</p>
+
+<h3>¿Cómo instalo la app en el móvil?</h3>
+<p>En Chrome o Safari, "Añadir a pantalla de inicio". Se instala como cualquier otra app y arranca a pantalla completa.</p>
+
+<h3>¿Puedo compartir la cuenta con mi ayudante?</h3>
+<p>La cuenta es por entrenador. Los accesos secundarios para cuerpo técnico están en la hoja de ruta.</p>
+
+<h3>¿Hay app de padres/jugadores?</h3>
+<p>Todavía no. Por ahora la convocatoria se envía por WhatsApp — funciona igual.</p>
+
+<h3>¿Puedo recuperar un partido borrado?</h3>
+<p>No. El borrado es definitivo, así que hay un doble check antes de borrar cualquier registro.</p>
+
+<h3>¿Qué pasa cuando termina mi prueba de 15 días?</h3>
+<p>Recibes un aviso 3 días antes. Si no completas el pago, la cuenta queda limitada — no se borra, así que puedes reactivarla cuando quieras.</p>
+
+<hr>
+<p style="text-align:center;color:#71717a;font-size:9pt;margin-top:20pt">
+¿Tienes una duda que no está aquí?<br>
+Escríbenos por WhatsApp desde el botón verde de cualquier pantalla.<br><br>
+<strong>Lucas · Fundador de Kick and Go</strong>
+</p>
+
+</body>
+</html>
