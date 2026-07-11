@@ -123,14 +123,20 @@
 
 /* ── El layout "mobile" es ahora el único layout de En Vivo, en todos los tamaños ── */
 .ev2-desktop-only { display: none !important; }
+
+/* Mide el ANCHO REAL disponible (ya descontado el sidebar fijo de 224px),
+   no el ancho de la ventana — así el grid de 2 columnas solo se activa
+   cuando de verdad hay sitio, sin aplastar el campo en portátiles/PWA. */
+.ev2-container { container-type: inline-size; container-name: envivo; }
+
 .ev2-mobile-layout {
   display: block;
   padding-top: env(safe-area-inset-top);
   padding-bottom: env(safe-area-inset-bottom);
 }
 
-/* ── Escritorio/tablet ancho: distribuir en 2 columnas (campo a la izquierda, acciones a la derecha) ── */
-@media (min-width:900px) {
+/* ── Espacio real ≥900px: distribuir en 2 columnas (campo a la izquierda, acciones a la derecha) ── */
+@container envivo (min-width: 900px) {
   .ev2-mobile-layout { max-width: 1180px; margin: 0 auto; }
   .ev2-ml-cols { display:grid; grid-template-columns: 1.3fr 1fr; gap:16px; align-items:start; }
   .ev2-ml-main { min-width:0; }

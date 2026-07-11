@@ -847,7 +847,8 @@ export default function EnVivo() {
     </div>
     </div>{/* end ev2-desktop-only */}
 
-    {/* ── MOBILE LAYOUT (≤768px) ── */}
+    {/* ── LAYOUT UNIFICADO (mide el ancho real disponible, no la ventana) ── */}
+    <div className="ev2-container">
     <MobileEnVivo
       club={club} rival={rival} escudo={escudo}
       gf={gf} gc={gc} minMostrado={minMostrado}
@@ -881,6 +882,7 @@ export default function EnVivo() {
       setGf={setGf} setGc={setGc}
       setRivalDorsales={setRivalDorsales}
     />
+    </div>
     </>
   )
 }
