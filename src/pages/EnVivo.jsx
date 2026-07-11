@@ -876,7 +876,8 @@ function MobileEnVivo({
   setGf, setGc,
 }) {
   const ACCIONES = [
-    { tipo: 'gol',      tipoRival: 'gol-rival',      ico: '⚽', lbl: 'Gol',        needsPlayer: true,  needsPlayerRival: true  },
+    { tipo: 'gol',        tipoRival: 'gol-rival',       ico: '⚽',  lbl: 'Gol',       needsPlayer: true, needsPlayerRival: true },
+    { tipo: 'asistencia', tipoRival: 'asistencia',      ico: '🅰️', lbl: 'Asist.',    needsPlayer: true, needsPlayerRival: false },
     { tipo: 'amarilla', tipoRival: 'amarilla-rival',  ico: '🟨', lbl: 'Amarilla',   needsPlayer: true,  needsPlayerRival: true  },
     { tipo: 'roja',     tipoRival: 'roja-rival',      ico: '🟥', lbl: 'Roja',       needsPlayer: true,  needsPlayerRival: true  },
     { tipo: 'tiro',     tipoRival: 'tiro-rival',      ico: '🎯', lbl: 'Tiro',       needsPlayer: false, needsPlayerRival: false },
