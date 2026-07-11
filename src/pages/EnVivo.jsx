@@ -910,9 +910,9 @@ function MobileEnVivo({
     { tipo: 'amarilla',   tipoRival: 'amarilla-rival',   ico: '🟨', lbl: 'Amarilla',    needsPlayer: true,  needsPlayerRival: true },
     { tipo: 'roja',       tipoRival: 'roja-rival',       ico: '🟥', lbl: 'Roja',        needsPlayer: true,  needsPlayerRival: true },
     { tipo: 'falta',      tipoRival: 'falta-rival',      ico: '⚠️', lbl: 'Falta',       needsPlayer: true,  needsPlayerRival: true },
-    { tipo: 'tiro-puerta', tipoRival: 'tiro-puerta-rival', ico: '🎯', lbl: 'Tiro puerta', needsPlayer: false, needsPlayerRival: true },
-    { tipo: 'tiro-fuera',  tipoRival: 'tiro-fuera-rival',  ico: '🚫', lbl: 'Tiro fuera',  needsPlayer: false, needsPlayerRival: true },
-    { tipo: 'offside',    tipoRival: 'offside-rival',    ico: '🚩', lbl: 'F. juego',    needsPlayer: false, needsPlayerRival: true },
+    { tipo: 'tiro-puerta', tipoRival: 'tiro-puerta-rival', ico: '🎯', lbl: 'Tiro puerta', needsPlayer: true, needsPlayerRival: true },
+    { tipo: 'tiro-fuera',  tipoRival: 'tiro-fuera-rival',  ico: '🚫', lbl: 'Tiro fuera',  needsPlayer: true, needsPlayerRival: true },
+    { tipo: 'offside',    tipoRival: 'offside-rival',    ico: '🚩', lbl: 'F. juego',    needsPlayer: true, needsPlayerRival: true },
     { tipo: 'corner',     tipoRival: 'corner-rival',     ico: '⛳', lbl: 'Córner',      needsPlayer: false, needsPlayerRival: false },
     { tipo: 'cambio',     tipoRival: 'cambio-rival',     ico: '🔄', lbl: 'Cambio',      needsPlayer: 'cambio', needsPlayerRival: 'cambio-rival' },
   ]
