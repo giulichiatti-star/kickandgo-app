@@ -83,6 +83,15 @@ function emailBienvenida(nombre: string, email: string, password: string) {
             </td></tr>
           </table>
 
+          <!-- GUÍA RÁPIDA -->
+          <table width="100%" cellpadding="0" cellspacing="0" style="background:#111117;border-radius:12px;border:1px solid #27272a;margin-bottom:20px;">
+            <tr><td style="padding:18px 22px;">
+              <div style="font-size:14px;color:#fafafa;font-weight:600;margin-bottom:6px;">📖 Guía rápida — 4 páginas</div>
+              <div style="font-size:12px;color:#a1a1aa;margin-bottom:12px;line-height:1.5;">De cero al primer partido gestionado. Ideal para tu primera semana.</div>
+              <a href="${APP_URL}/manuales/quick-start.pdf" style="display:inline-block;background:#1f1f24;color:#10b981;font-size:13px;font-weight:600;text-decoration:none;padding:9px 16px;border-radius:8px;border:1px solid #27272a;">Descargar PDF →</a>
+            </td></tr>
+          </table>
+
           <p style="margin:0 0 20px;font-size:13px;color:#52525b;line-height:1.6;">
             Te recomendamos cambiar la contraseña desde Ajustes una vez dentro.
             Si necesitas ayuda con algo, responde a este email y te respondemos.

@@ -248,6 +248,15 @@ export default function Ajustes() {
 
       <NotificacionesPush />
 
+      <div className="card p-4 space-y-3">
+        <h2 className="text-sm font-bold">📖 Manuales de la app</h2>
+        <p className="text-xs text-muted">Descarga la guía rápida para empezar en 5 min o el manual completo con todos los módulos.</p>
+        <div className="flex gap-2 flex-wrap">
+          <a href="/manuales/quick-start.pdf" target="_blank" rel="noopener noreferrer" className="btn btn-primary text-xs">📖 Guía rápida (4 pág)</a>
+          <a href="/manuales/manual-usuario.pdf" target="_blank" rel="noopener noreferrer" className="btn btn-outline text-xs">📘 Manual completo</a>
+        </div>
+      </div>
+
       <ContactoSoporte />
 
       <ZonaPeligro />

@@ -94,6 +94,7 @@ const IC = {
   asistente:   <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>,
   temporada:   <svg viewBox="0 0 24 24"><path d="M12 2l3 6.5L22 9.3l-5 4.8 1.2 6.9L12 17.7l-6.2 3.3L7 14.1 2 9.3l7-0.8z"/></svg>,
   calendario:  <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>,
+  manual:      <svg viewBox="0 0 24 24"><path d="M4 4h10a4 4 0 014 4v12H8a4 4 0 01-4-4z"/><line x1="8" y1="10" x2="14" y2="10"/><line x1="8" y1="14" x2="14" y2="14"/></svg>,
 }
 
 const NAV_PRINCIPAL = [
@@ -115,6 +116,7 @@ const NAV_MAS = [
   { to: '/predicciones',   label: 'Predicciones',      svg: IC.predicciones },
   { to: '/clima',          label: 'Clima',             svg: IC.clima },
   { to: '/asistente',      label: 'Asistente IA',      svg: IC.asistente },
+  { to: '/manuales/manual-usuario.pdf', label: 'Manual', svg: IC.manual, external: true },
 ]
 const IC_ADMIN = <svg viewBox="0 0 24 24"><path d="M12 2l8 4v6c0 5-3.5 9-8 10-4.5-1-8-5-8-10V6z" /><path d="M9 12l2 2 4-4" /></svg>
 
@@ -291,11 +293,17 @@ function Shell({ children, onLogout, esAdmin }) {
   const nav = useNavigate()
   const ir = (to) => { setOpen(false); nav(to) }
 
-  const Item = ({ to, label, svg }) => (
-    <NavLink to={to} onClick={() => setOpen(false)}
-      className={({ isActive }) => `kg-nav-item ${isActive ? 'active' : ''}`}>
-      <span className="kg-nav-ico">{svg}</span>{label}
-    </NavLink>
+  const Item = ({ to, label, svg, external }) => (
+    external ? (
+      <a href={to} target="_blank" rel="noopener noreferrer" onClick={() => setOpen(false)} className="kg-nav-item">
+        <span className="kg-nav-ico">{svg}</span>{label}
+      </a>
+    ) : (
+      <NavLink to={to} onClick={() => setOpen(false)}
+        className={({ isActive }) => `kg-nav-item ${isActive ? 'active' : ''}`}>
+        <span className="kg-nav-ico">{svg}</span>{label}
+      </NavLink>
+    )
   )
 
   return (
@@ -308,7 +316,7 @@ function Shell({ children, onLogout, esAdmin }) {
         <nav className="kg-nav">
           {NAV_PRINCIPAL.map((n) => <Item key={n.to} to={n.to} label={n.label} svg={n.svg} />)}
           <div className="kg-nav-label">Más</div>
-          {NAV_MAS.map((n) => <Item key={n.to} to={n.to} label={n.label} svg={n.svg} />)}
+          {NAV_MAS.map((n) => <Item key={n.to} to={n.to} label={n.label} svg={n.svg} external={n.external} />)}
           {esAdmin && <Item to="/admin" label="Admin" svg={IC_ADMIN} />}
         </nav>
         <button onClick={onLogout}
