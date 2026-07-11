@@ -282,12 +282,17 @@ export default function EnVivo() {
   }
 
   // Posiciones de cancha — inset de seguridad: aleja cualquier coordenada del
-  // borde del campo (mínimo ~10% de margen) para que ningún jugador (portero
-  // incluido) quede pegado o fuera de la línea, sea cual sea la formación.
+  // borde del campo para que ningún jugador quede pegado o fuera de la línea.
+  // El portero usa un inset propio, más ceñido, para caer DENTRO del área
+  // pequeña dibujada en el SVG (rect x=2..22 de 160 → 1.25%-13.75% de ancho).
   const inset = (v) => 10 + v * 0.8
+  const insetGK = (v) => 5 + v * 0.5 // x=6→8%, x=8→9%: siempre dentro del área (1.25–13.75%)
   const coords = coordsManual || formsDe(tipo)[formacion] || Object.values(formsDe(tipo))[0]
   const puntosLocal = ordenarTitulares(titulares).slice(0, coords.length).map((j, i) => ({
-    ...j, x: inset(coords[i][0]), y: inset(coords[i][1]), gk: i === 0, side: 'local',
+    ...j,
+    x: i === 0 ? insetGK(coords[i][0]) : inset(coords[i][0]),
+    y: inset(coords[i][1]),
+    gk: i === 0, side: 'local',
   }))
 
   function handleDragJugador(e, idx) {
@@ -321,7 +326,8 @@ export default function EnVivo() {
   const rivalForm = formsDe(tipo)[formacionRival] || Object.values(formsDe(tipo))[0]
   const puntosRival = rivalDorsales.slice(0, rivalForm.length).map((dorsal, i) => ({
     id: `r-${dorsal}`, dorsal, nombre: 'Rival ' + dorsal, cat: i === 0 ? 'POR' : 'MED',
-    x: inset(100 - rivalForm[i][0]), y: inset(rivalForm[i][1]), gk: i === 0, side: 'rival',
+    x: i === 0 ? 100 - insetGK(rivalForm[i][0]) : inset(100 - rivalForm[i][0]),
+    y: inset(rivalForm[i][1]), gk: i === 0, side: 'rival',
   }))
 
   function bump(s) { setStats((p) => ({ ...p, [s]: (p[s] || 0) + 1 })) }
