@@ -1,5 +1,7 @@
 import { supabase } from './supabase'
 
+function hoyISO() { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` }
+
 export async function listarLesiones(equipoId) {
   let q = supabase.from('lesiones').select('*').order('fecha_inicio', { ascending: false })
   if (equipoId) q = q.eq('equipo_id', equipoId)
@@ -17,7 +19,7 @@ export async function crearLesion(l, equipoId) {
     tipo: l.tipo || '',
     zona: l.zona || '',
     gravedad: l.gravedad || 'leve',
-    fecha_inicio: l.fecha_inicio || new Date().toISOString().slice(0, 10),
+    fecha_inicio: l.fecha_inicio || hoyISO(),
     fecha_alta: l.fecha_alta || null,
     notas: l.notas || '',
     alta: false,
@@ -31,7 +33,7 @@ export async function crearLesion(l, equipoId) {
 
 export async function darAlta(id, jugadorId) {
   const { error } = await supabase
-    .from('lesiones').update({ alta: true, fecha_alta: new Date().toISOString().slice(0, 10) }).eq('id', id)
+    .from('lesiones').update({ alta: true, fecha_alta: hoyISO() }).eq('id', id)
   if (error) throw error
   // Restaurar jugador a activo solo si no tiene otras lesiones activas
   if (jugadorId) {

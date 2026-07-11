@@ -19,7 +19,9 @@ function lunesDe(offset = 0) {
   d.setDate(d.getDate() - ((d.getDay() + 6) % 7) + offset * 7)
   d.setHours(0, 0, 0, 0); return d
 }
-function iso(d) { return d.toISOString().slice(0, 10) }
+function iso(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+}
 function addDays(d, n) { const x = new Date(d); x.setDate(x.getDate() + n); return x }
 const DIAS   = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom']
 const DIAS_L = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo']

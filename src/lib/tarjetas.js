@@ -1,6 +1,8 @@
 import { supabase } from './supabase'
 import { cacheSet, cacheGet } from './cache'
 
+function hoyISO() { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` }
+
 export async function listarTarjetas(equipoId) {
   const key = 'tarjetas_' + (equipoId || 'all')
   try {
@@ -24,7 +26,7 @@ export async function crearTarjeta(t, equipoId) {
     equipo_id: equipoId,
     jugador_id: t.jugador_id,
     tipo: t.tipo || 'amarilla',
-    fecha: t.fecha || new Date().toISOString().slice(0, 10),
+    fecha: t.fecha || hoyISO(),
     minuto: t.minuto || null,
     motivo: t.motivo || '',
   }

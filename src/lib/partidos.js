@@ -1,12 +1,14 @@
 import { supabase } from './supabase'
 import { cacheSet, cacheGet } from './cache'
 
+function hoyISO() { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` }
+
 export async function guardarPartido(p, equipoId) {
   const { data: u } = await supabase.auth.getUser()
   const payload = {
     user_id: u.user.id,
     equipo_id: equipoId,
-    fecha: p.fecha || new Date().toISOString().slice(0, 10),
+    fecha: p.fecha || hoyISO(),
     rival: p.rival || '',
     local_visitante: p.local_visitante || 'local',
     formacion: p.formacion || '433',
