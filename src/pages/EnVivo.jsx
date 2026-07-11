@@ -967,6 +967,8 @@ function MobileEnVivo({
         </div>
       )}
 
+      <div className="ev2-ml-cols">
+      <div className="ev2-ml-main">
       {/* TOPBAR */}
       <div style={{ background:'#16161a', borderBottom:'1px solid #27272a', padding:'10px 14px 8px' }}>
         {/* Marcador */}
@@ -1076,7 +1078,9 @@ function MobileEnVivo({
           })}
         </div>
       </div>
+      </div>{/* end ev2-ml-main */}
 
+      <div className="ev2-ml-side">
       {/* PANEL ACCIONES 2 COLUMNAS */}
       <div style={{ margin:'10px 12px 0', border:'1px solid #27272a', borderRadius:10, overflow:'hidden' }}>
         {/* Headers */}
@@ -1173,6 +1177,8 @@ function MobileEnVivo({
           </div>
         )}
       </div>
+      </div>{/* end ev2-ml-side */}
+      </div>{/* end ev2-ml-cols */}
 
       {/* BOTTOM SHEETS */}
       {mobileSheet && (

@@ -121,17 +121,24 @@
 .ev2-row3 { display:grid; grid-template-columns:1fr 220px; gap:12px; margin-top:12px; align-items:start; }
 @media (max-width:720px){ .ev2-row3{ grid-template-columns:1fr; } }
 
-/* ── Desktop/tablet: mostrar layout original, ocultar mobile ── */
-.ev2-mobile-layout { display: none; }
+/* ── El layout "mobile" es ahora el único layout de En Vivo, en todos los tamaños ── */
+.ev2-desktop-only { display: none !important; }
+.ev2-mobile-layout {
+  display: block;
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+}
 
-/* ── MOBILE: ocultar desktop, mostrar mobile layout ── */
+/* ── Escritorio/tablet ancho: distribuir en 2 columnas (campo a la izquierda, acciones a la derecha) ── */
+@media (min-width:900px) {
+  .ev2-mobile-layout { max-width: 1180px; margin: 0 auto; }
+  .ev2-ml-cols { display:grid; grid-template-columns: 1.3fr 1fr; gap:16px; align-items:start; }
+  .ev2-ml-main { min-width:0; }
+  .ev2-ml-side { min-width:0; }
+  .ev2-pitch { aspect-ratio: 3/2; }
+}
+
 @media (max-width:768px) {
-  .ev2-desktop-only { display: none !important; }
-  .ev2-mobile-layout {
-    display: block;
-    padding-top: env(safe-area-inset-top);
-    padding-bottom: env(safe-area-inset-bottom);
-  }
 
   /* Campo más alto en móvil para que los jugadores no queden apilados */
   .ev2-pitch { aspect-ratio: 4/3; }
