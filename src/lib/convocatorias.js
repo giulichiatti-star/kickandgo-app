@@ -16,6 +16,11 @@ export async function guardarConvocatoria({ rival, fecha, formacion, titulares, 
   return data
 }
 
+export async function borrarConvocatoria(id) {
+  const { error } = await supabase.from('convocatorias').delete().eq('id', id)
+  if (error) throw error
+}
+
 export async function listarConvocatorias(equipoId) {
   let q = supabase.from('convocatorias').select('*').order('fecha', { ascending: true })
   if (equipoId) q = q.eq('equipo_id', equipoId)

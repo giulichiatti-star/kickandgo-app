@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
-import { listarEntrenos } from '../lib/entrenamientos'
-import { listarConvocatorias } from '../lib/convocatorias'
+import { listarEntrenos, borrarEntreno } from '../lib/entrenamientos'
+import { listarConvocatorias, borrarConvocatoria } from '../lib/convocatorias'
 import '../calendario.css'
 
 const DOWS = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom']
@@ -60,6 +60,21 @@ export default function Calendario() {
   const irHoy = () => { setCursor(new Date(HOY.getFullYear(), HOY.getMonth(), 1)); setDiaSel(new Date(HOY)) }
   const abrirDia = iso => { setDiaSel(new Date(iso+'T00:00:00')); setVista('dia') }
 
+  async function borrarEntrenoUI(id, nombre) {
+    if (!confirm(`¿Borrar el entreno "${nombre || 'sin nombre'}"?\n\nEsta acción no se puede deshacer.`)) return
+    try {
+      await borrarEntreno(id)
+      setEntrenos(prev => prev.filter(e => e.id !== id))
+    } catch (e) { alert('Error: ' + e.message) }
+  }
+  async function borrarConvocatoriaUI(id, rival) {
+    if (!confirm(`¿Borrar la convocatoria vs ${rival || '—'}?\n\nEsta acción no se puede deshacer.`)) return
+    try {
+      await borrarConvocatoria(id)
+      setConvocatorias(prev => prev.filter(c => c.id !== id))
+    } catch (e) { alert('Error: ' + e.message) }
+  }
+
   const periodo = useMemo(() => {
     if (vista === 'mes') return cursor.toLocaleDateString('es', { month:'long', year:'numeric' })
     if (vista === 'semana') {
@@ -99,7 +114,7 @@ export default function Calendario() {
 
       {vista === 'mes' && <VistaMes cursor={cursor} hoy={HOY} sel={diaSel} eventos={eventosPorDia} onDia={abrirDia}/>}
       {vista === 'semana' && <VistaSemana cursor={cursor} hoy={HOY} eventos={eventosPorDia} onNota={setNota} onDia={abrirDia}/>}
-      {vista === 'dia' && <VistaDia dia={diaSel} eventos={eventosPorDia} onNota={setNota}/>}
+      {vista === 'dia' && <VistaDia dia={diaSel} eventos={eventosPorDia} onNota={setNota} onBorrarEntreno={borrarEntrenoUI} onBorrarConv={borrarConvocatoriaUI}/>}
 
       {nota && (
         <div className="cal-modal-bg" onClick={e => { if (e.target.classList.contains('cal-modal-bg')) setNota(null) }}>
@@ -188,7 +203,7 @@ function VistaSemana({ cursor, hoy, eventos, onNota, onDia }) {
   )
 }
 
-function VistaDia({ dia, eventos, onNota }) {
+function VistaDia({ dia, eventos, onNota, onBorrarEntreno, onBorrarConv }) {
   const iso = fmtISO(dia)
   const ev = eventos[iso] || {}
   return (
@@ -202,8 +217,8 @@ function VistaDia({ dia, eventos, onNota }) {
         <h4><span className="dot" style={{background:'#34d399'}}/>Entrenos</h4>
         {(ev.entrenos||[]).length === 0 && <div className="dia-empty">Sin entrenos este día</div>}
         {(ev.entrenos||[]).map((e,k) => (
-          <div key={k} className="dia-item" onClick={()=>e.notas && onNota({titulo:`Entreno · ${iso}`, texto:e.notas})}>
-            <div className="body">
+          <div key={k} className="dia-item">
+            <div className="body" onClick={()=>e.notas && onNota({titulo:`Entreno · ${iso}`, texto:e.notas})} style={{cursor: e.notas?'pointer':'default'}}>
               <div className="head">
                 <div className="title">{e.objetivo || 'Entreno'}</div>
                 {e.notas && <span className="nota-chip">📝 Nota</span>}
@@ -213,6 +228,8 @@ function VistaDia({ dia, eventos, onNota }) {
                 <span>🏋 {(e.ejercicios||[]).length} ejercicios</span>
               </div>
             </div>
+            <button onClick={()=>onBorrarEntreno(e.id, e.objetivo)} title="Borrar entreno"
+              style={{background:'transparent',border:'1px solid #7f1d1d',color:'#fca5a5',borderRadius:8,padding:'6px 10px',fontSize:12,cursor:'pointer',flexShrink:0}}>🗑</button>
           </div>
         ))}
       </div>
@@ -221,8 +238,8 @@ function VistaDia({ dia, eventos, onNota }) {
         <h4><span className="dot" style={{background:'#3b82f6'}}/>Convocatorias</h4>
         {(ev.convocatorias||[]).length === 0 && <div className="dia-empty">Sin partido este día</div>}
         {(ev.convocatorias||[]).map((c,k) => (
-          <div key={k} className="dia-item" onClick={()=>c.notas && onNota({titulo:`vs ${c.rival} · ${iso}`, texto:c.notas})}>
-            <div className="body">
+          <div key={k} className="dia-item">
+            <div className="body" onClick={()=>c.notas && onNota({titulo:`vs ${c.rival} · ${iso}`, texto:c.notas})} style={{cursor: c.notas?'pointer':'default'}}>
               <div className="head">
                 <div className="title">vs {c.rival || '—'}</div>
                 {c.notas && <span className="nota-chip">📝 Nota</span>}
@@ -232,6 +249,8 @@ function VistaDia({ dia, eventos, onNota }) {
                 <span>👥 {(c.titulares?.length || 0) + (c.suplentes?.length || 0)} conv.</span>
               </div>
             </div>
+            <button onClick={()=>onBorrarConv(c.id, c.rival)} title="Borrar convocatoria"
+              style={{background:'transparent',border:'1px solid #7f1d1d',color:'#fca5a5',borderRadius:8,padding:'6px 10px',fontSize:12,cursor:'pointer',flexShrink:0}}>🗑</button>
           </div>
         ))}
       </div>
