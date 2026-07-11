@@ -85,6 +85,80 @@ function DashGauge({ value, color, label, iconKey }) {
   )
 }
 
+function InstalarPWAModal({ onCerrar }) {
+  const ua = typeof navigator !== 'undefined' ? navigator.userAgent : ''
+  const esIOS = /iPad|iPhone|iPod/.test(ua)
+  const esAndroid = /Android/.test(ua)
+  const [tab, setTab] = useState(esIOS ? 'ios' : esAndroid ? 'android' : 'android')
+
+  const pasos = {
+    android: [
+      { n: 1, t: 'Abre esta web en Chrome', d: 'Si estás en Instagram, WhatsApp o Facebook, tócalo en "⋮ Abrir en Chrome".' },
+      { n: 2, t: 'Menú ⋮ arriba a la derecha', d: 'Pulsa el icono de tres puntos.' },
+      { n: 3, t: 'Añadir a pantalla de inicio', d: 'Confirma. El icono verde de Kick and Go aparecerá como una app más.' },
+    ],
+    ios: [
+      { n: 1, t: 'Abre esta web en Safari', d: 'La instalación solo funciona desde Safari (no Chrome ni Instagram).' },
+      { n: 2, t: 'Pulsa el botón compartir', d: 'El cuadrado con la flecha ⬆ en la barra inferior.' },
+      { n: 3, t: 'Añadir a pantalla de inicio', d: 'Baja en el menú, tócalo y confirma "Añadir".' },
+    ],
+    escritorio: [
+      { n: 1, t: 'Abre esta web en Chrome, Edge o Brave', d: 'En Firefox no está disponible.' },
+      { n: 2, t: 'Icono de instalación en la barra de URL', d: 'A la derecha de la URL verás un icono de pantalla con flecha ⬇.' },
+      { n: 3, t: 'Instalar', d: 'Confirma. Kick and Go arrancará como una app de escritorio.' },
+    ],
+  }
+
+  return (
+    <div onClick={onCerrar} style={{
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,.72)', zIndex: 100,
+      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
+    }}>
+      <div onClick={e => e.stopPropagation()} style={{
+        background: '#18181b', border: '1px solid #27272a', borderRadius: 14,
+        maxWidth: 480, width: '100%', padding: 22, maxHeight: '90vh', overflowY: 'auto',
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
+          <div>
+            <div style={{ fontSize: 18, fontWeight: 800, color: '#fafafa' }}>📲 Instala Kick and Go</div>
+            <div style={{ fontSize: 12, color: '#71717a', marginTop: 3 }}>Úsala como una app nativa, sin abrir el navegador.</div>
+          </div>
+          <button onClick={onCerrar} style={{ background: 'none', border: 'none', color: '#71717a', fontSize: 20, cursor: 'pointer', lineHeight: 1 }}>×</button>
+        </div>
+
+        <div style={{ display: 'flex', gap: 6, background: '#0f0f11', border: '1px solid #27272a', borderRadius: 8, padding: 3, margin: '16px 0' }}>
+          {[['android', 'Android'], ['ios', 'iPhone'], ['escritorio', 'Escritorio']].map(([k, l]) => (
+            <button key={k} onClick={() => setTab(k)} style={{
+              flex: 1, background: tab === k ? 'rgba(16,185,129,.15)' : 'transparent',
+              color: tab === k ? '#34d399' : '#71717a', border: 'none',
+              padding: '7px', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer',
+            }}>{l}</button>
+          ))}
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {pasos[tab].map(p => (
+            <div key={p.n} style={{ display: 'flex', gap: 12, padding: 12, background: '#0f0f11', borderRadius: 10, border: '1px solid #27272a' }}>
+              <div style={{
+                width: 28, height: 28, borderRadius: 8, background: 'rgba(16,185,129,.15)',
+                color: '#34d399', display: 'grid', placeItems: 'center', fontWeight: 800, fontSize: 13, flexShrink: 0,
+              }}>{p.n}</div>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#fafafa', marginBottom: 2 }}>{p.t}</div>
+                <div style={{ fontSize: 12, color: '#94a3b8', lineHeight: 1.45 }}>{p.d}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ marginTop: 16, padding: 12, background: 'rgba(245,158,11,.08)', border: '1px solid rgba(245,158,11,.25)', borderRadius: 8, fontSize: 12, color: '#fcd34d', lineHeight: 1.5 }}>
+          💡 Instalada como app, entras con un toque en el icono, recibes notificaciones push del partido y funciona sin conexión.
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function Inicio() {
   const { mostrar: mostrarPWA, instalar, descartar } = usePWAInstall()
   const nav = useNavigate()
@@ -97,6 +171,7 @@ export default function Inicio() {
   const [conv, setConv] = useState(null)
   const [entrenos, setEntrenos] = useState([])
   const [tarjetas, setTarjetas] = useState([])
+  const [mostrarInstalar, setMostrarInstalar] = useState(false)
   const [lesiones, setLesiones] = useState([])
 
   useEffect(() => {
@@ -289,7 +364,18 @@ export default function Inicio() {
             <div className="dash2-hello-sub">{desc || club}</div>
           </div>
         </div>
+        <button
+          onClick={() => setMostrarInstalar(true)}
+          style={{
+            background: 'linear-gradient(135deg, #10b981, #059669)', color: '#022c22',
+            border: 'none', borderRadius: 10, padding: '9px 14px',
+            fontSize: 12, fontWeight: 800, cursor: 'pointer', display: 'flex',
+            alignItems: 'center', gap: 6, whiteSpace: 'nowrap',
+            boxShadow: '0 2px 8px rgba(16,185,129,.25)',
+          }}>📲 Instala la app</button>
       </div>
+
+      {mostrarInstalar && <InstalarPWAModal onCerrar={() => setMostrarInstalar(false)} />}
 
       {/* HERO */}
       <div className="dash2-row hero">
