@@ -281,10 +281,13 @@ export default function EnVivo() {
     return tiempo === 1 ? '1er Tiempo' : '2º Tiempo'
   }
 
-  // Posiciones de cancha
+  // Posiciones de cancha — inset de seguridad: aleja cualquier coordenada del
+  // borde del campo (mínimo ~10% de margen) para que ningún jugador (portero
+  // incluido) quede pegado o fuera de la línea, sea cual sea la formación.
+  const inset = (v) => 10 + v * 0.8
   const coords = coordsManual || formsDe(tipo)[formacion] || Object.values(formsDe(tipo))[0]
   const puntosLocal = ordenarTitulares(titulares).slice(0, coords.length).map((j, i) => ({
-    ...j, x: coords[i][0], y: coords[i][1], gk: i === 0, side: 'local',
+    ...j, x: inset(coords[i][0]), y: inset(coords[i][1]), gk: i === 0, side: 'local',
   }))
 
   function handleDragJugador(e, idx) {
@@ -318,7 +321,7 @@ export default function EnVivo() {
   const rivalForm = formsDe(tipo)[formacionRival] || Object.values(formsDe(tipo))[0]
   const puntosRival = rivalDorsales.slice(0, rivalForm.length).map((dorsal, i) => ({
     id: `r-${dorsal}`, dorsal, nombre: 'Rival ' + dorsal, cat: i === 0 ? 'POR' : 'MED',
-    x: 100 - rivalForm[i][0], y: rivalForm[i][1], gk: i === 0, side: 'rival',
+    x: inset(100 - rivalForm[i][0]), y: inset(rivalForm[i][1]), gk: i === 0, side: 'rival',
   }))
 
   function bump(s) { setStats((p) => ({ ...p, [s]: (p[s] || 0) + 1 })) }
