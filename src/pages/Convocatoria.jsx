@@ -207,7 +207,9 @@ export default function Convocatoria() {
   // Genera el PDF de la convocatoria (ventana de impresión → "Guardar como PDF").
   // modo 'confirmado'  → separa Titulares / Suplentes.
   // modo 'convocados'  → una sola lista agrupada por posición, sin decir quién es titular.
-  function generarPDF(modo) {
+  // textoWhatsapp (opcional) → si se pasa, añade una barra con botón "Ir a WhatsApp"
+  // dentro de la propia ventana (clic directo del usuario, así el navegador no lo bloquea).
+  function generarPDF(modo, textoWhatsapp) {
     const escudo = equipoActivo?.escudo_url
     const filaJugador = j => {
       const lesion = lesActivas.find(l => l.jugador_id === j.id)
@@ -238,6 +240,12 @@ export default function Convocatoria() {
       `
     }
 
+    const barraHtml = textoWhatsapp ? `
+  <div class="toolbar">
+    <button class="tb-btn tb-pdf" onclick="window.print()">🖨️ Guardar como PDF</button>
+    <button class="tb-btn tb-wa" onclick="window.open('https://wa.me/?text=${encodeURIComponent(textoWhatsapp)}','_blank')">📲 Continuar a WhatsApp</button>
+  </div>` : ''
+
     const html = `<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">
 <title>Convocatoria${rival ? ' vs ' + rival : ''}</title>
 <style>
@@ -245,6 +253,11 @@ export default function Convocatoria() {
   @page{margin:0}
   body{font-family:'Helvetica Neue',Arial,sans-serif;background:#0f0f11;color:#fafafa;padding:36px 40px;max-width:720px;margin:auto;
     -webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .toolbar{display:flex;gap:10px;margin-bottom:20px;padding:12px;background:#18181b;border:1px solid #27272a;border-radius:10px}
+  .tb-btn{flex:1;padding:11px;border-radius:8px;border:none;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit}
+  .tb-pdf{background:#27272a;color:#fafafa}
+  .tb-wa{background:#25d366;color:#062018}
+  @media print{.toolbar{display:none}}
   .head{display:flex;align-items:center;gap:14px;margin-bottom:22px;padding-bottom:18px;border-bottom:1px solid #27272a}
   .escudo{width:54px;height:54px;border-radius:12px;object-fit:cover;background:#18181b;border:1px solid #27272a;flex-shrink:0}
   .escudo-ph{width:54px;height:54px;border-radius:12px;background:#18181b;border:1px solid #27272a;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:26px}
@@ -268,6 +281,7 @@ export default function Convocatoria() {
     font-size:10.5px;color:#52525b}
   .footer b{color:#34d399}
 </style></head><body>
+  ${barraHtml}
   <div class="head">
     ${escudo ? `<img class="escudo" src="${escudo}"/>` : '<div class="escudo-ph">🛡️</div>'}
     <div>
@@ -284,6 +298,9 @@ export default function Convocatoria() {
     w.document.write(html)
     w.document.close()
     w.focus()
+    // Con flujo de WhatsApp: el usuario controla los clics de la barra (guardar / ir a WhatsApp).
+    // Descarga directa (sin WhatsApp): se imprime automáticamente al cargar, como antes.
+    if (textoWhatsapp) return
     const doPrint = () => { try { w.print() } catch {} }
     const imgs = w.document.images
     if (!imgs.length) return setTimeout(doPrint, 400)
@@ -294,17 +311,14 @@ export default function Convocatoria() {
   }
 
   // WhatsApp no permite adjuntar un archivo automáticamente desde un enlace —
-  // solo puede pre-rellenar texto. Generamos el PDF (el entrenador lo guarda
-  // con "Guardar como PDF") y abrimos WhatsApp con un aviso corto para
-  // adjuntarlo a mano. Es la única vía posible sin usar la API de WhatsApp Business.
+  // solo puede pre-rellenar texto. Abrimos el PDF con una barra que tiene
+  // "Guardar como PDF" e "Ir a WhatsApp" — ambos son clics directos del
+  // usuario DENTRO de esa ventana, así el navegador no bloquea el segundo popup.
   function enviarPorWhatsapp(modo) {
-    generarPDF(modo)
     const texto = modo === 'confirmado'
       ? `Convocatoria de ${club || 'nuestro equipo'}${rival ? ' vs ' + rival : ''}. Adjunto el PDF con titulares y suplentes.`
       : `Convocatoria de ${club || 'nuestro equipo'}${rival ? ' vs ' + rival : ''}. Adjunto el PDF — la alineación se confirma en el campo.`
-    setTimeout(() => {
-      window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`, '_blank')
-    }, 600)
+    generarPDF(modo, texto)
   }
 
   async function guardar() {
