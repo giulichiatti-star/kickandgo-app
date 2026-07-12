@@ -1,6 +1,6 @@
 import { supabase } from './supabase'
 
-export async function guardarConvocatoria({ rival, fecha, formacion, titulares, suplentes }, equipoId) {
+export async function guardarConvocatoria({ rival, fecha, formacion, titulares, suplentes, horaPartido, horaConvocatoria, lugar }, equipoId) {
   const { data: u } = await supabase.auth.getUser()
   const payload = {
     user_id: u.user.id,
@@ -10,6 +10,9 @@ export async function guardarConvocatoria({ rival, fecha, formacion, titulares, 
     formacion: formacion || '433',
     titulares,
     suplentes,
+    hora_partido: horaPartido || '',
+    hora_convocatoria: horaConvocatoria || '',
+    lugar: lugar || '',
   }
   const { data, error } = await supabase.from('convocatorias').insert(payload).select().single()
   if (error) throw error

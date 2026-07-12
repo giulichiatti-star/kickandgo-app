@@ -17,6 +17,9 @@ export default function Convocatoria() {
   const [suplentes, setSuplentes] = useState([])
   const [rival, setRival] = useState('')
   const [fecha, setFecha] = useState('')
+  const [horaPartido, setHoraPartido] = useState('')
+  const [horaConvocatoria, setHoraConvocatoria] = useState('')
+  const [lugar, setLugar] = useState('')
   const [cargando, setCargando] = useState(true)
   const [msg, setMsg] = useState('')
   const [tipo, setTipo] = useState('11')
@@ -53,6 +56,9 @@ export default function Convocatoria() {
         if (ult) {
           setRival(ult.rival || '')
           setFecha(ult.fecha || '')
+          setHoraPartido(ult.hora_partido || '')
+          setHoraConvocatoria(ult.hora_convocatoria || '')
+          setLugar(ult.lugar || '')
           const formUlt = ult.formacion && formacionesPara(t)[ult.formacion] ? ult.formacion : formInicial
           setFormacion(formUlt)
           const tits = (ult.titulares || []).map(x => x.id).filter(Boolean)
@@ -176,122 +182,133 @@ export default function Convocatoria() {
   }
   // ────────────────────────────────────────────────────────────────────────
 
-  // Grupo de posición por el texto real registrado en Plantilla — igual para
-  // titulares y suplentes, sin depender del slot táctico (orden pedido:
-  // Portero, Defensas, Medio campo, Extremo, Delantero).
-  function grupoPosicion(posicion) {
-    const p = (posicion || '').toLowerCase()
-    if (/portero|arquero|guardameta/.test(p)) return 'Portero'
-    if (/lateral|central|defensa|carrilero/.test(p)) return 'Defensas'
-    if (/extremo/.test(p)) return 'Extremo'
-    if (/medio|pivote|mediapunta|interior|volante|enganche/.test(p)) return 'Medio campo'
-    return 'Delantero'
-  }
-  const ORDEN_GRUPOS = ['Portero', 'Defensas', 'Medio campo', 'Extremo', 'Delantero']
-
-  function agrupar(ids) {
-    const jugs = ids.map(byId).filter(Boolean)
-    const grupos = {}
-    jugs.forEach(j => {
-      const g = grupoPosicion(j.posicion)
-      if (!grupos[g]) grupos[g] = []
-      grupos[g].push(j)
-    })
-    return ORDEN_GRUPOS.map(g => ({ grupo: g, jugadores: grupos[g] || [] })).filter(x => x.jugadores.length)
-  }
-
   const fechaFmt = fecha
     ? new Date(fecha + 'T12:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })
     : null
+  const horaFmt = h => h ? h.slice(0, 5) : null
 
-  // Genera el PDF de la convocatoria (ventana de impresión → "Guardar como PDF").
-  // modo 'confirmado'  → separa Titulares / Suplentes.
-  // modo 'convocados'  → una sola lista agrupada por posición, sin decir quién es titular.
-  // textoWhatsapp (opcional) → si se pasa, añade una barra con botón "Ir a WhatsApp"
-  // dentro de la propia ventana (clic directo del usuario, así el navegador no lo bloquea).
+  // Genera el PDF de la convocatoria: hoja simple, un único listado ordenado
+  // por dorsal, sin distinguir titular/suplente — la alineación se confirma
+  // en el campo. modo 'confirmado' añade una nota indicando que sí hay
+  // alineación decidida (pero sigue sin revelarla en la hoja).
+  // textoWhatsapp (opcional) → añade una barra con botón "Ir a WhatsApp"
+  // dentro de la propia ventana (clic directo del usuario, evita el bloqueo de popups).
   function generarPDF(modo, textoWhatsapp) {
     const escudo = equipoActivo?.escudo_url
-    const filaJugador = j => {
-      const lesion = lesActivas.find(l => l.jugador_id === j.id)
-      return `<div class="jug">
-        <span class="dorsal">${j.dorsal ?? '-'}</span>
-        <span class="nombre">${j.nombre}</span>
-        ${lesion ? '<span class="les">🩺 Lesión</span>' : ''}
-      </div>`
-    }
-    const bloqueGrupos = grupos => grupos.map(({ grupo, jugadores }) => `
-      <div class="grupo">
-        <div class="grupo-h">${grupo}</div>
-        ${jugadores.map(filaJugador).join('')}
-      </div>`).join('')
+    const todos = [...idsEnCampo, ...suplentes]
+      .map(byId).filter(Boolean)
+      .sort((a, b) => (a.dorsal ?? 99) - (b.dorsal ?? 99))
 
-    let cuerpo = ''
-    if (modo === 'confirmado') {
-      cuerpo = `
-        <div class="seccion-h tit">⭐ TITULARES (${idsEnCampo.length}/${MAX_TIT})</div>
-        ${bloqueGrupos(agrupar(idsEnCampo))}
-        ${suplentes.length ? `<div class="seccion-h sup">🔄 SUPLENTES (${suplentes.length}/${MAX_SUP})</div>${bloqueGrupos(agrupar(suplentes))}` : ''}
-      `
-    } else {
-      const todos = [...idsEnCampo, ...suplentes]
-      cuerpo = `
-        <div class="nota-conf">📋 Convocatoria — la alineación titular se confirma en el campo</div>
-        ${bloqueGrupos(agrupar(todos))}
-      `
-    }
+    const filas = todos.map(j => {
+      const lesion = lesActivas.find(l => l.jugador_id === j.id)
+      return `<tr>
+        <td class="c-dorsal">${j.dorsal ?? '-'}</td>
+        <td class="c-nombre">${j.nombre}${lesion ? ' <span class="les">🩺</span>' : ''}</td>
+      </tr>`
+    }).join('')
+
+    const filasVacias = Array.from({ length: Math.max(0, 4 - todos.length) })
+      .map(() => `<tr><td class="c-dorsal">&nbsp;</td><td class="c-nombre">&nbsp;</td></tr>`).join('')
+
+    const datoHead = (label, valor) => valor
+      ? `<div class="dato"><div class="dato-l">${label}</div><div class="dato-v">${valor}</div></div>` : ''
 
     const barraHtml = textoWhatsapp ? `
   <div class="toolbar">
-    <button class="tb-btn tb-pdf" onclick="window.print()">🖨️ Guardar como PDF</button>
-    <button class="tb-btn tb-wa" onclick="window.open('https://wa.me/?text=${encodeURIComponent(textoWhatsapp)}','_blank')">📲 Continuar a WhatsApp</button>
+    <button class="tb-btn tb-pdf" onclick="window.print()">Guardar como PDF</button>
+    <button class="tb-btn tb-wa" onclick="window.open('https://wa.me/?text=${encodeURIComponent(textoWhatsapp)}','_blank')">Continuar a WhatsApp</button>
   </div>` : ''
 
     const html = `<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">
 <title>Convocatoria${rival ? ' vs ' + rival : ''}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   @page{margin:0}
-  body{font-family:'Helvetica Neue',Arial,sans-serif;background:#0f0f11;color:#fafafa;padding:36px 40px;max-width:720px;margin:auto;
+  body{font-family:'Inter',-apple-system,Arial,sans-serif;background:#0f0f11;color:#fafafa;padding:44px 48px;max-width:680px;margin:auto;
     -webkit-print-color-adjust:exact;print-color-adjust:exact}
-  .toolbar{display:flex;gap:10px;margin-bottom:20px;padding:12px;background:#18181b;border:1px solid #27272a;border-radius:10px}
+  .toolbar{display:flex;gap:10px;margin-bottom:24px;padding:12px;background:#18181b;border:1px solid #27272a;border-radius:10px}
   .tb-btn{flex:1;padding:11px;border-radius:8px;border:none;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit}
   .tb-pdf{background:#27272a;color:#fafafa}
   .tb-wa{background:#25d366;color:#062018}
   @media print{.toolbar{display:none}}
-  .head{display:flex;align-items:center;gap:14px;margin-bottom:22px;padding-bottom:18px;border-bottom:1px solid #27272a}
-  .escudo{width:54px;height:54px;border-radius:12px;object-fit:cover;background:#18181b;border:1px solid #27272a;flex-shrink:0}
-  .escudo-ph{width:54px;height:54px;border-radius:12px;background:#18181b;border:1px solid #27272a;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:26px}
-  .club{font-size:19px;font-weight:800;letter-spacing:-.3px}
-  .meta{font-size:12px;color:#a1a1aa;margin-top:2px}
-  .vs{font-size:13px;color:#34d399;font-weight:700;margin-top:3px}
-  .nota-conf{background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);color:#fcd34d;font-size:12px;font-weight:600;
-    padding:10px 14px;border-radius:8px;margin-bottom:18px}
-  .seccion-h{font-size:12px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;margin:20px 0 10px}
-  .seccion-h.tit{color:#34d399}
-  .seccion-h.sup{color:#60a5fa}
-  .grupo{margin-bottom:12px;break-inside:avoid}
-  .grupo-h{font-size:10.5px;font-weight:800;color:#71717a;text-transform:uppercase;letter-spacing:.6px;margin-bottom:5px;
-    border-bottom:1px solid #27272a;padding-bottom:3px}
-  .jug{display:flex;align-items:center;gap:10px;padding:5px 2px;font-size:13.5px}
-  .dorsal{width:26px;height:26px;border-radius:7px;background:rgba(52,211,153,.12);border:1px solid rgba(52,211,153,.3);
-    color:#34d399;font-weight:800;font-size:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-  .nombre{flex:1;font-weight:600}
-  .les{font-size:10px;font-weight:700;color:#fca5a5;background:rgba(239,68,68,.12);padding:2px 7px;border-radius:5px}
-  .footer{margin-top:30px;padding-top:14px;border-top:1px solid #27272a;display:flex;justify-content:space-between;
-    font-size:10.5px;color:#52525b}
-  .footer b{color:#34d399}
+
+  .card{background:#18181b;border:1px solid #27272a;border-radius:16px;padding:32px;position:relative;overflow:hidden}
+  .accent{position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,#10b981,#34d399,#10b981)}
+
+  .head{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:26px}
+  .head-club{display:flex;align-items:center;gap:13px}
+  .escudo{width:52px;height:52px;border-radius:12px;object-fit:cover;background:#0f0f11;border:1px solid #27272a;flex-shrink:0}
+  .escudo-ph{width:52px;height:52px;border-radius:12px;background:#0f0f11;border:1px solid #27272a;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:22px}
+  .club{font-size:18px;font-weight:800;letter-spacing:-.3px;line-height:1.15}
+  .club-sub{font-size:11px;color:#71717a;font-weight:600;margin-top:2px;text-transform:uppercase;letter-spacing:.5px}
+  .rival-box{text-align:right}
+  .rival-lbl{font-size:9.5px;color:#71717a;font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:3px}
+  .rival-nombre{font-size:17px;font-weight:800;color:#34d399;letter-spacing:-.2px}
+
+  .datos{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:26px;padding:16px 18px;
+    background:#0f0f11;border:1px solid #27272a;border-radius:12px}
+  .dato-l{font-size:9.5px;color:#71717a;font-weight:700;text-transform:uppercase;letter-spacing:.7px;margin-bottom:2px}
+  .dato-v{font-size:13.5px;font-weight:700;color:#fafafa}
+
+  .nota-conf{background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.25);color:#6ee7b7;font-size:11.5px;font-weight:600;
+    padding:9px 14px;border-radius:8px;margin-bottom:18px;text-align:center}
+
+  table{width:100%;border-collapse:collapse}
+  thead th{text-align:left;font-size:10px;font-weight:800;color:#0f0f11;text-transform:uppercase;letter-spacing:.6px;
+    background:#10b981;padding:10px 14px}
+  thead th.c-dorsal{width:64px;text-align:center;border-radius:8px 0 0 0}
+  thead th.c-nombre{border-radius:0 8px 0 0}
+  tbody td{padding:11px 14px;font-size:14px;border-bottom:1px solid #27272a}
+  tbody tr:last-child td{border-bottom:none}
+  td.c-dorsal{width:64px;text-align:center;font-weight:800;color:#34d399;font-size:13px}
+  td.c-nombre{font-weight:600}
+  .les{font-size:11px}
+
+  .footer{margin-top:26px;padding-top:16px;border-top:1px solid #27272a;display:flex;align-items:center;justify-content:space-between}
+  .footer-brand{display:flex;align-items:center;gap:8px}
+  .footer-logo{width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,#10b981,#059669);
+    display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;color:#062018}
+  .footer-txt{font-size:11px;font-weight:700;color:#71717a}
+  .footer-date{font-size:10.5px;color:#52525b}
 </style></head><body>
   ${barraHtml}
-  <div class="head">
-    ${escudo ? `<img class="escudo" src="${escudo}"/>` : '<div class="escudo-ph">🛡️</div>'}
-    <div>
-      <div class="club">${club || 'Mi Equipo'}</div>
-      <div class="meta">Fútbol ${tipo} · Formación ${formacion}</div>
-      ${rival ? `<div class="vs">🆚 vs ${rival}${fechaFmt ? ' · ' + fechaFmt : ''}</div>` : ''}
+  <div class="card">
+    <div class="accent"></div>
+    <div class="head">
+      <div class="head-club">
+        ${escudo ? `<img class="escudo" src="${escudo}"/>` : '<div class="escudo-ph">🛡️</div>'}
+        <div>
+          <div class="club">${club || 'Mi Equipo'}</div>
+          <div class="club-sub">Fútbol ${tipo} · ${formacion}</div>
+        </div>
+      </div>
+      ${rival ? `<div class="rival-box"><div class="rival-lbl">Rival</div><div class="rival-nombre">${rival}</div></div>` : ''}
+    </div>
+
+    <div class="datos">
+      ${datoHead('Día del partido', fechaFmt)}
+      ${datoHead('Hora del partido', horaFmt(horaPartido))}
+      ${datoHead('Hora de convocatoria', horaFmt(horaConvocatoria))}
+      ${datoHead('Lugar', lugar)}
+    </div>
+
+    ${modo === 'confirmado' ? '<div class="nota-conf">La alineación titular ya está decidida y se confirmará en el campo</div>' : ''}
+
+    <table>
+      <thead><tr><th class="c-dorsal">Dorsal</th><th class="c-nombre">Nombre y apellido de los convocados</th></tr></thead>
+      <tbody>${filas}${filasVacias}</tbody>
+    </table>
+
+    <div class="footer">
+      <div class="footer-brand">
+        <div class="footer-logo">K</div>
+        <div class="footer-txt">Kick and Go</div>
+      </div>
+      <div class="footer-date">${new Date().toLocaleDateString('es-ES')}</div>
     </div>
   </div>
-  ${cuerpo}
-  <div class="footer"><span>${club || 'Mi Equipo'}</span><span><b>Kick and Go</b> · ${new Date().toLocaleDateString('es-ES')}</span></div>
 </body></html>`
 
     const w = window.open('', '_blank')
@@ -316,7 +333,7 @@ export default function Convocatoria() {
   // usuario DENTRO de esa ventana, así el navegador no bloquea el segundo popup.
   function enviarPorWhatsapp(modo) {
     const texto = modo === 'confirmado'
-      ? `Convocatoria de ${club || 'nuestro equipo'}${rival ? ' vs ' + rival : ''}. Adjunto el PDF con titulares y suplentes.`
+      ? `Convocatoria de ${club || 'nuestro equipo'}${rival ? ' vs ' + rival : ''}. Adjunto el PDF con la alineación confirmada.`
       : `Convocatoria de ${club || 'nuestro equipo'}${rival ? ' vs ' + rival : ''}. Adjunto el PDF — la alineación se confirma en el campo.`
     generarPDF(modo, texto)
   }
@@ -337,6 +354,7 @@ export default function Convocatoria() {
         rival, fecha, formacion,
         titulares: titularesOrdenados,
         suplentes: suplentes.map(id => empaqueta(id, posACat(byId(id)?.posicion))),
+        horaPartido, horaConvocatoria, lugar,
       }, eid)
       setMsg('✅ Convocatoria guardada')
       // Mostrar banner PWA en las 3 primeras convocatorias
@@ -386,12 +404,12 @@ export default function Convocatoria() {
                 <button className="w-full text-left p-2.5 rounded-lg hover:bg-white/5 text-xs"
                   onClick={() => { setMenuEnviar(false); enviarPorWhatsapp('confirmado') }}>
                   <div className="font-bold mb-0.5">⭐ Confirmar titulares</div>
-                  <div className="text-muted" style={{ fontSize: 10.5 }}>PDF con titulares y suplentes separados</div>
+                  <div className="text-muted" style={{ fontSize: 10.5 }}>Avisa que la alineación ya está decidida (no se revela en la hoja)</div>
                 </button>
                 <button className="w-full text-left p-2.5 rounded-lg hover:bg-white/5 text-xs"
                   onClick={() => { setMenuEnviar(false); enviarPorWhatsapp('convocados') }}>
                   <div className="font-bold mb-0.5">📋 Solo convocatoria</div>
-                  <div className="text-muted" style={{ fontSize: 10.5 }}>PDF único, sin decir quién es titular — se confirma en el campo</div>
+                  <div className="text-muted" style={{ fontSize: 10.5 }}>Lista de convocados — la alineación se confirma en el campo</div>
                 </button>
                 <div className="text-[10px] text-muted px-2 pt-2 pb-1" style={{ lineHeight: 1.4 }}>
                   Se abre el PDF para guardarlo y luego WhatsApp para que lo adjuntes — WhatsApp no permite enviarlo automático desde la web.
@@ -403,7 +421,7 @@ export default function Convocatoria() {
       </div>
 
       {/* Inputs */}
-      <div className="grid grid-cols-3 gap-2 mb-3">
+      <div className="grid grid-cols-3 gap-2 mb-2">
         <div>
           <label className="text-[10px] text-muted uppercase tracking-wide">Rival</label>
           <input className="field mt-1" value={rival} onChange={e => setRival(e.target.value)} placeholder="Rival" />
@@ -417,6 +435,20 @@ export default function Convocatoria() {
           <select className="field mt-1" value={formacion} onChange={e => cambiarFormacion(e.target.value)}>
             {Object.keys(formacionesPara(tipo)).map(f => <option key={f} value={f}>{f}</option>)}
           </select>
+        </div>
+      </div>
+      <div className="grid grid-cols-3 gap-2 mb-3">
+        <div>
+          <label className="text-[10px] text-muted uppercase tracking-wide">Hora del partido</label>
+          <input className="field mt-1" type="time" value={horaPartido} onChange={e => setHoraPartido(e.target.value)} />
+        </div>
+        <div>
+          <label className="text-[10px] text-muted uppercase tracking-wide">Hora de convocatoria</label>
+          <input className="field mt-1" type="time" value={horaConvocatoria} onChange={e => setHoraConvocatoria(e.target.value)} />
+        </div>
+        <div>
+          <label className="text-[10px] text-muted uppercase tracking-wide">Lugar</label>
+          <input className="field mt-1" value={lugar} onChange={e => setLugar(e.target.value)} placeholder="Campo / dirección" />
         </div>
       </div>
 
