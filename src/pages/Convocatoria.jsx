@@ -195,20 +195,28 @@ export default function Convocatoria() {
   // dentro de la propia ventana (clic directo del usuario, evita el bloqueo de popups).
   function generarPDF(modo, textoWhatsapp) {
     const escudo = equipoActivo?.escudo_url
-    const todos = [...idsEnCampo, ...suplentes]
-      .map(byId).filter(Boolean)
-      .sort((a, b) => (a.dorsal ?? 99) - (b.dorsal ?? 99))
+    const esConfirmado = modo === 'confirmado'
+    const titSet = new Set(idsEnCampo)
+
+    const titOrdenados = idsEnCampo.map(byId).filter(Boolean).sort((a, b) => (a.dorsal ?? 99) - (b.dorsal ?? 99))
+    const supOrdenados = suplentes.map(byId).filter(Boolean).sort((a, b) => (a.dorsal ?? 99) - (b.dorsal ?? 99))
+    const todos = esConfirmado
+      ? [...titOrdenados, ...supOrdenados]
+      : [...idsEnCampo, ...suplentes].map(byId).filter(Boolean).sort((a, b) => (a.dorsal ?? 99) - (b.dorsal ?? 99))
 
     const filas = todos.map(j => {
       const lesion = lesActivas.find(l => l.jugador_id === j.id)
+      const esTitular = titSet.has(j.id)
       return `<tr>
         <td class="c-dorsal">${j.dorsal ?? '-'}</td>
         <td class="c-nombre">${j.nombre}${lesion ? ' <span class="les">🩺</span>' : ''}</td>
+        ${esConfirmado ? `<td class="c-estado">${esTitular ? '<span class="badge tit">Titular</span>' : '<span class="badge sup">Suplente</span>'}</td>` : ''}
       </tr>`
     }).join('')
 
+    const colspanVacio = esConfirmado ? 3 : 2
     const filasVacias = Array.from({ length: Math.max(0, 4 - todos.length) })
-      .map(() => `<tr><td class="c-dorsal">&nbsp;</td><td class="c-nombre">&nbsp;</td></tr>`).join('')
+      .map(() => `<tr>${Array.from({ length: colspanVacio }).map(() => '<td>&nbsp;</td>').join('')}</tr>`).join('')
 
     const datoHead = (label, valor) => valor
       ? `<div class="dato"><div class="dato-l">${label}</div><div class="dato-v">${valor}</div></div>` : ''
@@ -260,11 +268,17 @@ export default function Convocatoria() {
     background:#10b981;padding:10px 14px}
   thead th.c-dorsal{width:64px;text-align:center;border-radius:8px 0 0 0}
   thead th.c-nombre{border-radius:0 8px 0 0}
+  thead th.c-estado{width:100px;text-align:center;border-radius:0 8px 0 0}
+  thead tr:has(.c-estado) th.c-nombre{border-radius:0}
   tbody td{padding:11px 14px;font-size:14px;border-bottom:1px solid #27272a}
   tbody tr:last-child td{border-bottom:none}
   td.c-dorsal{width:64px;text-align:center;font-weight:800;color:#34d399;font-size:13px}
   td.c-nombre{font-weight:600}
+  td.c-estado{width:100px;text-align:center}
   .les{font-size:11px}
+  .badge{display:inline-block;font-size:10px;font-weight:800;padding:3px 9px;border-radius:20px;text-transform:uppercase;letter-spacing:.4px}
+  .badge.tit{background:rgba(16,185,129,.15);color:#34d399}
+  .badge.sup{background:rgba(59,130,246,.15);color:#60a5fa}
 
   .footer{margin-top:26px;padding-top:16px;border-top:1px solid #27272a;display:flex;align-items:center;justify-content:space-between}
   .footer-brand{display:flex;align-items:center;gap:8px}
@@ -294,10 +308,14 @@ export default function Convocatoria() {
       ${datoHead('Lugar', lugar)}
     </div>
 
-    ${modo === 'confirmado' ? '<div class="nota-conf">La alineación titular ya está decidida y se confirmará en el campo</div>' : ''}
+    ${esConfirmado ? `<div class="nota-conf">Alineación titular confirmada · ${titOrdenados.length}/${MAX_TIT} titulares</div>` : ''}
 
     <table>
-      <thead><tr><th class="c-dorsal">Dorsal</th><th class="c-nombre">Nombre y apellido de los convocados</th></tr></thead>
+      <thead><tr>
+        <th class="c-dorsal">Dorsal</th>
+        <th class="c-nombre">Nombre y apellido de los convocados</th>
+        ${esConfirmado ? '<th class="c-estado">Estado</th>' : ''}
+      </tr></thead>
       <tbody>${filas}${filasVacias}</tbody>
     </table>
 
