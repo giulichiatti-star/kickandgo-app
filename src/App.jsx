@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react'
 import { Routes, Route, NavLink, Navigate, useNavigate, useLocation } from 'react-router-dom'
 import { supabase, supabaseReady } from './lib/supabase'
 import { EquipoProvider, useEquipo } from './contexts/EquipoContext'
+import { getPerfil } from './lib/perfil'
 import Logo from './components/Logo'
 import Login from './pages/Login'
 import Privacidad from './pages/Privacidad'
@@ -171,6 +172,11 @@ function TeamSwitcher() {
   const [creando, setCreando] = useState(false)
   const [form, setForm] = useState({ nombre: '', tipo_equipo: '11' })
   const [errorCrear, setErrorCrear] = useState('')
+  const [escudoPerfil, setEscudoPerfil] = useState('')
+
+  useEffect(() => {
+    getPerfil().then(p => setEscudoPerfil(p?.escudo_url || '')).catch(() => {})
+  }, [])
 
   async function handleCrear(e) {
     e.preventDefault()
@@ -195,7 +201,7 @@ function TeamSwitcher() {
         border: 'none', borderRadius: 0, padding: '10px 12px', cursor: 'pointer', transition: 'all .15s',
       }}>
         <div style={{ width: 28, height: 28, borderRadius: 8, background: '#253045', border: '1px solid #27272a', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, overflow: 'hidden' }}>
-          {equipoActivo?.escudo_url ? <img src={equipoActivo.escudo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : '🛡️'}
+          {(equipoActivo?.escudo_url || escudoPerfil) ? <img src={equipoActivo?.escudo_url || escudoPerfil} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : '🛡️'}
         </div>
         <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
           <div style={{ fontSize: 12, fontWeight: 700, color: '#fafafa', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -218,7 +224,7 @@ function TeamSwitcher() {
               border: 'none', borderBottom: '1px solid #1a1a1d', cursor: 'pointer',
             }}>
               <div style={{ width: 22, height: 22, borderRadius: 6, background: '#253045', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, overflow: 'hidden' }}>
-                {eq.escudo_url ? <img src={eq.escudo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : '🛡️'}
+                {(eq.escudo_url || escudoPerfil) ? <img src={eq.escudo_url || escudoPerfil} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : '🛡️'}
               </div>
               <div style={{ flex: 1, textAlign: 'left', minWidth: 0 }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: eq.id === equipoActivo?.id ? '#2dd4bf' : '#d4d4d8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{eq.nombre}</div>
