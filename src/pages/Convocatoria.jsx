@@ -26,6 +26,7 @@ export default function Convocatoria() {
   const [picker, setPicker] = useState(null) // { slot } | null
   const [draggingSlot, setDraggingSlot] = useState(null)
   const [mostrarPWAConvo, setMostrarPWAConvo] = useState(false)
+  const [menuEnviar, setMenuEnviar] = useState(false)
   const { instalar, descartar: descartarBase } = usePWAInstall('convocatoria')
 
   // Drag state sin re-renders en cada pointermove
@@ -175,30 +176,135 @@ export default function Convocatoria() {
   }
   // ────────────────────────────────────────────────────────────────────────
 
-  function whatsapp() {
-    const fmt = id => {
-      const j = byId(id); if (!j) return null
-      const cat = posACat(j.posicion)
-      const ico = cat === 'POR' ? '🧤' : cat === 'DEF' ? '🛡️' : cat === 'MED' ? '⚙️' : '⚡'
-      return `  ${ico} #${j.dorsal} ${j.nombre} (${cat})`
+  // Grupo de posición por el texto real registrado en Plantilla — igual para
+  // titulares y suplentes, sin depender del slot táctico (orden pedido:
+  // Portero, Defensas, Medio campo, Extremo, Delantero).
+  function grupoPosicion(posicion) {
+    const p = (posicion || '').toLowerCase()
+    if (/portero|arquero|guardameta/.test(p)) return 'Portero'
+    if (/lateral|central|defensa|carrilero/.test(p)) return 'Defensas'
+    if (/extremo/.test(p)) return 'Extremo'
+    if (/medio|pivote|mediapunta|interior|volante|enganche/.test(p)) return 'Medio campo'
+    return 'Delantero'
+  }
+  const ORDEN_GRUPOS = ['Portero', 'Defensas', 'Medio campo', 'Extremo', 'Delantero']
+
+  function agrupar(ids) {
+    const jugs = ids.map(byId).filter(Boolean)
+    const grupos = {}
+    jugs.forEach(j => {
+      const g = grupoPosicion(j.posicion)
+      if (!grupos[g]) grupos[g] = []
+      grupos[g].push(j)
+    })
+    return ORDEN_GRUPOS.map(g => ({ grupo: g, jugadores: grupos[g] || [] })).filter(x => x.jugadores.length)
+  }
+
+  const fechaFmt = fecha
+    ? new Date(fecha + 'T12:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })
+    : null
+
+  // Genera el PDF de la convocatoria (ventana de impresión → "Guardar como PDF").
+  // modo 'confirmado'  → separa Titulares / Suplentes.
+  // modo 'convocados'  → una sola lista agrupada por posición, sin decir quién es titular.
+  function generarPDF(modo) {
+    const escudo = equipoActivo?.escudo_url
+    const filaJugador = j => {
+      const lesion = lesActivas.find(l => l.jugador_id === j.id)
+      return `<div class="jug">
+        <span class="dorsal">${j.dorsal ?? '-'}</span>
+        <span class="nombre">${j.nombre}</span>
+        ${lesion ? '<span class="les">🩺 Lesión</span>' : ''}
+      </div>`
     }
-    const lineasTit = idsEnCampo.map(fmt).filter(Boolean)
-    const lineasSup = suplentes.map(fmt).filter(Boolean)
-    const fechaFmt = fecha
-      ? new Date(fecha + 'T12:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })
-      : null
-    const lineas = [
-      `⚽ *CONVOCATORIA — FÚTBOL ${tipo}*${club ? `\n🏟️ ${club}` : ''}`,
-      rival ? `🆚 Rival: *${rival}*` : null,
-      fechaFmt ? `📅 ${fechaFmt}` : null,
-      '', `⭐ *TITULARES (${lineasTit.length}/${MAX_TIT})*`, ...lineasTit,
-      lineasSup.length ? '' : null,
-      lineasSup.length ? `🔄 *SUPLENTES (${lineasSup.length}/${MAX_SUP})*` : null,
-      ...lineasSup, '',
-      `Total convocados: ${lineasTit.length + lineasSup.length} jugadores`,
-      '——————————————', '_KickAndGo_ 🚀',
-    ].filter(l => l !== null)
-    window.open(`https://wa.me/?text=${encodeURIComponent(lineas.join('\n'))}`, '_blank')
+    const bloqueGrupos = grupos => grupos.map(({ grupo, jugadores }) => `
+      <div class="grupo">
+        <div class="grupo-h">${grupo}</div>
+        ${jugadores.map(filaJugador).join('')}
+      </div>`).join('')
+
+    let cuerpo = ''
+    if (modo === 'confirmado') {
+      cuerpo = `
+        <div class="seccion-h tit">⭐ TITULARES (${idsEnCampo.length}/${MAX_TIT})</div>
+        ${bloqueGrupos(agrupar(idsEnCampo))}
+        ${suplentes.length ? `<div class="seccion-h sup">🔄 SUPLENTES (${suplentes.length}/${MAX_SUP})</div>${bloqueGrupos(agrupar(suplentes))}` : ''}
+      `
+    } else {
+      const todos = [...idsEnCampo, ...suplentes]
+      cuerpo = `
+        <div class="nota-conf">📋 Convocatoria — la alineación titular se confirma en el campo</div>
+        ${bloqueGrupos(agrupar(todos))}
+      `
+    }
+
+    const html = `<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">
+<title>Convocatoria${rival ? ' vs ' + rival : ''}</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  @page{margin:0}
+  body{font-family:'Helvetica Neue',Arial,sans-serif;background:#0f0f11;color:#fafafa;padding:36px 40px;max-width:720px;margin:auto;
+    -webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .head{display:flex;align-items:center;gap:14px;margin-bottom:22px;padding-bottom:18px;border-bottom:1px solid #27272a}
+  .escudo{width:54px;height:54px;border-radius:12px;object-fit:cover;background:#18181b;border:1px solid #27272a;flex-shrink:0}
+  .escudo-ph{width:54px;height:54px;border-radius:12px;background:#18181b;border:1px solid #27272a;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:26px}
+  .club{font-size:19px;font-weight:800;letter-spacing:-.3px}
+  .meta{font-size:12px;color:#a1a1aa;margin-top:2px}
+  .vs{font-size:13px;color:#34d399;font-weight:700;margin-top:3px}
+  .nota-conf{background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);color:#fcd34d;font-size:12px;font-weight:600;
+    padding:10px 14px;border-radius:8px;margin-bottom:18px}
+  .seccion-h{font-size:12px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;margin:20px 0 10px}
+  .seccion-h.tit{color:#34d399}
+  .seccion-h.sup{color:#60a5fa}
+  .grupo{margin-bottom:12px;break-inside:avoid}
+  .grupo-h{font-size:10.5px;font-weight:800;color:#71717a;text-transform:uppercase;letter-spacing:.6px;margin-bottom:5px;
+    border-bottom:1px solid #27272a;padding-bottom:3px}
+  .jug{display:flex;align-items:center;gap:10px;padding:5px 2px;font-size:13.5px}
+  .dorsal{width:26px;height:26px;border-radius:7px;background:rgba(52,211,153,.12);border:1px solid rgba(52,211,153,.3);
+    color:#34d399;font-weight:800;font-size:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  .nombre{flex:1;font-weight:600}
+  .les{font-size:10px;font-weight:700;color:#fca5a5;background:rgba(239,68,68,.12);padding:2px 7px;border-radius:5px}
+  .footer{margin-top:30px;padding-top:14px;border-top:1px solid #27272a;display:flex;justify-content:space-between;
+    font-size:10.5px;color:#52525b}
+  .footer b{color:#34d399}
+</style></head><body>
+  <div class="head">
+    ${escudo ? `<img class="escudo" src="${escudo}"/>` : '<div class="escudo-ph">🛡️</div>'}
+    <div>
+      <div class="club">${club || 'Mi Equipo'}</div>
+      <div class="meta">Fútbol ${tipo} · Formación ${formacion}</div>
+      ${rival ? `<div class="vs">🆚 vs ${rival}${fechaFmt ? ' · ' + fechaFmt : ''}</div>` : ''}
+    </div>
+  </div>
+  ${cuerpo}
+  <div class="footer"><span>${club || 'Mi Equipo'}</span><span><b>Kick and Go</b> · ${new Date().toLocaleDateString('es-ES')}</span></div>
+</body></html>`
+
+    const w = window.open('', '_blank')
+    w.document.write(html)
+    w.document.close()
+    w.focus()
+    const doPrint = () => { try { w.print() } catch {} }
+    const imgs = w.document.images
+    if (!imgs.length) return setTimeout(doPrint, 400)
+    let pend = imgs.length
+    const done = () => { if (--pend <= 0) setTimeout(doPrint, 200) }
+    Array.from(imgs).forEach(im => { if (im.complete) done(); else { im.onload = done; im.onerror = done } })
+    setTimeout(doPrint, 3000)
+  }
+
+  // WhatsApp no permite adjuntar un archivo automáticamente desde un enlace —
+  // solo puede pre-rellenar texto. Generamos el PDF (el entrenador lo guarda
+  // con "Guardar como PDF") y abrimos WhatsApp con un aviso corto para
+  // adjuntarlo a mano. Es la única vía posible sin usar la API de WhatsApp Business.
+  function enviarPorWhatsapp(modo) {
+    generarPDF(modo)
+    const texto = modo === 'confirmado'
+      ? `Convocatoria de ${club || 'nuestro equipo'}${rival ? ' vs ' + rival : ''}. Adjunto el PDF con titulares y suplentes.`
+      : `Convocatoria de ${club || 'nuestro equipo'}${rival ? ' vs ' + rival : ''}. Adjunto el PDF — la alineación se confirma en el campo.`
+    setTimeout(() => {
+      window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`, '_blank')
+    }, 600)
   }
 
   async function guardar() {
@@ -244,11 +350,41 @@ export default function Convocatoria() {
             {idsEnCampo.length + suplentes.length} / {MAX_TIT + MAX_SUP} · Fútbol {tipo}
           </p>
         </div>
-        <div className="flex gap-1.5">
+        <div className="flex gap-1.5" style={{ position: 'relative' }}>
           <button className="btn btn-outline text-xs px-2.5 py-1.5" onClick={limpiarTodo} title="Limpiar">🧹</button>
-          <button className="btn btn-outline text-xs px-2.5 py-1.5" onClick={whatsapp}
-            style={{ borderColor: '#25d366', color: '#25d366' }} title="WhatsApp">📲</button>
+          <button className="btn btn-outline text-xs px-2.5 py-1.5" onClick={() => generarPDF('convocados')}
+            title="Descargar PDF (solo convocados)">📄</button>
+          <button className="btn btn-outline text-xs px-2.5 py-1.5" onClick={() => setMenuEnviar(m => !m)}
+            style={{ borderColor: '#25d366', color: '#25d366' }} title="Enviar por WhatsApp">📲</button>
           <button className="btn btn-primary text-sm px-4 py-1.5" onClick={guardar}>✓ Guardar</button>
+
+          {menuEnviar && (
+            <div onClick={() => setMenuEnviar(false)}
+              style={{ position: 'fixed', inset: 0, zIndex: 90 }}>
+              <div onClick={e => e.stopPropagation()} className="card p-2"
+                style={{
+                  position: 'absolute', top: 42, right: 0, width: 240, zIndex: 91,
+                  border: '1px solid rgba(37,211,102,.3)',
+                }}>
+                <div className="text-[10px] font-bold text-muted uppercase tracking-wide px-2 pt-1 pb-2">
+                  Elige cómo enviar
+                </div>
+                <button className="w-full text-left p-2.5 rounded-lg hover:bg-white/5 text-xs"
+                  onClick={() => { setMenuEnviar(false); enviarPorWhatsapp('confirmado') }}>
+                  <div className="font-bold mb-0.5">⭐ Confirmar titulares</div>
+                  <div className="text-muted" style={{ fontSize: 10.5 }}>PDF con titulares y suplentes separados</div>
+                </button>
+                <button className="w-full text-left p-2.5 rounded-lg hover:bg-white/5 text-xs"
+                  onClick={() => { setMenuEnviar(false); enviarPorWhatsapp('convocados') }}>
+                  <div className="font-bold mb-0.5">📋 Solo convocatoria</div>
+                  <div className="text-muted" style={{ fontSize: 10.5 }}>PDF único, sin decir quién es titular — se confirma en el campo</div>
+                </button>
+                <div className="text-[10px] text-muted px-2 pt-2 pb-1" style={{ lineHeight: 1.4 }}>
+                  Se abre el PDF para guardarlo y luego WhatsApp para que lo adjuntes — WhatsApp no permite enviarlo automático desde la web.
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -303,7 +439,10 @@ export default function Convocatoria() {
                 style={{
                   borderRadius: 10, position: 'relative',
                   width: '100%', maxWidth: 340, aspectRatio: '3/4',
-                  touchAction: 'none', userSelect: 'none',
+                  // pan-y (no 'none'): permite deslizar verticalmente para hacer scroll
+                  // de la página al tocar el campo. Solo las fichas ocupadas (abajo)
+                  // bloquean el gesto nativo, porque ahí sí se puede arrastrar.
+                  touchAction: 'pan-y', userSelect: 'none',
                 }}
                 onPointerDown={onPitchPointerDown}
                 onPointerMove={onPitchPointerMove}
@@ -338,6 +477,9 @@ export default function Convocatoria() {
                         opacity: isDragging ? 0.55 : 1,
                         cursor: j ? 'grab' : 'pointer',
                         transition: 'opacity .15s, outline .1s',
+                        // Solo la ficha con jugador bloquea el scroll nativo (ahí se arrastra);
+                        // los slots vacíos dejan pasar el gesto para poder hacer scroll.
+                        touchAction: j ? 'none' : 'pan-y',
                       }}
                     >
                       {j ? (
