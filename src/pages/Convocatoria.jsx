@@ -4,6 +4,7 @@ import { guardarConvocatoria, ultimaConvocatoria } from '../lib/convocatorias'
 import { nTitulares, nSuplentes, formacionesPara, formacionDefecto, categoriaSlot, rolSugeridoSlot } from '../lib/formaciones'
 import { useEquipo } from '../contexts/EquipoContext'
 import { listarLesiones } from '../lib/lesiones'
+import { getPerfil } from '../lib/perfil'
 import Jersey from '../components/Jersey'
 import PWAInstallBanner from '../components/PWAInstallBanner'
 import { usePWAInstall } from '../hooks/usePWAInstall'
@@ -27,6 +28,7 @@ export default function Convocatoria() {
   const [formacion, setFormacion] = useState('4-3-3')
   const [club, setClub] = useState('')
   const [lesActivas, setLesActivas] = useState([])
+  const [escudoPerfil, setEscudoPerfil] = useState('')
   const [picker, setPicker] = useState(null) // { slot } | null
   const [draggingSlot, setDraggingSlot] = useState(null)
   const [mostrarPWAConvo, setMostrarPWAConvo] = useState(false)
@@ -49,9 +51,10 @@ export default function Convocatoria() {
         setClub(equipoActivo?.nombre || '')
         const formInicial = formacionDefecto(t)
         setFormacion(formInicial)
-        const [js, les] = await Promise.all([listarJugadores(eid), listarLesiones(eid).catch(() => [])])
+        const [js, les, perfil] = await Promise.all([listarJugadores(eid), listarLesiones(eid).catch(() => []), getPerfil().catch(() => null)])
         setJugadores(js)
         setLesActivas(les.filter(l => !l.alta))
+        setEscudoPerfil(perfil?.escudo_url || '')
         const ult = await ultimaConvocatoria(eid)
         const nSlots = (formacionesPara(t)[ult?.formacion] || formacionesPara(t)[formInicial]).length
         if (ult) {
@@ -204,7 +207,7 @@ export default function Convocatoria() {
   // textoWhatsapp (opcional) → añade una barra con botón "Ir a WhatsApp"
   // dentro de la propia ventana (clic directo del usuario, evita el bloqueo de popups).
   function generarPDF(modo, textoWhatsapp) {
-    const escudo = equipoActivo?.escudo_url
+    const escudo = equipoActivo?.escudo_url || escudoPerfil
     const esConfirmado = modo === 'confirmado'
     const titSet = new Set(idsEnCampo)
 
