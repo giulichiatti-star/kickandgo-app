@@ -20,6 +20,7 @@ export default function Convocatoria() {
   const [horaPartido, setHoraPartido] = useState('')
   const [horaConvocatoria, setHoraConvocatoria] = useState('')
   const [lugar, setLugar] = useState('')
+  const [rivalEscudoUrl, setRivalEscudoUrl] = useState('')
   const [cargando, setCargando] = useState(true)
   const [msg, setMsg] = useState('')
   const [tipo, setTipo] = useState('11')
@@ -59,6 +60,7 @@ export default function Convocatoria() {
           setHoraPartido(ult.hora_partido || '')
           setHoraConvocatoria(ult.hora_convocatoria || '')
           setLugar(ult.lugar || '')
+          setRivalEscudoUrl(ult.rival_escudo_url || '')
           const formUlt = ult.formacion && formacionesPara(t)[ult.formacion] ? ult.formacion : formInicial
           setFormacion(formUlt)
           const tits = (ult.titulares || []).map(x => x.id).filter(Boolean)
@@ -73,6 +75,14 @@ export default function Convocatoria() {
       finally { setCargando(false) }
     })()
   }, [eid])
+
+  function subirEscudoRival(e) {
+    const file = e.target.files?.[0]; if (!file) return
+    if (file.size > 600 * 1024) { setMsg('⚠️ Imagen del rival muy grande (máx ~600KB)'); return }
+    const reader = new FileReader()
+    reader.onload = ev => setRivalEscudoUrl(ev.target.result)
+    reader.readAsDataURL(file)
+  }
 
   function cambiarFormacion(f) {
     setFormacion(f)
@@ -251,9 +261,11 @@ export default function Convocatoria() {
   .escudo-ph{width:52px;height:52px;border-radius:12px;background:#0f0f11;border:1px solid #27272a;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:22px}
   .club{font-size:18px;font-weight:800;letter-spacing:-.3px;line-height:1.15}
   .club-sub{font-size:11px;color:#71717a;font-weight:600;margin-top:2px;text-transform:uppercase;letter-spacing:.5px}
-  .rival-box{text-align:right}
+  .rival-box{display:flex;align-items:center;gap:11px}
+  .rival-txt{text-align:right}
   .rival-lbl{font-size:9.5px;color:#71717a;font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:3px}
   .rival-nombre{font-size:17px;font-weight:800;color:#34d399;letter-spacing:-.2px}
+  .rival-escudo{width:44px;height:44px;border-radius:10px;object-fit:cover;background:#0f0f11;border:1px solid #27272a;flex-shrink:0}
 
   .datos{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:26px;padding:16px 18px;
     background:#0f0f11;border:1px solid #27272a;border-radius:12px}
@@ -298,7 +310,10 @@ export default function Convocatoria() {
           <div class="club-sub">Fútbol ${tipo} · ${formacion}</div>
         </div>
       </div>
-      ${rival ? `<div class="rival-box"><div class="rival-lbl">Rival</div><div class="rival-nombre">${rival}</div></div>` : ''}
+      ${rival ? `<div class="rival-box">
+        <div class="rival-txt"><div class="rival-lbl">Rival</div><div class="rival-nombre">${rival}</div></div>
+        ${rivalEscudoUrl ? `<img class="rival-escudo" src="${rivalEscudoUrl}"/>` : ''}
+      </div>` : ''}
     </div>
 
     <div class="datos">
@@ -372,7 +387,7 @@ export default function Convocatoria() {
         rival, fecha, formacion,
         titulares: titularesOrdenados,
         suplentes: suplentes.map(id => empaqueta(id, posACat(byId(id)?.posicion))),
-        horaPartido, horaConvocatoria, lugar,
+        horaPartido, horaConvocatoria, lugar, rivalEscudoUrl,
       }, eid)
       setMsg('✅ Convocatoria guardada')
       // Mostrar banner PWA en las 3 primeras convocatorias
@@ -442,7 +457,17 @@ export default function Convocatoria() {
       <div className="grid grid-cols-3 gap-2 mb-2">
         <div>
           <label className="text-[10px] text-muted uppercase tracking-wide">Rival</label>
-          <input className="field mt-1" value={rival} onChange={e => setRival(e.target.value)} placeholder="Rival" />
+          <div className="flex gap-1.5 mt-1">
+            <input className="field" value={rival} onChange={e => setRival(e.target.value)} placeholder="Rival" />
+            <label className="flex items-center justify-center shrink-0 cursor-pointer"
+              style={{ width: 34, height: 34, borderRadius: 8, border: '1px solid #27272a', background: rivalEscudoUrl ? 'transparent' : '#18181b', overflow: 'hidden' }}
+              title="Logo del rival (opcional)">
+              {rivalEscudoUrl
+                ? <img src={rivalEscudoUrl} alt="" className="w-full h-full object-cover" />
+                : <span className="text-xs">🛡️</span>}
+              <input type="file" accept="image/*" className="hidden" onChange={subirEscudoRival} />
+            </label>
+          </div>
         </div>
         <div>
           <label className="text-[10px] text-muted uppercase tracking-wide">Fecha</label>
@@ -477,8 +502,8 @@ export default function Convocatoria() {
           <span>{idsEnCampo.length + suplentes.length}/{MAX_TIT + MAX_SUP}</span>
         </div>
         <div className="h-1.5 rounded-full overflow-hidden flex bg-white/5">
-          <div style={{ width: `${(idsEnCampo.length / (MAX_TIT + MAX_SUP)) * 100}%`, background: '#2dd4bf', transition: 'width .2s' }} />
-          <div style={{ width: `${(suplentes.length / (MAX_TIT + MAX_SUP)) * 100}%`, background: '#3b82f6', transition: 'width .2s' }} />
+          <div style={{ width: `${Math.min(100, (idsEnCampo.length / (MAX_TIT + MAX_SUP)) * 100)}%`, background: '#2dd4bf', transition: 'width .2s' }} />
+          <div style={{ width: `${Math.min(100 - Math.min(100, (idsEnCampo.length / (MAX_TIT + MAX_SUP)) * 100), (suplentes.length / (MAX_TIT + MAX_SUP)) * 100)}%`, background: '#3b82f6', transition: 'width .2s' }} />
         </div>
       </div>
 
@@ -593,8 +618,16 @@ export default function Convocatoria() {
               </div>
             )}
 
+            {/* En F11 no se bloquea al llegar a 20 — solo se avisa al entrenador */}
+            {tipo === '11' && idsEnCampo.length + suplentes.length > 20 && (
+              <div className="text-xs mb-3 px-3 py-2 rounded-lg"
+                style={{ background: 'rgba(245,158,11,.1)', border: '1px solid rgba(245,158,11,.3)', color: '#fcd34d' }}>
+                ⚠️ Llevas {idsEnCampo.length + suplentes.length} convocados — por encima de los 20 habituales (11 titulares + 9 suplentes).
+              </div>
+            )}
+
             {/* Lista del plantel disponible */}
-            {suplentes.length >= MAX_SUP ? (
+            {tipo !== '11' && suplentes.length >= MAX_SUP ? (
               <div className="text-xs text-muted text-center py-2">
                 Suplentes al completo ({MAX_SUP}/{MAX_SUP})
               </div>
