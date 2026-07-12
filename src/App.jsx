@@ -170,16 +170,21 @@ function TeamSwitcher() {
   const [open, setOpen] = useState(false)
   const [creando, setCreando] = useState(false)
   const [form, setForm] = useState({ nombre: '', tipo_equipo: '11' })
+  const [errorCrear, setErrorCrear] = useState('')
 
   async function handleCrear(e) {
     e.preventDefault()
     if (!form.nombre.trim()) return
+    setErrorCrear('')
     try {
       await crearEquipo({ nombre: form.nombre.trim(), tipo_equipo: form.tipo_equipo })
       setCreando(false)
       setForm({ nombre: '', tipo_equipo: '11' })
       setOpen(false)
-    } catch (err) { console.error('[crearEquipo]', err) }
+    } catch (err) {
+      console.error('[crearEquipo]', err)
+      setErrorCrear(err.message || 'No se pudo crear el equipo.')
+    }
   }
 
   return (
@@ -223,8 +228,13 @@ function TeamSwitcher() {
               )}
             </button>
           ))}
+          {errorCrear && (
+            <div style={{ margin: '6px 12px', padding: '7px 9px', borderRadius: 8, background: 'rgba(239,68,68,.1)', border: '1px solid rgba(239,68,68,.3)', color: '#fca5a5', fontSize: 10.5, lineHeight: 1.4 }}>
+              ⚠️ {errorCrear}
+            </div>
+          )}
           {!creando ? (
-            <button onClick={() => setCreando(true)} style={{ width: '100%', padding: '8px 12px', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 11, fontWeight: 700, color: '#2dd4bf', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <button onClick={() => { setCreando(true); setErrorCrear('') }} style={{ width: '100%', padding: '8px 12px', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 11, fontWeight: 700, color: '#2dd4bf', display: 'flex', alignItems: 'center', gap: 6 }}>
               <span style={{ fontSize: 15, lineHeight: 1 }}>+</span> Nuevo equipo
             </button>
           ) : (
