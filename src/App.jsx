@@ -3,6 +3,7 @@ import { Routes, Route, NavLink, Navigate, useNavigate, useLocation } from 'reac
 import { supabase, supabaseReady } from './lib/supabase'
 import { EquipoProvider, useEquipo } from './contexts/EquipoContext'
 import { getPerfil } from './lib/perfil'
+import { useAnalyticsTracker } from './hooks/useAnalyticsTracker'
 import Logo from './components/Logo'
 import Login from './pages/Login'
 import Privacidad from './pages/Privacidad'
@@ -370,6 +371,8 @@ export default function App() {
   const [activo, setActivo] = useState(null) // null = sin saber aún
   const [esAdmin, setEsAdmin] = useState(false)
   const [listo, setListo] = useState(false)
+
+  useAnalyticsTracker(Boolean(sesion))
 
   useEffect(() => {
     if (!supabaseReady) { setListo(true); return }

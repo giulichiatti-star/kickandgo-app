@@ -7,6 +7,7 @@ import {
 import EjercicioBaseModal from '../components/EjercicioBaseModal'
 import DiagramaEjercicio from '../components/DiagramaEjercicio'
 import PizarraTactica from '../components/PizarraTactica'
+import InformesEntrenos from '../components/InformesEntrenos'
 import { listarPartidos } from '../lib/partidos'
 import { getPerfil } from '../lib/perfil'
 import { listarJugadores } from '../lib/jugadores'
@@ -315,7 +316,12 @@ ${ses.notas ? `<div class="notas"><h3>Notas del entrenador</h3><p>${ses.notas}</
       <div className="flex items-center justify-between mb-4 gap-2">
         <div>
           <h1 className="text-xl font-extrabold">Entrenamientos</h1>
-          <p className="text-[11px] text-muted">{vistaTab === 'sesiones' ? `${fCorta(isos[0])} – ${fCorta(isos[6])} · ${minS} min totales` : vistaTab === 'base' ? 'Biblioteca de ejercicios base' : 'Diseña ejercicios con símbolos y anímalos por pasos'}</p>
+          <p className="text-[11px] text-muted">{
+            vistaTab === 'sesiones' ? `${fCorta(isos[0])} – ${fCorta(isos[6])} · ${minS} min totales`
+            : vistaTab === 'base' ? 'Biblioteca de ejercicios base'
+            : vistaTab === 'pizarra' ? 'Diseña ejercicios con símbolos y anímalos por pasos'
+            : 'Resumen de carga, categorías y sugerencias'
+          }</p>
         </div>
         {vistaTab === 'sesiones' && (
           <div className="flex items-center gap-1.5">
@@ -346,6 +352,12 @@ ${ses.notas ? `<div class="notas"><h3>Notas del entrenador</h3><p>${ses.notas}</
             color: vistaTab==='pizarra' ? '#fafafa' : '#71717a' }}>
           ✏️ Pizarra
         </button>
+        <button onClick={() => setVistaTab('informes')}
+          style={{ flex:1, padding:'8px 12px', borderRadius:7, border:'none', cursor:'pointer', fontSize:12, fontWeight:700,
+            background: vistaTab==='informes' ? '#27272a' : 'transparent',
+            color: vistaTab==='informes' ? '#fafafa' : '#71717a' }}>
+          📊 Informes entrenos
+        </button>
       </div>
 
       {vistaTab === 'base' && (
@@ -359,6 +371,8 @@ ${ses.notas ? `<div class="notas"><h3>Notas del entrenador</h3><p>${ses.notas}</
       )}
 
       {vistaTab === 'pizarra' && <PizarraTactica eid={eid} />}
+
+      {vistaTab === 'informes' && <InformesEntrenos entrenos={entrenos} />}
 
       {vistaTab === 'sesiones' && <div className="ent2-layout">
 
