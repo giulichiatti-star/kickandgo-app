@@ -2,16 +2,19 @@ import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { listarEntrenos, borrarEntreno } from '../lib/entrenamientos'
 import { listarConvocatorias, borrarConvocatoria } from '../lib/convocatorias'
+import { listarNotasCalendario, guardarNotaCalendario, borrarNotaCalendario } from '../lib/calendarioNotas'
 import '../calendario.css'
 
 const DOWS = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom']
 const fmtISO = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
 const startOfWeek = d => { const x=new Date(d); const dw=(x.getDay()+6)%7; x.setDate(x.getDate()-dw); x.setHours(0,0,0,0); return x }
+const horaFmt = h => h ? h.slice(0,5) : null
 
 export default function Calendario() {
   const [equipoId, setEquipoId] = useState(null)
   const [entrenos, setEntrenos] = useState([])
   const [convocatorias, setConvocatorias] = useState([])
+  const [notasDia, setNotasDia] = useState({}) // { iso: texto }
   const [vista, setVista] = useState('mes')
   const HOY = useMemo(() => { const d = new Date(); d.setHours(0,0,0,0); return d }, [])
   const [cursor, setCursor] = useState(() => { const d = new Date(); d.setDate(1); d.setHours(0,0,0,0); return d })
@@ -25,12 +28,16 @@ export default function Calendario() {
       const eqId = localStorage.getItem('equipo_activo') || null
       setEquipoId(eqId)
       try {
-        const [e, c] = await Promise.all([
+        const [e, c, n] = await Promise.all([
           listarEntrenos(eqId).catch(() => []),
           listarConvocatorias(eqId).catch(() => []),
+          listarNotasCalendario(eqId).catch(() => []),
         ])
         setEntrenos(e || [])
         setConvocatorias(c || [])
+        const map = {}
+        ;(n || []).forEach(x => { map[x.fecha] = x.texto })
+        setNotasDia(map)
       } catch {}
     })()
   }, [])
@@ -74,6 +81,17 @@ export default function Calendario() {
       setConvocatorias(prev => prev.filter(c => c.id !== id))
     } catch (e) { alert('Error: ' + e.message) }
   }
+  async function guardarNotaDiaUI(iso, texto) {
+    try {
+      if (!texto.trim()) {
+        await borrarNotaCalendario(iso, equipoId)
+        setNotasDia(prev => { const n = { ...prev }; delete n[iso]; return n })
+      } else {
+        await guardarNotaCalendario(iso, texto, equipoId)
+        setNotasDia(prev => ({ ...prev, [iso]: texto }))
+      }
+    } catch (e) { alert('Error: ' + e.message) }
+  }
 
   const periodo = useMemo(() => {
     if (vista === 'mes') return cursor.toLocaleDateString('es', { month:'long', year:'numeric' })
@@ -107,14 +125,18 @@ export default function Calendario() {
       </div>
 
       <div className="cal-leg">
-        <span><span className="d" style={{background:'#34d399'}}/>Entreno</span>
-        <span><span className="d" style={{background:'#93c5fd'}}/>Convocatoria</span>
-        <span>📝 Con nota</span>
+        <span><span className="d ent"/>Entreno</span>
+        <span><span className="d conv"/>Convocatoria</span>
+        <span><span className="d nota"/>Con nota</span>
       </div>
 
-      {vista === 'mes' && <VistaMes cursor={cursor} hoy={HOY} sel={diaSel} eventos={eventosPorDia} onDia={abrirDia}/>}
-      {vista === 'semana' && <VistaSemana cursor={cursor} hoy={HOY} eventos={eventosPorDia} onNota={setNota} onDia={abrirDia}/>}
-      {vista === 'dia' && <VistaDia dia={diaSel} eventos={eventosPorDia} onNota={setNota} onBorrarEntreno={borrarEntrenoUI} onBorrarConv={borrarConvocatoriaUI}/>}
+      {vista === 'mes' && <VistaMes cursor={cursor} hoy={HOY} sel={diaSel} eventos={eventosPorDia} notasDia={notasDia} onDia={abrirDia}/>}
+      {vista === 'semana' && <VistaSemana cursor={cursor} hoy={HOY} eventos={eventosPorDia} notasDia={notasDia} onNota={setNota} onDia={abrirDia}/>}
+      {vista === 'dia' && (
+        <VistaDia dia={diaSel} eventos={eventosPorDia} notasDia={notasDia}
+          onNota={setNota} onBorrarEntreno={borrarEntrenoUI} onBorrarConv={borrarConvocatoriaUI}
+          onGuardarNotaDia={guardarNotaDiaUI}/>
+      )}
 
       {nota && (
         <div className="cal-modal-bg" onClick={e => { if (e.target.classList.contains('cal-modal-bg')) setNota(null) }}>
@@ -130,7 +152,7 @@ export default function Calendario() {
   )
 }
 
-function VistaMes({ cursor, hoy, sel, eventos, onDia }) {
+function VistaMes({ cursor, hoy, sel, eventos, notasDia, onDia }) {
   const y = cursor.getFullYear(), m = cursor.getMonth()
   const primero = new Date(y, m, 1)
   const ini = startOfWeek(primero)
@@ -149,13 +171,18 @@ function VistaMes({ cursor, hoy, sel, eventos, onDia }) {
           const otro = d.getMonth() !== m
           const esHoy = fmtISO(d) === fmtISO(hoy)
           const esSel = fmtISO(d) === fmtISO(sel)
+          const esFinde = d.getDay() === 0 || d.getDay() === 6
+          const notaSuelta = notasDia[iso]
           const items = [
             ...(ev.entrenos||[]).map(e=>({tipo:'ent', t:e.objetivo || 'Entreno', nota:!!e.notas})),
             ...(ev.convocatorias||[]).map(c=>({tipo:'conv', t:'vs '+(c.rival||'—'), nota:!!c.notas})),
           ]
           return (
-            <div key={i} className={`day-cell ${otro?'otro':''} ${esHoy?'hoy':''} ${esSel?'sel':''}`} onClick={()=>onDia(iso)}>
-              <div className="dnum">{d.getDate()}</div>
+            <div key={i} className={`day-cell ${otro?'otro':''} ${esHoy?'hoy':''} ${esSel?'sel':''} ${esFinde?'finde':''}`} onClick={()=>onDia(iso)}>
+              <div className="dnum-row">
+                <div className="dnum">{d.getDate()}</div>
+                {notaSuelta && !items.some(it=>it.nota) && <span className="dot-nota" title="Nota del día">📝</span>}
+              </div>
               {items.slice(0,2).map((it,k) => (
                 <div key={k} className={`pill ${it.tipo} ${it.nota?'nota':''}`} title={it.t}>{it.t}</div>
               ))}
@@ -168,7 +195,7 @@ function VistaMes({ cursor, hoy, sel, eventos, onDia }) {
   )
 }
 
-function VistaSemana({ cursor, hoy, eventos, onNota, onDia }) {
+function VistaSemana({ cursor, hoy, eventos, notasDia, onNota, onDia }) {
   const ini = startOfWeek(cursor)
   const dias = Array.from({length:7}, (_,i) => { const d = new Date(ini); d.setDate(ini.getDate()+i); return d })
   return (
@@ -177,6 +204,7 @@ function VistaSemana({ cursor, hoy, eventos, onNota, onDia }) {
         const iso = fmtISO(d)
         const ev = eventos[iso] || {}
         const esHoy = fmtISO(d) === fmtISO(hoy)
+        const notaSuelta = notasDia[iso]
         return (
           <div key={i} className={`sem-col ${esHoy?'hoy':''}`}>
             <div className="sem-h" onClick={()=>onDia(iso)}>
@@ -186,16 +214,21 @@ function VistaSemana({ cursor, hoy, eventos, onNota, onDia }) {
             {(ev.entrenos||[]).map((e,k) => (
               <div key={'e'+k} className="sem-item ent" onClick={()=>e.notas && onNota({titulo:`Entreno · ${iso}`, texto:e.notas})}>
                 <div className="t">{e.objetivo || 'Entreno'} {e.notas && '📝'}</div>
-                <div className="m">{(e.duracion||0)}min</div>
+                <div className="m">⏱ {(e.duracion||0)}min</div>
               </div>
             ))}
             {(ev.convocatorias||[]).map((c,k) => (
               <div key={'c'+k} className="sem-item conv" onClick={()=>c.notas && onNota({titulo:`vs ${c.rival} · ${iso}`, texto:c.notas})}>
-                <div className="t">vs {c.rival} {c.notas && '📝'}</div>
-                <div className="m">{c.formacion || ''}</div>
+                <div className="t">vs {c.rival || '—'} {c.notas && '📝'}</div>
+                <div className="m">{horaFmt(c.hora_partido) ? `🕐 ${horaFmt(c.hora_partido)}` : c.formacion || ''}{c.lugar ? ` · 📍 ${c.lugar}` : ''}</div>
               </div>
             ))}
-            {(!ev.entrenos?.length && !ev.convocatorias?.length) && <div className="sem-empty">Sin eventos</div>}
+            {notaSuelta && (
+              <div className="sem-item nota" onClick={()=>onNota({titulo:`Nota · ${iso}`, texto:notaSuelta})}>
+                <div className="t">📝 Nota del día</div>
+              </div>
+            )}
+            {(!ev.entrenos?.length && !ev.convocatorias?.length && !notaSuelta) && <div className="sem-empty">Sin eventos</div>}
           </div>
         )
       })}
@@ -203,9 +236,13 @@ function VistaSemana({ cursor, hoy, eventos, onNota, onDia }) {
   )
 }
 
-function VistaDia({ dia, eventos, onNota, onBorrarEntreno, onBorrarConv }) {
+function VistaDia({ dia, eventos, notasDia, onNota, onBorrarEntreno, onBorrarConv, onGuardarNotaDia }) {
   const iso = fmtISO(dia)
   const ev = eventos[iso] || {}
+  const [editNota, setEditNota] = useState(false)
+  const [texto, setTexto] = useState(notasDia[iso] || '')
+  useEffect(() => { setTexto(notasDia[iso] || ''); setEditNota(false) }, [iso, notasDia[iso]])
+
   return (
     <div className="dia-wrap">
       <div className="dia-head">
@@ -217,7 +254,7 @@ function VistaDia({ dia, eventos, onNota, onBorrarEntreno, onBorrarConv }) {
         <h4><span className="dot" style={{background:'#34d399'}}/>Entrenos</h4>
         {(ev.entrenos||[]).length === 0 && <div className="dia-empty">Sin entrenos este día</div>}
         {(ev.entrenos||[]).map((e,k) => (
-          <div key={k} className="dia-item">
+          <div key={k} className="dia-item ent">
             <div className="body" onClick={()=>e.notas && onNota({titulo:`Entreno · ${iso}`, texto:e.notas})} style={{cursor: e.notas?'pointer':'default'}}>
               <div className="head">
                 <div className="title">{e.objetivo || 'Entreno'}</div>
@@ -228,8 +265,7 @@ function VistaDia({ dia, eventos, onNota, onBorrarEntreno, onBorrarConv }) {
                 <span>🏋 {(e.ejercicios||[]).length} ejercicios</span>
               </div>
             </div>
-            <button onClick={()=>onBorrarEntreno(e.id, e.objetivo)} title="Borrar entreno"
-              style={{background:'transparent',border:'1px solid #7f1d1d',color:'#fca5a5',borderRadius:8,padding:'6px 10px',fontSize:12,cursor:'pointer',flexShrink:0}}>🗑</button>
+            <button onClick={()=>onBorrarEntreno(e.id, e.objetivo)} title="Borrar entreno" className="dia-del">🗑</button>
           </div>
         ))}
       </div>
@@ -238,21 +274,44 @@ function VistaDia({ dia, eventos, onNota, onBorrarEntreno, onBorrarConv }) {
         <h4><span className="dot" style={{background:'#3b82f6'}}/>Convocatorias</h4>
         {(ev.convocatorias||[]).length === 0 && <div className="dia-empty">Sin partido este día</div>}
         {(ev.convocatorias||[]).map((c,k) => (
-          <div key={k} className="dia-item">
+          <div key={k} className="dia-item conv">
             <div className="body" onClick={()=>c.notas && onNota({titulo:`vs ${c.rival} · ${iso}`, texto:c.notas})} style={{cursor: c.notas?'pointer':'default'}}>
               <div className="head">
                 <div className="title">vs {c.rival || '—'}</div>
                 {c.notas && <span className="nota-chip">📝 Nota</span>}
               </div>
               <div className="meta">
+                {horaFmt(c.hora_partido) && <span>🕐 {horaFmt(c.hora_partido)}</span>}
+                {c.lugar && <span>📍 {c.lugar}</span>}
                 <span>⚡ {c.formacion || '—'}</span>
                 <span>👥 {(c.titulares?.length || 0) + (c.suplentes?.length || 0)} conv.</span>
+                {horaFmt(c.hora_convocatoria) && <span>⏰ cita {horaFmt(c.hora_convocatoria)}</span>}
               </div>
             </div>
-            <button onClick={()=>onBorrarConv(c.id, c.rival)} title="Borrar convocatoria"
-              style={{background:'transparent',border:'1px solid #7f1d1d',color:'#fca5a5',borderRadius:8,padding:'6px 10px',fontSize:12,cursor:'pointer',flexShrink:0}}>🗑</button>
+            <button onClick={()=>onBorrarConv(c.id, c.rival)} title="Borrar convocatoria" className="dia-del">🗑</button>
           </div>
         ))}
+      </div>
+
+      <div className="dia-sec">
+        <h4><span className="dot" style={{background:'#f59e0b'}}/>Nota del día</h4>
+        {editNota ? (
+          <div className="dia-nota-edit">
+            <textarea rows={4} value={texto} onChange={e=>setTexto(e.target.value)}
+              placeholder="Observaciones, recordatorios, instrucciones para este día…" autoFocus/>
+            <div className="dia-nota-btns">
+              <button className="btn-cancel" onClick={()=>{ setTexto(notasDia[iso]||''); setEditNota(false) }}>Cancelar</button>
+              <button className="btn-save" onClick={async ()=>{ await onGuardarNotaDia(iso, texto); setEditNota(false) }}>Guardar</button>
+            </div>
+          </div>
+        ) : notasDia[iso] ? (
+          <div className="dia-nota-view" onClick={()=>setEditNota(true)}>
+            <div className="txt">{notasDia[iso]}</div>
+            <div className="edit-hint">✎ Tocar para editar</div>
+          </div>
+        ) : (
+          <button className="dia-nota-add" onClick={()=>setEditNota(true)}>+ Añadir nota para este día</button>
+        )}
       </div>
     </div>
   )
