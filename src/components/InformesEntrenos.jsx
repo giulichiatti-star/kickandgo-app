@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { COLOR_CAT } from '../lib/entrenamientos'
 
 function catDe(ej) { return ej.categoria || ej.cat || 'General' }
@@ -16,6 +16,7 @@ function fCortaSemana(iso) {
 }
 
 export default function InformesEntrenos({ entrenos, jugadores }) {
+  const [jugadorSel, setJugadorSel] = useState(null)
   const stats = useMemo(() => {
     const sesiones = entrenos.filter(e => (e.ejercicios || []).length > 0)
     const totalMin = sesiones.reduce((a, e) => a + (e.duracion || (e.ejercicios || []).reduce((s, x) => s + minDe(x), 0)), 0)
@@ -115,11 +116,44 @@ export default function InformesEntrenos({ entrenos, jugadores }) {
       sugerencias.push({ tipo: 'ok', texto: 'Buen reparto de carga e intensidad en las últimas semanas — sin alertas.' })
     }
 
+    // Qué categorías trabajó cada jugador. Un ejercicio puede tener una lista
+    // propia de jugadores (personalización en "Ejercicios base" — overrides.jugadores);
+    // si no la tiene, se asume que participó todo el que asistió a esa sesión
+    // (o toda la plantilla si esa sesión no tiene lista de asistencia tomada).
+    const porJugadorCat = new Map() // id -> Map(cat -> {min, count})
+    sesiones.forEach(e => {
+      const tomoLista = Object.keys(e.asistencia || {}).length > 0
+      const presentesSesion = tomoLista
+        ? (jugadores || []).filter(j => e.asistencia[j.id] === true).map(j => j.id)
+        : (jugadores || []).map(j => j.id)
+      ;(e.ejercicios || []).forEach(ej => {
+        const cat = catDe(ej), min = minDe(ej)
+        const participantes = (ej.jugadores && ej.jugadores.length) ? ej.jugadores : presentesSesion
+        participantes.forEach(jid => {
+          const mapCat = porJugadorCat.get(jid) || new Map()
+          const acc = mapCat.get(cat) || { min: 0, count: 0 }
+          acc.min += min; acc.count += 1
+          mapCat.set(cat, acc)
+          porJugadorCat.set(jid, mapCat)
+        })
+      })
+    })
+    const jugadoresCategorias = (jugadores || [])
+      .map(j => {
+        const mapCat = porJugadorCat.get(j.id)
+        if (!mapCat) return null
+        const cats = Array.from(mapCat.entries()).map(([cat, v]) => ({ cat, ...v })).sort((a, b) => b.min - a.min)
+        const totalMin = cats.reduce((a, c) => a + c.min, 0)
+        return { id: j.id, nombre: j.nombre, dorsal: j.dorsal, cats, totalMin }
+      })
+      .filter(Boolean)
+      .sort((a, b) => b.totalMin - a.totalMin)
+
     return {
       totalSesiones: sesiones.length, totalMin, totalEjercicios,
       promedioMin: sesiones.length ? Math.round(totalMin / sesiones.length) : 0,
       categorias, porInt, semanas, sugerencias, jugadoresConDatos,
-      sesionesConLista: sesionesConLista.length,
+      sesionesConLista: sesionesConLista.length, jugadoresCategorias,
     }
   }, [entrenos, jugadores])
 
@@ -241,6 +275,47 @@ export default function InformesEntrenos({ entrenos, jugadores }) {
           </table>
         </div>
       )}
+
+      {/* Tipos de entreno por jugador (interactivo) */}
+      {stats.jugadoresCategorias.length > 0 && (() => {
+        const activo = stats.jugadoresCategorias.find(j => j.id === jugadorSel) || stats.jugadoresCategorias[0]
+        const maxCatJugador = activo.cats[0]?.min || 1
+        return (
+          <div className="card p-4 mb-4">
+            <div className="text-xs font-bold text-muted uppercase tracking-wide mb-3">🎯 Qué trabajó cada jugador</div>
+            <div className="flex flex-wrap gap-1.5 mb-4">
+              {stats.jugadoresCategorias.map(j => {
+                const sel = j.id === activo.id
+                return (
+                  <button key={j.id} onClick={() => setJugadorSel(j.id)}
+                    className="text-xs px-2.5 py-1.5 rounded-full transition-colors"
+                    style={{
+                      background: sel ? 'rgba(45,212,191,.15)' : 'transparent',
+                      border: `1px solid ${sel ? 'rgba(45,212,191,.4)' : '#27272a'}`,
+                      color: sel ? '#2dd4bf' : '#a1a1aa', fontWeight: sel ? 700 : 500,
+                    }}>
+                    #{j.dorsal ?? '-'} {j.nombre.split(' ')[0]}
+                  </button>
+                )
+              })}
+            </div>
+            <div className="text-[11px] text-muted mb-2">{activo.nombre} · {activo.totalMin}′ en total</div>
+            <div className="space-y-2.5">
+              {activo.cats.map(c => (
+                <div key={c.cat}>
+                  <div className="flex justify-between text-xs mb-1">
+                    <span className="font-semibold">{c.cat}</span>
+                    <span className="text-muted">{c.min}′ · {c.count} ej.</span>
+                  </div>
+                  <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
+                    <div style={{ width: `${Math.max(3, (c.min / maxCatJugador) * 100)}%`, background: COLOR_CAT[c.cat] || '#2dd4bf', height: '100%' }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )
+      })()}
 
       {/* Sugerencias */}
       <div className="card p-4">
