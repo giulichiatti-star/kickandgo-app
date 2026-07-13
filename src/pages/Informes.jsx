@@ -136,7 +136,18 @@ export default function Informes() {
       }
       const nombre = `informe_${(sel.rival||'partido').replace(/\s+/g,'_')}_${sel.fecha||'hoy'}.pdf`
       pdf.save(nombre)
-    } catch(e) { alert('Error al generar PDF: ' + e.message) }
+    } catch(e) {
+      // "Failed to fetch dynamically imported module" = quedó cargada una versión
+      // vieja de la app tras un deploy y ese chunk ya no existe en el servidor.
+      const esChunkViejo = /dynamically imported module|Importing a module script failed/i.test(e.message || '')
+      if (esChunkViejo) {
+        if (confirm('Hay una versión nueva de Kick and Go disponible. Hay que recargar la página para poder generar el PDF. ¿Recargar ahora?')) {
+          window.location.reload()
+        }
+      } else {
+        alert('Error al generar PDF: ' + e.message)
+      }
+    }
     finally { setExportando(false) }
   }
 
