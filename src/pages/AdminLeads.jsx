@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { listarLeads, actualizarLead, activarLeads, contactarLeads, linkWhatsapp } from '../lib/leads'
 import { listarCuentas, marcarPagado, marcarMora, darDeBaja, reactivar, resetearPassword, proximoVencimiento, eliminarCuenta, marcarFundador, listarAvisosPago, confirmarAviso } from '../lib/cuentas'
+import { listarUsoApp, nombreRuta } from '../lib/analytics'
 
 const CUPO_FUNDADORES = 50
 
@@ -76,10 +77,124 @@ export default function AdminLeads() {
             </span>
           )}
         </button>
+        <button className={`btn text-xs ${tab === 'uso' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setTab('uso')}>Uso de la app</button>
       </div>
       {tab === 'leads' && <TabLeads />}
       {tab === 'cuentas' && <TabCuentas />}
       {tab === 'pagos' && <TabPagos />}
+      {tab === 'uso' && <TabUso />}
+    </div>
+  )
+}
+
+// ───────────────────────── TAB USO DE LA APP ─────────────────────────
+
+function TabUso() {
+  const [dias, setDias] = useState(30)
+  const [data, setData] = useState(null)
+  const [cargando, setCargando] = useState(true)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    setCargando(true); setError('')
+    listarUsoApp(dias)
+      .then(setData)
+      .catch(e => setError(e.message))
+      .finally(() => setCargando(false))
+  }, [dias])
+
+  const kpi = (label, val, color) => (
+    <div className="card p-3">
+      <div className="text-[10px] font-bold text-muted uppercase tracking-wide mb-1">{label}</div>
+      <div className="text-lg font-extrabold" style={{ color }}>{val}</div>
+    </div>
+  )
+
+  const fmtMin = (seg) => {
+    const m = Math.round(seg / 60)
+    if (m < 60) return `${m} min`
+    return `${Math.floor(m / 60)}h ${m % 60}m`
+  }
+  const fmtFecha = (iso) => new Date(iso).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+
+  const totalSegundos = data ? data.usuarios.reduce((a, u) => a + u.segundos, 0) : 0
+  const maxSeccion = data?.secciones[0]?.segundos || 1
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+        <div className="text-sm font-bold text-muted">Actividad de las cuentas</div>
+        <div className="flex gap-1.5">
+          {[7, 30, 90].map(d => (
+            <button key={d} className={`btn text-xs ${dias === d ? 'btn-primary' : 'btn-outline'}`} onClick={() => setDias(d)}>
+              {d}d
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {error && <div className="text-xs text-red-400 mb-3">⚠️ {error}</div>}
+      {cargando ? (
+        <div className="text-xs text-muted py-8 text-center">Cargando…</div>
+      ) : !data || data.usuarios.length === 0 ? (
+        <div className="card p-6 text-center text-sm text-muted">
+          Sin actividad registrada en los últimos {dias} días.
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-3 gap-2 mb-4">
+            {kpi('Cuentas activas', data.usuarios.length, '#4ade80')}
+            {kpi('Tiempo total', fmtMin(totalSegundos), '#60a5fa')}
+            {kpi('Eventos registrados', data.totalEventos, '#a1a1aa')}
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Ranking de usuarios */}
+            <div className="card p-4">
+              <div className="text-xs font-bold text-muted uppercase tracking-wide mb-3">🏆 Ranking de uso por cuenta</div>
+              <table className="w-full text-xs" style={{ borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ color: '#71717a', textAlign: 'left' }}>
+                    <th className="pb-2 font-semibold">Club</th>
+                    <th className="pb-2 font-semibold text-right">Tiempo</th>
+                    <th className="pb-2 font-semibold text-right">Última visita</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.usuarios.map(u => (
+                    <tr key={u.userId} style={{ borderTop: '1px solid #27272a' }}>
+                      <td className="py-2">
+                        <div className="font-semibold">{u.club}</div>
+                        {u.entrenador && <div className="text-muted" style={{ fontSize: 10.5 }}>{u.entrenador}</div>}
+                      </td>
+                      <td className="py-2 text-right font-bold" style={{ color: '#34d399' }}>{fmtMin(u.segundos)}</td>
+                      <td className="py-2 text-right text-muted">{fmtFecha(u.ultimaVisita)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Tiempo por sección */}
+            <div className="card p-4">
+              <div className="text-xs font-bold text-muted uppercase tracking-wide mb-3">📊 Secciones más usadas</div>
+              <div className="space-y-2.5">
+                {data.secciones.map(s => (
+                  <div key={s.ruta}>
+                    <div className="flex justify-between text-xs mb-1">
+                      <span className="font-semibold">{nombreRuta(s.ruta)}</span>
+                      <span className="text-muted">{fmtMin(s.segundos)}</span>
+                    </div>
+                    <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
+                      <div style={{ width: `${Math.max(3, (s.segundos / maxSeccion) * 100)}%`, background: '#2dd4bf', height: '100%' }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   )
 }
