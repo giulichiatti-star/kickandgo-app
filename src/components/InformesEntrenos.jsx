@@ -78,21 +78,24 @@ export default function InformesEntrenos({ entrenos, jugadores }) {
         sugerencias.push({ tipo: 'aviso', texto: 'La carga de esta semana cayó más del 50% respecto a la anterior — confirma que no falten sesiones por cargar.' })
       }
     }
-    // Asistencia por jugador: asistencia = { [jugadorId]: 'ok'|'no'|'duda' }
-    const porJugador = new Map() // id -> { ok, no, duda, ultimaAsistio }
-    sesiones.forEach(e => {
-      Object.entries(e.asistencia || {}).forEach(([jid, estado]) => {
-        const acc = porJugador.get(jid) || { ok: 0, no: 0, duda: 0, ultimaAsistio: null }
-        if (estado === 'ok') { acc.ok += 1; if (!acc.ultimaAsistio || e.fecha > acc.ultimaAsistio) acc.ultimaAsistio = e.fecha }
-        else if (estado === 'no') acc.no += 1
-        else if (estado === 'duda') acc.duda += 1
-        porJugador.set(jid, acc)
+    // Asistencia por jugador: asistencia = { [jugadorId]: true|false } (checkbox,
+    // ver AsistenciaPanel en Entrenamientos.jsx). Solo cuentan las sesiones donde
+    // se tomó lista (al menos un jugador marcado); en esas, true = asistió,
+    // false o ausente del objeto = no asistió.
+    const sesionesConLista = sesiones.filter(e => Object.keys(e.asistencia || {}).length > 0)
+    const porJugador = new Map() // id -> { ok, no, ultimaAsistio }
+    sesionesConLista.forEach(e => {
+      (jugadores || []).forEach(j => {
+        const acc = porJugador.get(j.id) || { ok: 0, no: 0, ultimaAsistio: null }
+        if (e.asistencia[j.id] === true) { acc.ok += 1; if (!acc.ultimaAsistio || e.fecha > acc.ultimaAsistio) acc.ultimaAsistio = e.fecha }
+        else acc.no += 1
+        porJugador.set(j.id, acc)
       })
     })
     const jugadoresConDatos = (jugadores || [])
       .map(j => {
-        const a = porJugador.get(j.id) || { ok: 0, no: 0, duda: 0, ultimaAsistio: null }
-        const registrado = a.ok + a.no + a.duda
+        const a = porJugador.get(j.id) || { ok: 0, no: 0, ultimaAsistio: null }
+        const registrado = a.ok + a.no
         return {
           id: j.id, nombre: j.nombre, dorsal: j.dorsal,
           ...a, registrado,
@@ -116,6 +119,7 @@ export default function InformesEntrenos({ entrenos, jugadores }) {
       totalSesiones: sesiones.length, totalMin, totalEjercicios,
       promedioMin: sesiones.length ? Math.round(totalMin / sesiones.length) : 0,
       categorias, porInt, semanas, sugerencias, jugadoresConDatos,
+      sesionesConLista: sesionesConLista.length,
     }
   }, [entrenos, jugadores])
 
@@ -203,7 +207,11 @@ export default function InformesEntrenos({ entrenos, jugadores }) {
       )}
 
       {/* Asistencia por jugador */}
-      {stats.jugadoresConDatos.length > 0 && (
+      {stats.sesionesConLista === 0 ? (
+        <div className="card p-4 mb-4 text-center text-xs text-muted">
+          Todavía no se registró asistencia en ningún entreno — marca quién asistió en el panel "👥 Asistencia" al guardar una sesión, y aquí verás el detalle por jugador.
+        </div>
+      ) : stats.jugadoresConDatos.length > 0 && (
         <div className="card p-4 mb-4">
           <div className="text-xs font-bold text-muted uppercase tracking-wide mb-3">🧍 Asistencia por jugador</div>
           <table className="w-full text-xs" style={{ borderCollapse: 'collapse' }}>
@@ -212,7 +220,6 @@ export default function InformesEntrenos({ entrenos, jugadores }) {
                 <th className="pb-2 font-semibold">Jugador</th>
                 <th className="pb-2 font-semibold text-center">Asistió</th>
                 <th className="pb-2 font-semibold text-center">Faltó</th>
-                <th className="pb-2 font-semibold text-center">Duda</th>
                 <th className="pb-2 font-semibold text-right">%</th>
                 <th className="pb-2 font-semibold text-right">Última vez</th>
               </tr>
@@ -226,7 +233,6 @@ export default function InformesEntrenos({ entrenos, jugadores }) {
                   </td>
                   <td className="py-2 text-center" style={{ color: '#4ade80' }}>{j.ok}</td>
                   <td className="py-2 text-center" style={{ color: j.no > 0 ? '#f87171' : undefined }}>{j.no}</td>
-                  <td className="py-2 text-center text-muted">{j.duda}</td>
                   <td className="py-2 text-right font-bold" style={{ color: j.pct >= 80 ? '#4ade80' : j.pct >= 60 ? '#fbbf24' : '#f87171' }}>{j.pct}%</td>
                   <td className="py-2 text-right text-muted">{j.ultimaAsistio ? fCortaSemana(j.ultimaAsistio) : '—'}</td>
                 </tr>
