@@ -15,7 +15,7 @@ function fCortaSemana(iso) {
   return new Date(iso + 'T00:00:00').toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })
 }
 
-export default function InformesEntrenos({ entrenos }) {
+export default function InformesEntrenos({ entrenos, jugadores }) {
   const stats = useMemo(() => {
     const sesiones = entrenos.filter(e => (e.ejercicios || []).length > 0)
     const totalMin = sesiones.reduce((a, e) => a + (e.duracion || (e.ejercicios || []).reduce((s, x) => s + minDe(x), 0)), 0)
@@ -78,6 +78,36 @@ export default function InformesEntrenos({ entrenos }) {
         sugerencias.push({ tipo: 'aviso', texto: 'La carga de esta semana cayó más del 50% respecto a la anterior — confirma que no falten sesiones por cargar.' })
       }
     }
+    // Asistencia por jugador: asistencia = { [jugadorId]: 'ok'|'no'|'duda' }
+    const porJugador = new Map() // id -> { ok, no, duda, ultimaAsistio }
+    sesiones.forEach(e => {
+      Object.entries(e.asistencia || {}).forEach(([jid, estado]) => {
+        const acc = porJugador.get(jid) || { ok: 0, no: 0, duda: 0, ultimaAsistio: null }
+        if (estado === 'ok') { acc.ok += 1; if (!acc.ultimaAsistio || e.fecha > acc.ultimaAsistio) acc.ultimaAsistio = e.fecha }
+        else if (estado === 'no') acc.no += 1
+        else if (estado === 'duda') acc.duda += 1
+        porJugador.set(jid, acc)
+      })
+    })
+    const jugadoresConDatos = (jugadores || [])
+      .map(j => {
+        const a = porJugador.get(j.id) || { ok: 0, no: 0, duda: 0, ultimaAsistio: null }
+        const registrado = a.ok + a.no + a.duda
+        return {
+          id: j.id, nombre: j.nombre, dorsal: j.dorsal,
+          ...a, registrado,
+          pct: registrado ? Math.round((a.ok / registrado) * 100) : null,
+        }
+      })
+      .filter(j => j.registrado > 0)
+      .sort((a, b) => (b.pct ?? -1) - (a.pct ?? -1))
+
+    if (jugadoresConDatos.length >= 3) {
+      const bajos = jugadoresConDatos.filter(j => j.registrado >= 3 && j.pct < 60)
+      if (bajos.length > 0) {
+        sugerencias.push({ tipo: 'aviso', texto: `${bajos.length === 1 ? bajos[0].nombre + ' tiene' : bajos.length + ' jugadores tienen'} asistencia por debajo del 60% — vale la pena hablar con ${bajos.length === 1 ? 'él' : 'ellos'}.` })
+      }
+    }
     if (sugerencias.length === 0 && sesiones.length > 0) {
       sugerencias.push({ tipo: 'ok', texto: 'Buen reparto de carga e intensidad en las últimas semanas — sin alertas.' })
     }
@@ -85,9 +115,9 @@ export default function InformesEntrenos({ entrenos }) {
     return {
       totalSesiones: sesiones.length, totalMin, totalEjercicios,
       promedioMin: sesiones.length ? Math.round(totalMin / sesiones.length) : 0,
-      categorias, porInt, semanas, sugerencias,
+      categorias, porInt, semanas, sugerencias, jugadoresConDatos,
     }
-  }, [entrenos])
+  }, [entrenos, jugadores])
 
   if (!entrenos.length) {
     return (
@@ -169,6 +199,40 @@ export default function InformesEntrenos({ entrenos }) {
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Asistencia por jugador */}
+      {stats.jugadoresConDatos.length > 0 && (
+        <div className="card p-4 mb-4">
+          <div className="text-xs font-bold text-muted uppercase tracking-wide mb-3">🧍 Asistencia por jugador</div>
+          <table className="w-full text-xs" style={{ borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ color: '#71717a', textAlign: 'left' }}>
+                <th className="pb-2 font-semibold">Jugador</th>
+                <th className="pb-2 font-semibold text-center">Asistió</th>
+                <th className="pb-2 font-semibold text-center">Faltó</th>
+                <th className="pb-2 font-semibold text-center">Duda</th>
+                <th className="pb-2 font-semibold text-right">%</th>
+                <th className="pb-2 font-semibold text-right">Última vez</th>
+              </tr>
+            </thead>
+            <tbody>
+              {stats.jugadoresConDatos.map(j => (
+                <tr key={j.id} style={{ borderTop: '1px solid #27272a' }}>
+                  <td className="py-2">
+                    <span className="text-muted mr-1.5">#{j.dorsal ?? '-'}</span>
+                    <span className="font-semibold">{j.nombre}</span>
+                  </td>
+                  <td className="py-2 text-center" style={{ color: '#4ade80' }}>{j.ok}</td>
+                  <td className="py-2 text-center" style={{ color: j.no > 0 ? '#f87171' : undefined }}>{j.no}</td>
+                  <td className="py-2 text-center text-muted">{j.duda}</td>
+                  <td className="py-2 text-right font-bold" style={{ color: j.pct >= 80 ? '#4ade80' : j.pct >= 60 ? '#fbbf24' : '#f87171' }}>{j.pct}%</td>
+                  <td className="py-2 text-right text-muted">{j.ultimaAsistio ? fCortaSemana(j.ultimaAsistio) : '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
 

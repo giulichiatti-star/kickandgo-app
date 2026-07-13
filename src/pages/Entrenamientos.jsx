@@ -372,7 +372,7 @@ ${ses.notas ? `<div class="notas"><h3>Notas del entrenador</h3><p>${ses.notas}</
 
       {vistaTab === 'pizarra' && <PizarraTactica eid={eid} />}
 
-      {vistaTab === 'informes' && <InformesEntrenos entrenos={entrenos} />}
+      {vistaTab === 'informes' && <InformesEntrenos entrenos={entrenos} jugadores={jugadores} />}
 
       {vistaTab === 'sesiones' && <div className="ent2-layout">
 
