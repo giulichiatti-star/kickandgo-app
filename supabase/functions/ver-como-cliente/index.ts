@@ -42,6 +42,7 @@ Deno.serve(async (req) => {
     const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
       type: 'magiclink',
       email: clienteEmail,
+      options: { redirectTo: 'https://www.kickandgo.app/inicio' },
     })
     if (linkError || !linkData) {
       return new Response(JSON.stringify({ error: linkError?.message || 'No se pudo generar el enlace' }), { status: 400, headers: JSON_HEADERS })
