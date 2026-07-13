@@ -82,7 +82,8 @@ export default function PizarraTactica({ eid }) {
     let scale = 1, snap = false
     const GRID = 20
 
-    function cssVar(n) { return getComputedStyle(document.documentElement).getPropertyValue(n).trim() }
+    const appRoot = canvas.closest('.pz-app') || document.documentElement
+    function cssVar(n) { return getComputedStyle(appRoot).getPropertyValue(n).trim() }
     function sn(v) { return snap ? Math.round(v / GRID) * GRID : v }
 
     let current = 'select', currentColor = '#10b981', currentLineStyle = 'solid'
