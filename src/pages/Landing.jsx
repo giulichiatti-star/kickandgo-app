@@ -107,7 +107,7 @@ function LeadForm({ onClose }) {
 
 const PLANES = {
   fundador: { mensual: '19,99', anual: '199' },
-  estandar: { mensual: '24,95', anual: '249' },
+  estandar: { mensual: '24,99', anual: '249' },
 }
 
 export default function Landing() {

@@ -25,7 +25,7 @@ const LOGO = `<table cellpadding="0" cellspacing="0" style="margin:0 auto"><tr>
 function payBlock(uid: string) {
   return `
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;border-radius:10px;border:1px solid #e4e4e7;padding:16px 18px;margin:18px 0">
-    <tr><td style="padding-bottom:10px;font-size:11px;font-weight:600;color:#71717a;text-transform:uppercase;letter-spacing:.5px">Opciones de pago — 19 €/mes</td></tr>
+    <tr><td style="padding-bottom:10px;font-size:11px;font-weight:600;color:#71717a;text-transform:uppercase;letter-spacing:.5px">Opciones de pago — 20 €/mes</td></tr>
     <tr><td style="font-size:13px;color:#52525b;padding:4px 0">Transferencia bancaria</td></tr>
     <tr><td><table width="100%" cellpadding="0" cellspacing="0">
       <tr><td style="font-size:12px;color:#71717a;padding:3px 0">IBAN</td><td align="right" style="font-size:12px;font-family:monospace;color:#18181b">ES28 1583 0001 1490 5028 3293</td></tr>
@@ -130,12 +130,24 @@ Deno.serve(async () => {
         if (await sendEmail(email, '3 funciones que quizá no has probado — Kick and Go', html)) sent++
       }
 
+      // Día 10 de la prueba (5 días antes de vencer) — check-in cálido, sin venta
+      if (dayOffset(p_.prueba_vence, 5)) {
+        const html = wrapEmailInfo(
+          'Check-in', '#e0f2fe', '#075985',
+          '¿Qué tal va todo con Kick and Go?',
+          p(`Hola ${nombre}, llevas unos días con Kick and Go y quería preguntarte directamente: ¿cómo vas? ¿Le estás sacando el jugo, o hay algo que se te complica?`) +
+          p(`Si hay algo que no encuentras, que no te queda claro cómo funciona, o que directamente crees que falta — cuéntamelo. Leo cada respuesta, y bastante de lo que voy agregando sale justo de conversaciones así.`) +
+          p(`Y si todo va bien, también me alegra saberlo.`)
+        )
+        if (await sendEmail(email, '¿Qué tal va todo con Kick and Go?', html)) sent++
+      }
+
       if (dayOffset(p_.prueba_vence, 3)) {
         const html = wrapEmail(
           'Tu prueba vence en 3 días', '#fef3c7', '#92400e',
           '¡Quedan 3 días para aprovechar todo al máximo!',
           p(`Hola ${nombre}, llevas varios días usando Kick and Go y tu equipo ya está tomando forma. Sería una pena perder el ritmo ahora.`) +
-          p(`Para seguir con acceso completo, elige tu forma de pago preferida. El precio es <b>19 €/mes</b> y puedes cancelar cuando quieras.`),
+          p(`Para seguir con acceso completo, elige tu forma de pago preferida. El precio es <b>20 €/mes</b> y puedes cancelar cuando quieras.`),
           '¿Tienes alguna duda? Escríbenos y te ayudamos.',
           uid
         )
