@@ -15,11 +15,18 @@ create unique index if not exists calendario_notas_equipo_fecha_uk
 
 alter table calendario_notas enable row level security;
 
-create policy if not exists "calendario_notas_select_own"
+drop policy if exists "calendario_notas_select_own" on calendario_notas;
+create policy "calendario_notas_select_own"
   on calendario_notas for select using (auth.uid() = user_id);
-create policy if not exists "calendario_notas_insert_own"
+
+drop policy if exists "calendario_notas_insert_own" on calendario_notas;
+create policy "calendario_notas_insert_own"
   on calendario_notas for insert with check (auth.uid() = user_id);
-create policy if not exists "calendario_notas_update_own"
+
+drop policy if exists "calendario_notas_update_own" on calendario_notas;
+create policy "calendario_notas_update_own"
   on calendario_notas for update using (auth.uid() = user_id);
-create policy if not exists "calendario_notas_delete_own"
+
+drop policy if exists "calendario_notas_delete_own" on calendario_notas;
+create policy "calendario_notas_delete_own"
   on calendario_notas for delete using (auth.uid() = user_id);
