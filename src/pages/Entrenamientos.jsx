@@ -6,6 +6,7 @@ import {
 } from '../lib/entrenamientos'
 import EjercicioBaseModal from '../components/EjercicioBaseModal'
 import DiagramaEjercicio from '../components/DiagramaEjercicio'
+import PizarraTactica from '../components/PizarraTactica'
 import { listarPartidos } from '../lib/partidos'
 import { getPerfil } from '../lib/perfil'
 import { listarJugadores } from '../lib/jugadores'
@@ -314,7 +315,7 @@ ${ses.notas ? `<div class="notas"><h3>Notas del entrenador</h3><p>${ses.notas}</
       <div className="flex items-center justify-between mb-4 gap-2">
         <div>
           <h1 className="text-xl font-extrabold">Entrenamientos</h1>
-          <p className="text-[11px] text-muted">{vistaTab === 'sesiones' ? `${fCorta(isos[0])} – ${fCorta(isos[6])} · ${minS} min totales` : 'Biblioteca de ejercicios base'}</p>
+          <p className="text-[11px] text-muted">{vistaTab === 'sesiones' ? `${fCorta(isos[0])} – ${fCorta(isos[6])} · ${minS} min totales` : vistaTab === 'base' ? 'Biblioteca de ejercicios base' : 'Diseña ejercicios con símbolos y anímalos por pasos'}</p>
         </div>
         {vistaTab === 'sesiones' && (
           <div className="flex items-center gap-1.5">
@@ -339,6 +340,12 @@ ${ses.notas ? `<div class="notas"><h3>Notas del entrenador</h3><p>${ses.notas}</
             color: vistaTab==='base' ? '#fafafa' : '#71717a' }}>
           📚 Ejercicios base
         </button>
+        <button onClick={() => setVistaTab('pizarra')}
+          style={{ flex:1, padding:'8px 12px', borderRadius:7, border:'none', cursor:'pointer', fontSize:12, fontWeight:700,
+            background: vistaTab==='pizarra' ? '#27272a' : 'transparent',
+            color: vistaTab==='pizarra' ? '#fafafa' : '#71717a' }}>
+          ✏️ Pizarra
+        </button>
       </div>
 
       {vistaTab === 'base' && (
@@ -350,6 +357,8 @@ ${ses.notas ? `<div class="notas"><h3>Notas del entrenador</h3><p>${ses.notas}</
           onAddEjercicio={addEjercicioBase}
         />
       )}
+
+      {vistaTab === 'pizarra' && <PizarraTactica eid={eid} />}
 
       {vistaTab === 'sesiones' && <div className="ent2-layout">
 
