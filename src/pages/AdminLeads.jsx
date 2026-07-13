@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { listarLeads, actualizarLead, activarLeads, contactarLeads, linkWhatsapp } from '../lib/leads'
 import { listarCuentas, marcarPagado, marcarMora, darDeBaja, reactivar, resetearPassword, proximoVencimiento, eliminarCuenta, marcarFundador, listarAvisosPago, confirmarAviso } from '../lib/cuentas'
 import { listarUsoApp, nombreRuta } from '../lib/analytics'
+import { generarAccesoCliente, listarAccesos } from '../lib/adminAcceso'
 
 const CUPO_FUNDADORES = 50
 
@@ -94,6 +95,7 @@ function TabUso() {
   const [data, setData] = useState(null)
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
+  const [accesos, setAccesos] = useState([])
 
   useEffect(() => {
     setCargando(true); setError('')
@@ -101,6 +103,7 @@ function TabUso() {
       .then(setData)
       .catch(e => setError(e.message))
       .finally(() => setCargando(false))
+    listarAccesos().then(setAccesos).catch(() => {})
   }, [dias])
 
   const kpi = (label, val, color) => (
@@ -194,6 +197,29 @@ function TabUso() {
             </div>
           </div>
         </>
+      )}
+
+      {accesos.length > 0 && (
+        <div className="card p-4 mt-4">
+          <div className="text-xs font-bold text-muted uppercase tracking-wide mb-3">🔒 Log de accesos "ver como cliente"</div>
+          <div className="text-[10.5px] text-muted mb-3">Solo vos ves este registro — es tu respaldo interno, el cliente nunca es notificado de estos accesos.</div>
+          <table className="w-full text-xs" style={{ borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ color: '#71717a', textAlign: 'left' }}>
+                <th className="pb-2 font-semibold">Cliente</th>
+                <th className="pb-2 font-semibold text-right">Fecha</th>
+              </tr>
+            </thead>
+            <tbody>
+              {accesos.map(a => (
+                <tr key={a.id} style={{ borderTop: '1px solid #27272a' }}>
+                  <td className="py-2">{a.cliente_email}</td>
+                  <td className="py-2 text-right text-muted">{new Date(a.creado).toLocaleString('es-ES')}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   )
@@ -456,7 +482,18 @@ function TabCuentas() {
   const [filtro, setFiltro] = useState('todos')
   const [error, setError] = useState('')
   const [passwordReseteada, setPasswordReseteada] = useState(null)
+  const [accesoGenerado, setAccesoGenerado] = useState(null)
+  const [generandoAcceso, setGenerandoAcceso] = useState(null)
   const [modalConfirm, confirmar] = useConfirm()
+
+  async function onVerComo(cuenta) {
+    setError(''); setGenerandoAcceso(cuenta.id)
+    try {
+      const res = await generarAccesoCliente(cuenta.id)
+      setAccesoGenerado({ club: cuenta.club_nombre, email: res.email, link: res.link })
+    } catch (e) { setError(e.message) }
+    finally { setGenerandoAcceso(null) }
+  }
 
   async function recargar() {
     setCargando(true)
@@ -555,6 +592,23 @@ function TabCuentas() {
         </div>
       )}
 
+      {accesoGenerado && (
+        <div className="card p-4 text-xs" style={{ background: 'rgba(59,130,246,.08)', border: '1px solid rgba(59,130,246,.3)' }}>
+          <div className="flex items-center justify-between mb-1">
+            <div className="font-bold text-[#60a5fa]">🔗 Enlace de acceso generado — {accesoGenerado.club}</div>
+            <button className="text-muted hover:text-red-400" onClick={() => setAccesoGenerado(null)}>✕</button>
+          </div>
+          <div className="mb-2">Para <b>{accesoGenerado.email}</b></div>
+          <div className="flex gap-2 items-center">
+            <code className="font-mono flex-1 truncate p-2 rounded bg-black/30">{accesoGenerado.link}</code>
+            <button className="btn btn-outline text-xs shrink-0" onClick={() => { navigator.clipboard.writeText(accesoGenerado.link); }}>📋 Copiar</button>
+          </div>
+          <div className="text-muted mt-2">
+            ⚠️ Abrilo en una <b>ventana de incógnito</b> (Ctrl+Shift+N / Cmd+Shift+N) — si lo abrís en esta misma ventana, perdés tu sesión de admin. Es de un solo uso y expira a los pocos minutos. El cliente no recibe ningún aviso; queda registrado en el log interno de accesos.
+          </div>
+        </div>
+      )}
+
       {cargando ? (
         <div className="card p-8 text-center text-sm text-muted">Cargando…</div>
       ) : visibles.length === 0 ? (
@@ -570,6 +624,8 @@ function TabCuentas() {
               onResetPassword={() => onResetPassword(c)}
               onEliminar={() => onEliminar(c)}
               onToggleFundador={() => accion(marcarFundador, c.id, !c.es_fundador)}
+              onVerComo={() => onVerComo(c)}
+              generandoAcceso={generandoAcceso === c.id}
             />
           ))}
         </div>
@@ -837,7 +893,7 @@ function TabPagos() {
   )
 }
 
-function CuentaCard({ cuenta, onPagado, onMora, onBaja, onReactivar, onResetPassword, onEliminar, onToggleFundador }) {
+function CuentaCard({ cuenta, onPagado, onMora, onBaja, onReactivar, onResetPassword, onEliminar, onToggleFundador, onVerComo, generandoAcceso }) {
   const est = ESTADOS_PLAN[cuenta.plan_estado] || ESTADOS_PLAN.prueba
   const diasPrueba = cuenta.plan_estado === 'prueba' ? diasRestantes(cuenta.prueba_vence) : null
   const diasPago = (cuenta.plan_estado === 'pagado' || cuenta.plan_estado === 'mora') ? diasRestantes(cuenta.pago_vence) : null
@@ -866,6 +922,9 @@ function CuentaCard({ cuenta, onPagado, onMora, onBaja, onReactivar, onResetPass
           <button className="btn btn-primary text-xs" onClick={onPagado}>💳 Marcar pagado</button>
           <button className="btn btn-outline text-xs" style={{ color: '#fbbf24', borderColor: 'rgba(245,158,11,.3)' }} onClick={onMora}>⚠️ Mora</button>
           <button className="btn btn-outline text-xs" onClick={onResetPassword}>🔑 Nueva contraseña</button>
+          <button className="btn btn-outline text-xs" style={{ color: '#60a5fa', borderColor: 'rgba(59,130,246,.3)' }} onClick={onVerComo} disabled={generandoAcceso}>
+            {generandoAcceso ? 'Generando…' : '👁️ Ver como cliente'}
+          </button>
           <button className="btn btn-outline text-xs" style={cuenta.es_fundador ? { color: '#f5a623', borderColor: 'rgba(245,166,35,.4)' } : {}} onClick={onToggleFundador}>
             {cuenta.es_fundador ? '🔥 Quitar fundador' : '🔥 Marcar fundador'}
           </button>
