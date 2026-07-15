@@ -14,7 +14,7 @@ const POSICIONES = [
   'Portero', 'Lateral derecho', 'Central', 'Lateral izquierdo',
   'Mediocampista', 'Mediapunta', 'Extremo', 'Delantero centro',
 ]
-const vacio = { nombre: '', dorsal: '', posicion: 'Mediocampista', pie: 'Derecho', nacimiento: '', foto_url: '' }
+const vacio = { nombre: '', dorsal: '', posicion: 'Mediocampista', pie: 'Derecho', nacimiento: '', foto_url: '', peso_kg: '', altura_cm: '' }
 const FILTROS = [['Todos', 'ALL'], ['Porteros', 'POR'], ['Defensas', 'DEF'], ['Medios', 'MED'], ['Delanteros', 'DEL']]
 
 // clase de forma según rating
@@ -141,7 +141,7 @@ export default function Plantilla() {
   function abrirNuevo() { setEditId(null); setForm(vacio); setError(''); setModal(true) }
   function abrirEdit(j) {
     setEditId(j.id)
-    setForm({ nombre: j.nombre, dorsal: j.dorsal, posicion: j.posicion, pie: j.pie || 'Derecho', nacimiento: j.nacimiento || '', foto_url: j.foto_url || '' })
+    setForm({ nombre: j.nombre, dorsal: j.dorsal, posicion: j.posicion, pie: j.pie || 'Derecho', nacimiento: j.nacimiento || '', foto_url: j.foto_url || '', peso_kg: j.peso_kg ?? '', altura_cm: j.altura_cm ?? '' })
     setError(''); setModal(true)
   }
 
@@ -170,6 +170,8 @@ export default function Plantilla() {
       pie: form.pie,
       nacimiento: form.nacimiento || null,
       foto_url: form.foto_url || '',
+      peso_kg: form.peso_kg !== '' ? parseFloat(form.peso_kg) : null,
+      altura_cm: form.altura_cm !== '' ? parseFloat(form.altura_cm) : null,
     }
     try {
       if (editId) await actualizarJugador(editId, payload)
@@ -483,6 +485,18 @@ export default function Plantilla() {
                 <label className="text-xs text-muted">Nacimiento</label>
                 <input className="field mt-1" type="date" value={form.nacimiento || ''}
                   onChange={(e) => setForm({ ...form, nacimiento: e.target.value })} />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3 mt-3">
+              <div>
+                <label className="text-xs text-muted">Peso (kg)</label>
+                <input className="field mt-1" type="number" min="1" max="200" step="0.1" value={form.peso_kg}
+                  onChange={(e) => setForm({ ...form, peso_kg: e.target.value })} placeholder="Ej: 72" />
+              </div>
+              <div>
+                <label className="text-xs text-muted">Altura (cm)</label>
+                <input className="field mt-1" type="number" min="100" max="230" step="1" value={form.altura_cm}
+                  onChange={(e) => setForm({ ...form, altura_cm: e.target.value })} placeholder="Ej: 178" />
               </div>
             </div>
             {error && <div className="text-xs text-rojo mt-3">{error}</div>}
