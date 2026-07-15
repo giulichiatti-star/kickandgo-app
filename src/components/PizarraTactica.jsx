@@ -133,28 +133,36 @@ export default function PizarraTactica({ eid }) {
     function drawPitch() { drawPitchOn(ctx, W, H) }
 
     function drawPlayer(p, isSel) {
-      ctx.beginPath(); ctx.arc(p.x, p.y, 15, 0, 7)
+      const s = p.scale || 1
+      ctx.beginPath(); ctx.arc(p.x, p.y, 15 * s, 0, 7)
       ctx.fillStyle = p.kind === 'rival' ? '#ef4444' : '#10b981'; ctx.fill()
       if (isSel) { ctx.lineWidth = 2.5; ctx.strokeStyle = '#fafafa'; ctx.stroke() }
       ctx.fillStyle = p.kind === 'rival' ? '#450a0a' : '#04140d'
-      ctx.font = '800 12px Inter'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
+      ctx.font = `800 ${12 * s}px Inter`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
       ctx.fillText(p.num, p.x, p.y + 0.5)
-      if (p.name) { ctx.font = '700 8.5px Inter'; ctx.fillStyle = cssVar('--pz-texto'); ctx.fillText(p.name, p.x, p.y + 24) }
+      if (p.name) { ctx.font = `700 ${8.5 * s}px Inter`; ctx.fillStyle = cssVar('--pz-texto'); ctx.fillText(p.name, p.x, p.y + 24 * s) }
     }
     function drawBall(p, isSel) {
-      ctx.beginPath(); ctx.arc(p.x, p.y, 7, 0, 7); ctx.fillStyle = '#f5f5f0'; ctx.fill()
+      const s = p.scale || 1
+      ctx.beginPath(); ctx.arc(p.x, p.y, 7 * s, 0, 7); ctx.fillStyle = '#f5f5f0'; ctx.fill()
       ctx.strokeStyle = isSel ? '#fafafa' : '#8a8a80'; ctx.lineWidth = isSel ? 2 : 1; ctx.stroke()
     }
     function drawCono(p, isSel) {
-      ctx.beginPath(); ctx.moveTo(p.x, p.y - 13); ctx.lineTo(p.x + 9, p.y + 8); ctx.lineTo(p.x - 9, p.y + 8); ctx.closePath()
+      const s = p.scale || 1
+      ctx.beginPath(); ctx.moveTo(p.x, p.y - 13 * s); ctx.lineTo(p.x + 9 * s, p.y + 8 * s); ctx.lineTo(p.x - 9 * s, p.y + 8 * s); ctx.closePath()
       ctx.fillStyle = '#f59e0b'; ctx.fill()
       if (isSel) { ctx.lineWidth = 2; ctx.strokeStyle = '#fafafa'; ctx.stroke() }
     }
-    function drawPorteria(p, isSel) { ctx.strokeStyle = isSel ? '#fafafa' : '#94a3b8'; ctx.lineWidth = isSel ? 3 : 2.2; ctx.strokeRect(p.x - 15, p.y - 9, 30, 18) }
+    function drawPorteria(p, isSel) {
+      const s = p.scale || 1
+      ctx.strokeStyle = isSel ? '#fafafa' : '#94a3b8'; ctx.lineWidth = isSel ? 3 : 2.2
+      ctx.strokeRect(p.x - 15 * s, p.y - 9 * s, 30 * s, 18 * s)
+    }
     function drawObstaculo(p, isSel) {
-      ctx.fillStyle = '#8b5cf6'; ctx.fillRect(p.x - 16, p.y - 4, 32, 8)
-      ctx.fillStyle = '#fafafa'; for (let i = -14; i < 16; i += 8) ctx.fillRect(p.x + i, p.y - 4, 4, 8)
-      if (isSel) { ctx.strokeStyle = '#fafafa'; ctx.lineWidth = 1.5; ctx.strokeRect(p.x - 17, p.y - 6, 34, 12) }
+      const s = p.scale || 1
+      ctx.fillStyle = '#8b5cf6'; ctx.fillRect(p.x - 16 * s, p.y - 4 * s, 32 * s, 8 * s)
+      ctx.fillStyle = '#fafafa'; for (let i = -14 * s; i < 16 * s; i += 8 * s) ctx.fillRect(p.x + i, p.y - 4 * s, 4 * s, 8 * s)
+      if (isSel) { ctx.strokeStyle = '#fafafa'; ctx.lineWidth = 1.5; ctx.strokeRect(p.x - 17 * s, p.y - 6 * s, 34 * s, 12 * s) }
     }
     function drawZona(p, isSel) {
       ctx.setLineDash([5, 4]); ctx.strokeStyle = isSel ? '#fafafa' : '#8b5cf6'; ctx.lineWidth = 1.6
@@ -164,7 +172,8 @@ export default function PizarraTactica({ eid }) {
       if (isSel) { ctx.fillStyle = '#fafafa'; ctx.fillRect(p.x + (p.w || 34) - 4, p.y + (p.h || 34) - 4, 8, 8) }
     }
     function drawTexto(p, isSel) {
-      ctx.font = '700 12px Inter'; ctx.fillStyle = isSel ? '#34d399' : cssVar('--pz-texto'); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
+      const s = p.scale || 1
+      ctx.font = `700 ${12 * s}px Inter`; ctx.fillStyle = isSel ? '#34d399' : cssVar('--pz-texto'); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
       ctx.fillText(p.text || 'Texto', p.x, p.y)
     }
     function drawItem(p, isSel) {
@@ -225,7 +234,8 @@ export default function PizarraTactica({ eid }) {
       const f = frames[frameIdx]
       for (let i = f.items.length - 1; i >= 0; i--) {
         const p = f.items[i]
-        const rad = p.kind === 'propio' || p.kind === 'rival' ? 16 : p.kind === 'zona' ? Math.max(p.w || 34, p.h || 34) : 14
+        const s = p.scale || 1
+        const rad = p.kind === 'propio' || p.kind === 'rival' ? 16 * s : p.kind === 'zona' ? Math.max(p.w || 34, p.h || 34) : 14 * s
         if (Math.hypot(p.x - x, p.y - y) < rad) return p
       }
       return null
@@ -364,6 +374,8 @@ export default function PizarraTactica({ eid }) {
         return
       }
       const o = selected.obj
+      const REDIMENSIONABLES = ['propio', 'rival', 'balon', 'cono', 'porteria', 'obstaculo', 'texto']
+      const tieneTamano = REDIMENSIONABLES.includes(selected.type)
       let html = ''
       if (o.kind === 'propio' || o.kind === 'rival') {
         html = `<div class="pz-prop-row"><span class="pz-lbl">Dorsal</span><input class="pz-mini-input" id="pz2-num" type="number" value="${o.num}" min="1" max="99"></div>` +
@@ -377,6 +389,16 @@ export default function PizarraTactica({ eid }) {
         html = sw + `<div class="pz-prop-row"><span class="pz-lbl">Trazo</span><div class="pz-seg" id="pz2-lnstyle">${['solid', 'dashed'].map(v => `<button data-v="${v}" class="${o.style === v ? 'on' : ''}">${v === 'solid' ? 'continuo' : 'punteado'}</button>`).join('')}</div></div>`
       } else { html = '<div class="pz-empty-props">Objeto sin propiedades editables.</div>' }
 
+      if (tieneTamano) {
+        const s = o.scale || 1
+        html += `<div class="pz-prop-row"><span class="pz-lbl">Tamaño</span>
+          <div style="display:flex;align-items:center;gap:6px">
+            <button class="pz-ibtn" id="pz2-sizedown" style="width:22px;height:22px">−</button>
+            <span id="pz2-sizeval" style="font-size:10.5px;color:var(--pz-texto-muted);width:32px;text-align:center">${Math.round(s * 100)}%</span>
+            <button class="pz-ibtn" id="pz2-sizeup" style="width:22px;height:22px">+</button>
+          </div></div>`
+      }
+
       body.innerHTML = html + '<button class="pz-del-obj" id="pz2-delobj">Eliminar del campo</button>'
       const pNum = body.querySelector('#pz2-num')
       if (pNum) pNum.oninput = function () { o.num = parseInt(this.value) || 0; render() }
@@ -386,6 +408,12 @@ export default function PizarraTactica({ eid }) {
         body.querySelectorAll('.pz-swatch').forEach(s => { s.onclick = () => { o.color = s.dataset.c; render(); renderProps() } })
         const lnSeg = body.querySelector('#pz2-lnstyle')
         if (lnSeg) lnSeg.onclick = (e) => { const b = e.target.closest('button'); if (!b) return; o.style = b.dataset.v; render(); renderProps() }
+      }
+      if (tieneTamano) {
+        const clamp = (v) => Math.max(0.5, Math.min(2.2, v))
+        const sizeVal = body.querySelector('#pz2-sizeval')
+        body.querySelector('#pz2-sizedown').onclick = () => { o.scale = clamp((o.scale || 1) - 0.15); sizeVal.textContent = Math.round(o.scale * 100) + '%'; render() }
+        body.querySelector('#pz2-sizeup').onclick = () => { o.scale = clamp((o.scale || 1) + 0.15); sizeVal.textContent = Math.round(o.scale * 100) + '%'; render() }
       }
       body.querySelector('#pz2-delobj').onclick = () => {
         snapshot(); const f = frames[frameIdx]
@@ -428,16 +456,31 @@ export default function PizarraTactica({ eid }) {
     function play() {
       selected = null
       if (frames.length < 2) {
-        const f = frames[frameIdx]; let t0 = null
-        function step(ts) {
-          if (!t0) t0 = ts
-          const prog = Math.min(1, (ts - t0) / (900 / speed))
+        const f = frames[frameIdx]
+        const lines = f.lines
+        if (!lines.length) { render(); return }
+        // Las líneas se reproducen en el orden en que se crearon: la 1 termina
+        // antes de que empiece la 2, y así sucesivamente — no todas a la vez.
+        let li = 0
+        function drawStatic(hastaIdx, progActual) {
           drawPitch()
           f.items.forEach(p => drawItem(p, false))
-          f.lines.forEach(l => drawLine(l, prog, false))
-          if (prog < 1) requestAnimationFrame(step); else render()
+          for (let k = 0; k < hastaIdx; k++) drawLine(lines[k], 1, false)
+          if (progActual !== undefined) drawLine(lines[hastaIdx], progActual, false)
         }
-        requestAnimationFrame(step)
+        function playLine() {
+          if (li >= lines.length) { render(); return }
+          let t0 = null
+          function step(ts) {
+            if (!t0) t0 = ts
+            const prog = Math.min(1, (ts - t0) / (900 / speed))
+            drawStatic(li, prog)
+            if (prog < 1) requestAnimationFrame(step)
+            else { li++; playLine() }
+          }
+          requestAnimationFrame(step)
+        }
+        playLine()
         return
       }
       let idx = 0
