@@ -15,10 +15,10 @@ Deno.serve(async (req) => {
   if (req.method !== 'POST') return new Response('Method not allowed', { status: 405, headers: CORS_HEADERS })
 
   try {
-    const { userId } = await req.json()
+    const { userId, password: passwordDeseada } = await req.json()
     if (!userId) return new Response(JSON.stringify({ error: 'Falta userId' }), { status: 400, headers: JSON_HEADERS })
 
-    const password = generarPassword()
+    const password = passwordDeseada || generarPassword()
     const { error } = await supabase.auth.admin.updateUserById(userId, { password })
     if (error) return new Response(JSON.stringify({ error: error.message }), { status: 400, headers: JSON_HEADERS })
 
