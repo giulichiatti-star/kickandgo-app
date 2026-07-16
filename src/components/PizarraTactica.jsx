@@ -6,6 +6,27 @@ const W = 480, H = 660
 const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#fafafa']
 
 function blankFrame() { return { items: [], lines: [] } }
+function todayISO() {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+function fichaVacia() { return { descripcion: '', duracion_min: 15, jugadores: [], fecha: todayISO() } }
+// Parte un texto en líneas que caben en maxWidth con la fuente ya seteada en ctx,
+// respetando saltos de línea manuales. No dibuja — solo calcula.
+function wrapLines(ctx, text, maxWidth) {
+  const out = []
+  String(text || '').split('\n').forEach((para) => {
+    const words = para.split(' ')
+    let line = ''
+    words.forEach((w) => {
+      const test = line ? line + ' ' + w : w
+      if (ctx.measureText(test).width > maxWidth && line) { out.push(line); line = w }
+      else line = test
+    })
+    out.push(line)
+  })
+  return out
+}
 
 const TOOLS = [
   { group: 'General', items: [{ id: 'select', label: 'Seleccionar / editar' }] },
@@ -48,7 +69,7 @@ function svgIcon(name) {
   return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICONS[name]}</svg>`
 }
 
-export default function PizarraTactica({ eid }) {
+export default function PizarraTactica({ eid, jugadores = [], abrirId, onAbierto, onGuardado }) {
   const canvasRef = useRef(null)
   const railRef = useRef(null)
   const propsRef = useRef(null)
@@ -67,6 +88,16 @@ export default function PizarraTactica({ eid }) {
   const [actualId, setActualId] = useState(null)
   const [cargandoLista, setCargandoLista] = useState(true)
   const [msg, setMsg] = useState('')
+  const [ficha, setFicha] = useState(fichaVacia())
+  const [fichaOpen, setFichaOpen] = useState(true)
+  const [nombreEj, setNombreEj] = useState('Rondo de posesión 4v2')
+
+  // Refs para que el motor de canvas (montado una sola vez) siempre lea el
+  // valor más reciente de la ficha y de la plantilla al exportar el PNG.
+  const fichaRef = useRef(ficha)
+  const jugadoresRef = useRef(jugadores)
+  useEffect(() => { fichaRef.current = ficha }, [ficha])
+  useEffect(() => { jugadoresRef.current = jugadores }, [jugadores])
 
   useEffect(() => {
     (async () => {
@@ -75,6 +106,15 @@ export default function PizarraTactica({ eid }) {
       finally { setCargandoLista(false) }
     })()
   }, [eid])
+
+  // Abrir un ejercicio concreto (p.ej. desde el calendario de Entrenamientos)
+  useEffect(() => {
+    if (!abrirId || cargandoLista) return
+    const p = guardadas.find((g) => g.id === abrirId)
+    if (p) cargar(p)
+    onAbierto?.()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [abrirId, cargandoLista])
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -120,8 +160,8 @@ export default function PizarraTactica({ eid }) {
       c.clearRect(0, 0, w, h)
       c.save(); c.scale(w / W, h / H)
       c.fillStyle = pitchGrad(c); c.fillRect(0, 0, W, H)
-      for (let i = 0; i < 10; i++) { c.fillStyle = i % 2 === 0 ? 'rgba(255,255,255,.018)' : 'rgba(0,0,0,.02)'; c.fillRect(0, i * H / 10, W, H / 10) }
-      c.strokeStyle = cssVar('--pz-linea'); c.lineWidth = 1.4
+      for (let i = 0; i < 10; i++) { c.fillStyle = i % 2 === 0 ? 'rgba(255,255,255,.05)' : 'rgba(0,0,0,.05)'; c.fillRect(0, i * H / 10, W, H / 10) }
+      c.strokeStyle = cssVar('--pz-linea'); c.lineWidth = 1.8
       c.strokeRect(10, 10, W - 20, H - 20)
       c.beginPath(); c.moveTo(10, H / 2); c.lineTo(W - 10, H / 2); c.stroke()
       c.beginPath(); c.arc(W / 2, H / 2, 58, 0, 7); c.stroke()
@@ -553,8 +593,74 @@ export default function PizarraTactica({ eid }) {
       a.click()
     }
     document.getElementById('pz2-exportpng').onclick = () => {
-      const a = document.createElement('a'); a.href = canvas.toDataURL('image/png')
-      a.download = (nameInputRef.current.value || 'ejercicio').replace(/\s+/g, '_') + '_frame' + (frameIdx + 1) + '.png'
+      const nombreEj = nameInputRef.current.value || 'Ejercicio'
+      const f = fichaRef.current
+      const jugs = jugadoresRef.current
+      const seleccionados = jugs.filter((j) => (f.jugadores || []).includes(j.id))
+      const jugTxt = seleccionados.length
+        ? seleccionados.map((j) => `#${j.dorsal ?? '-'} ${j.nombre}`).join('   ·   ')
+        : 'Toda la plantilla disponible'
+      const fechaTxt = f.fecha
+        ? new Date(f.fecha + 'T00:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+        : 'Sin día asignado'
+
+      // Medir con un canvas temporal cuánto ocupará el texto para dimensionar el panel
+      const meas = document.createElement('canvas').getContext('2d')
+      const padX = 22, textW = W - padX * 2
+      meas.font = '400 12px Inter, Arial'
+      const descLines = f.descripcion ? wrapLines(meas, f.descripcion, textW) : []
+      meas.font = '600 11.5px Inter, Arial'
+      const jugLines = wrapLines(meas, jugTxt, textW)
+
+      const headH = 74, descBlockH = descLines.length ? 24 + descLines.length * 17 + 10 : 0
+      const jugBlockH = 22 + jugLines.length * 16 + 14
+      const footerH = 26
+      const panelH = headH + descBlockH + jugBlockH + footerH
+
+      const off = document.createElement('canvas')
+      off.width = W; off.height = H + panelH
+      const octx = off.getContext('2d')
+      octx.fillStyle = '#101014'; octx.fillRect(0, 0, off.width, off.height)
+      octx.drawImage(canvas, 0, 0)
+
+      let y = H
+      // Panel de info
+      octx.fillStyle = '#16161a'; octx.fillRect(0, y, W, panelH)
+      octx.strokeStyle = 'rgba(255,255,255,.08)'; octx.lineWidth = 1
+      octx.beginPath(); octx.moveTo(0, y + 0.5); octx.lineTo(W, y + 0.5); octx.stroke()
+
+      // Título + duración + fecha
+      octx.textAlign = 'left'; octx.textBaseline = 'alphabetic'
+      octx.fillStyle = '#fafafa'; octx.font = '800 16px Inter, Arial'
+      octx.fillText(nombreEj, padX, y + 26)
+      octx.fillStyle = '#34d399'; octx.font = '700 12px Inter, Arial'
+      octx.fillText(`⏱ ${f.duracion_min || 15} min`, padX, y + 46)
+      octx.fillStyle = '#a1a1aa'; octx.font = '600 11px Inter, Arial'
+      const fCap = fechaTxt.charAt(0).toUpperCase() + fechaTxt.slice(1)
+      octx.fillText(fCap, padX, y + 63)
+      y += headH
+
+      if (descLines.length) {
+        octx.fillStyle = '#34d399'; octx.font = '800 9.5px Inter, Arial'
+        octx.fillText('EXPLICACIÓN DEL EJERCICIO', padX, y + 12)
+        octx.fillStyle = '#e4e4e7'; octx.font = '400 12px Inter, Arial'
+        descLines.forEach((ln, i) => octx.fillText(ln, padX, y + 32 + i * 17))
+        y += descBlockH
+      }
+
+      octx.fillStyle = '#34d399'; octx.font = '800 9.5px Inter, Arial'
+      octx.fillText('JUGADORES CONVOCADOS', padX, y + 12)
+      octx.fillStyle = '#e4e4e7'; octx.font = '600 11.5px Inter, Arial'
+      jugLines.forEach((ln, i) => octx.fillText(ln, padX, y + 30 + i * 16))
+      y += jugBlockH
+
+      octx.fillStyle = '#52525b'; octx.font = '700 9px Inter, Arial'
+      octx.fillText('Kick & Go · Pizarra táctica', padX, y + 17)
+      octx.textAlign = 'right'
+      octx.fillText(new Date().toLocaleDateString('es-ES'), W - padX, y + 17)
+
+      const a = document.createElement('a'); a.href = off.toDataURL('image/png')
+      a.download = nombreEj.replace(/\s+/g, '_') + '_frame' + (frameIdx + 1) + '.png'
       a.click()
     }
 
@@ -589,30 +695,45 @@ export default function PizarraTactica({ eid }) {
     setGuardando(true); setMsg('')
     try {
       const { frames } = engineRef.current.getState()
-      const nombre = nameInputRef.current.value || 'Nuevo ejercicio'
+      const nombre = (nombreEj || '').trim() || 'Nuevo ejercicio'
       if (actualId) {
-        const act = await actualizarPizarra(actualId, nombre, frames)
+        const act = await actualizarPizarra(actualId, nombre, frames, ficha)
         setGuardadas(gs => gs.map(g => g.id === actualId ? act : g))
       } else {
-        const nueva = await crearPizarra(nombre, frames, eid)
+        const nueva = await crearPizarra(nombre, frames, eid, ficha)
         setGuardadas(gs => [nueva, ...gs])
         setActualId(nueva.id)
       }
       setMsg('✅ Guardado')
       setTimeout(() => setMsg(''), 1800)
+      onGuardado?.()
     } catch (e) { setMsg('⚠️ ' + e.message) }
     finally { setGuardando(false) }
   }
 
   function nuevo() {
     setActualId(null)
-    nameInputRef.current.value = 'Nuevo ejercicio'
+    setNombreEj('Nuevo ejercicio')
+    setFicha(fichaVacia())
     engineRef.current.loadFrames([blankFrame()])
+  }
+
+  function toggleJugadorFicha(id) {
+    setFicha((f) => ({
+      ...f,
+      jugadores: f.jugadores.includes(id) ? f.jugadores.filter((x) => x !== id) : [...f.jugadores, id],
+    }))
   }
 
   function cargar(p) {
     setActualId(p.id)
-    nameInputRef.current.value = p.nombre
+    setNombreEj(p.nombre || 'Ejercicio')
+    setFicha({
+      descripcion: p.descripcion || '',
+      duracion_min: p.duracion_min || 15,
+      jugadores: p.jugadores || [],
+      fecha: p.fecha || todayISO(),
+    })
     engineRef.current.loadFrames(p.frames)
   }
 
@@ -623,6 +744,7 @@ export default function PizarraTactica({ eid }) {
       await borrarPizarra(p.id)
       setGuardadas(gs => gs.filter(g => g.id !== p.id))
       if (actualId === p.id) nuevo()
+      onGuardado?.()
     } catch (e2) { setMsg('⚠️ ' + e2.message) }
   }
 
@@ -632,7 +754,17 @@ export default function PizarraTactica({ eid }) {
         <div className="pz-tb-left">
           <div className="pz-tb-logo">K</div>
           <div className="pz-tb-titles">
-            <input ref={nameInputRef} className="pz-tb-title-input" defaultValue="Rondo de posesión 4v2" />
+            <div className="pz-tb-name-wrap">
+              <svg className="pz-tb-name-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
+              <input
+                ref={nameInputRef}
+                className="pz-tb-title-input"
+                value={nombreEj}
+                onChange={(e) => setNombreEj(e.target.value)}
+                placeholder="Nombre del ejercicio"
+                title="Editar nombre del ejercicio"
+              />
+            </div>
             <div className="pz-tb-sub">Entrenamientos · Pizarra{msg ? ` · ${msg}` : ''}</div>
           </div>
         </div>
@@ -648,6 +780,70 @@ export default function PizarraTactica({ eid }) {
             {guardando ? 'Guardando…' : '✓ Guardar'}
           </button>
         </div>
+      </div>
+
+      <div className="pz-ficha-bar">
+        <button type="button" className="pz-ficha-toggle" onClick={() => setFichaOpen((o) => !o)}>
+          <span>📋 Ficha del ejercicio <span className="pz-ficha-toggle-sub">— explicación, duración, día y jugadores convocados (se incluye al exportar el PNG)</span></span>
+          <span>{fichaOpen ? '▲' : '▼'}</span>
+        </button>
+        {fichaOpen && (
+          <div className="pz-ficha-body">
+            <div className="pz-ficha-row">
+              <div className="pz-ficha-field">
+                <label className="pz-lbl">Día del entreno</label>
+                <input
+                  type="date" className="pz-ficha-input"
+                  value={ficha.fecha}
+                  onChange={(e) => setFicha((f) => ({ ...f, fecha: e.target.value }))}
+                />
+              </div>
+              <div className="pz-ficha-field" style={{ maxWidth: 120 }}>
+                <label className="pz-lbl">Duración</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <input
+                    type="number" min={1} max={180} className="pz-ficha-input" style={{ width: 64 }}
+                    value={ficha.duracion_min}
+                    onChange={(e) => setFicha((f) => ({ ...f, duracion_min: +e.target.value || 0 }))}
+                  />
+                  <span className="pz-lbl" style={{ fontWeight: 500 }}>min</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="pz-ficha-field" style={{ marginTop: 10 }}>
+              <label className="pz-lbl">Explicación del ejercicio</label>
+              <textarea
+                className="pz-ficha-textarea" rows={3}
+                placeholder="Cómo se ejecuta: reglas, series, variantes… (queda impreso en el mapa exportado)"
+                value={ficha.descripcion}
+                onChange={(e) => setFicha((f) => ({ ...f, descripcion: e.target.value }))}
+              />
+            </div>
+
+            <div style={{ marginTop: 10 }}>
+              <label className="pz-lbl">Jugadores convocados ({ficha.jugadores.length}/{jugadores.length || 0})</label>
+              <div className="pz-ficha-chips">
+                {jugadores.map((j) => (
+                  <button
+                    key={j.id} type="button"
+                    className={'pz-ficha-chip' + (ficha.jugadores.includes(j.id) ? ' on' : '')}
+                    onClick={() => toggleJugadorFicha(j.id)}
+                  >
+                    #{j.dorsal ?? '-'} {j.nombre.split(' ')[0]}
+                  </button>
+                ))}
+                {jugadores.length === 0 && <span className="pz-empty-props">Sin jugadores en la plantilla.</span>}
+              </div>
+              {jugadores.length > 0 && (
+                <div style={{ marginTop: 7, display: 'flex', gap: 12 }}>
+                  <button type="button" className="pz-ficha-link" onClick={() => setFicha((f) => ({ ...f, jugadores: jugadores.map((j) => j.id) }))}>Marcar todos</button>
+                  <button type="button" className="pz-ficha-link" onClick={() => setFicha((f) => ({ ...f, jugadores: [] }))}>Ninguno</button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="pz-body-wrap">
@@ -675,7 +871,10 @@ export default function PizarraTactica({ eid }) {
                 <div className="pz-drill-thumb" />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div className="pz-drill-name">{p.nombre}</div>
-                  <div className="pz-drill-meta">{(p.frames || []).length} frame{(p.frames || []).length === 1 ? '' : 's'}</div>
+                  <div className="pz-drill-meta">
+                    {p.fecha ? new Date(p.fecha + 'T00:00:00').toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }) + ' · ' : ''}
+                    {p.duracion_min || 15}′ · {(p.frames || []).length} frame{(p.frames || []).length === 1 ? '' : 's'}
+                  </div>
                 </div>
                 <button className="pz-drill-del" onClick={(e) => eliminar(p, e)} title="Eliminar">✕</button>
               </div>

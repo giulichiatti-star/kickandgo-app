@@ -8,20 +8,32 @@ export async function listarPizarras(equipoId) {
   return data || []
 }
 
-export async function crearPizarra(nombre, frames, equipoId) {
+export async function crearPizarra(nombre, frames, equipoId, ficha = {}) {
   const { data: u } = await supabase.auth.getUser()
   const { data, error } = await supabase
     .from('pizarras_tacticas')
-    .insert({ user_id: u.user.id, equipo_id: equipoId || null, nombre, frames })
+    .insert({
+      user_id: u.user.id, equipo_id: equipoId || null, nombre, frames,
+      descripcion: ficha.descripcion || '',
+      duracion_min: ficha.duracion_min || 15,
+      jugadores: ficha.jugadores || [],
+      fecha: ficha.fecha || null,
+    })
     .select().single()
   if (error) throw error
   return data
 }
 
-export async function actualizarPizarra(id, nombre, frames) {
+export async function actualizarPizarra(id, nombre, frames, ficha = {}) {
   const { data, error } = await supabase
     .from('pizarras_tacticas')
-    .update({ nombre, frames, actualizado: new Date().toISOString() })
+    .update({
+      nombre, frames, actualizado: new Date().toISOString(),
+      descripcion: ficha.descripcion || '',
+      duracion_min: ficha.duracion_min || 15,
+      jugadores: ficha.jugadores || [],
+      fecha: ficha.fecha || null,
+    })
     .eq('id', id)
     .select().single()
   if (error) throw error

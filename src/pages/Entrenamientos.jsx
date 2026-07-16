@@ -4,6 +4,7 @@ import {
   crearEjercicio, actualizarEjercicio, borrarEjercicio,
   listarEjerciciosBase, ejercicioMatcheaQuery,
 } from '../lib/entrenamientos'
+import { listarPizarras } from '../lib/pizarras'
 import EjercicioBaseModal from '../components/EjercicioBaseModal'
 import DiagramaEjercicio from '../components/DiagramaEjercicio'
 import PizarraTactica from '../components/PizarraTactica'
@@ -81,6 +82,7 @@ export default function Entrenamientos() {
   const [partidos, setPartidos]     = useState([])
   const [jugadores, setJugadores]   = useState([])
   const [lesiones, setLesiones]     = useState([])
+  const [pizarras, setPizarras]     = useState([])
   const [perfil, setPerfil]         = useState(null)
   const [cargando, setCargando]     = useState(true)
   const [semana, setSemana]         = useState(0)
@@ -92,17 +94,19 @@ export default function Entrenamientos() {
   const [msg, setMsg]               = useState('')
   const [showBib, setShowBib]       = useState(false)
   const [showGestion, setShowGestion] = useState(false)
+  const [pizarraAbrirId, setPizarraAbrirId] = useState(null)
 
   async function refrescar() {
     setCargando(true)
     try {
-      const [p, bib, en, ps, js, ls] = await Promise.all([
+      const [p, bib, en, ps, js, ls, pz] = await Promise.all([
         getPerfil().catch(() => null),
         listarBiblioteca(),
         listarEntrenos(eid),
         listarPartidos(eid).catch(() => []),
         listarJugadores(eid).catch(() => []),
         listarLesiones().catch(() => []),
+        listarPizarras(eid).catch(() => []),
       ])
       setPerfil(p)
       setBiblioteca(bib.map(norm))
@@ -110,9 +114,23 @@ export default function Entrenamientos() {
       setPartidos(ps)
       setJugadores(js)
       setLesiones(ls)
+      setPizarras(pz)
     } catch (e) { setMsg(e.message) } finally { setCargando(false) }
   }
   useEffect(() => { refrescar() }, [eid])
+
+  // Ejercicios de pizarra con día asignado, agrupados por fecha ISO — para
+  // mostrarlos en el calendario de la semana y en el panel del día.
+  const pizarrasPorDia = useMemo(() => {
+    const m = {}
+    pizarras.forEach((p) => { if (p.fecha) (m[p.fecha] ||= []).push(p) })
+    return m
+  }, [pizarras])
+
+  function abrirPizarraDelDia(p) {
+    setPizarraAbrirId(p.id)
+    setVistaTab('pizarra')
+  }
 
   /* Enriquecer ejercicio con descripción de biblioteca si le falta */
   function enriquecer(ej, bib) {
@@ -370,7 +388,15 @@ ${ses.notas ? `<div class="notas"><h3>Notas del entrenador</h3><p>${ses.notas}</
         />
       )}
 
-      {vistaTab === 'pizarra' && <PizarraTactica eid={eid} />}
+      {vistaTab === 'pizarra' && (
+        <PizarraTactica
+          eid={eid}
+          jugadores={jugadores}
+          abrirId={pizarraAbrirId}
+          onAbierto={() => setPizarraAbrirId(null)}
+          onGuardado={() => listarPizarras(eid).then(setPizarras).catch(() => {})}
+        />
+      )}
 
       {vistaTab === 'informes' && <InformesEntrenos entrenos={entrenos} jugadores={jugadores} />}
 
@@ -414,6 +440,9 @@ ${ses.notas ? `<div class="notas"><h3>Notas del entrenador</h3><p>${ses.notas}</
                   <span className="ent2-week-card-empty">+{ses_i.ejercicios.length - 4} más</span>
                 )}
               </div>
+              {pizarrasPorDia[d]?.length > 0 && (
+                <div className="ent2-week-card-piz">✏️ {pizarrasPorDia[d].length} ejercicio{pizarrasPorDia[d].length === 1 ? '' : 's'} de pizarra</div>
+              )}
             </div>
           )
         })}
@@ -425,11 +454,15 @@ ${ses.notas ? `<div class="notas"><h3>Notas del entrenador</h3><p>${ses.notas}</
       <div className="ent2-day-tabs mb-4 lg:hidden">
         {isos.map((d, i) => {
           const tiene = (dias[d]?.ejercicios || []).length > 0
+          const tienePiz = pizarrasPorDia[d]?.length > 0
           return (
             <button key={d} className={`ent2-day-tab ${diaSel === i ? 'active' : ''}`} onClick={() => setDiaSel(i)}>
               <span className="ent2-dt-dia">{DIAS[i]}</span>
               <span className="ent2-dt-num">{fCorta(d).split(' ')[0]}</span>
-              {tiene && <span className="ent2-dt-dot" />}
+              <span className="ent2-dt-dots">
+                {tiene && <span className="ent2-dt-dot" />}
+                {tienePiz && <span className="ent2-dt-dot piz" title="Ejercicios de pizarra" />}
+              </span>
             </button>
           )
         })}
@@ -573,6 +606,25 @@ ${ses.notas ? `<div class="notas"><h3>Notas del entrenador</h3><p>${ses.notas}</
                 </details>
               )
             })}
+          </div>
+        )}
+
+        {/* Ejercicios de pizarra vinculados a este día */}
+        {(pizarrasPorDia[isoS] || []).length > 0 && (
+          <div className="mb-3">
+            <div className="text-[11px] text-muted uppercase tracking-wide mb-1 font-semibold">✏️ Ejercicios de pizarra de este día</div>
+            <div className="space-y-1.5">
+              {pizarrasPorDia[isoS].map((p) => (
+                <button key={p.id} className="ent2-piz-row" onClick={() => abrirPizarraDelDia(p)}>
+                  <span className="ent2-piz-row-dot" />
+                  <span className="flex-1 min-w-0 text-left">
+                    <span className="block text-xs font-semibold truncate">{p.nombre}</span>
+                    {p.descripcion && <span className="block text-[10.5px] text-muted truncate mt-0.5">{p.descripcion}</span>}
+                  </span>
+                  <span className="text-[10.5px] text-muted flex-shrink-0">{p.duracion_min || 15}′{(p.jugadores || []).length ? ` · ${p.jugadores.length} jug.` : ''}</span>
+                </button>
+              ))}
+            </div>
           </div>
         )}
 
