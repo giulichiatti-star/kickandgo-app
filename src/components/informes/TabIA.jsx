@@ -4,8 +4,11 @@ import {
   BarChart, Bar, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend
 } from 'recharts'
 import { SecH, TTip } from './shared'
+import { analizarNotasPartidos } from '../../lib/notasTendencias'
 
 export default function TabIA({ partidos, sel, entrenos, liga, rl, positivos, amejorar, d, navigate }) {
+
+  const notas = useMemo(() => analizarNotasPartidos(partidos), [partidos])
 
   const evolucion = useMemo(() => {
     const meses = {}
@@ -109,6 +112,42 @@ export default function TabIA({ partidos, sel, entrenos, liga, rl, positivos, am
             {amejorar.filter(a => a.t !== 'Sin alertas').slice(0, 2).map((p, i) => <div key={i} style={{ fontSize: 11, color: '#f87171' }}>⚠ {p.t}</div>)}
           </div>
         </div>
+      </div>
+
+      {/* ── Tendencias en las notas del entrenador (análisis local, sin coste) ── */}
+      <div className="inf-box p-4">
+        <SecH col="#2dd4bf">Tendencias en tus notas</SecH>
+        <p style={{ fontSize: 12, color: '#94a3b8', lineHeight: 1.6, margin: '0 0 4px' }}>{notas.resumen}</p>
+        {notas.tendencias.length > 0 && (
+          <>
+            <div style={{ fontSize: 9, color: '#52525b', margin: '10px 0 8px', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 900 }}>
+              Temas más repetidos · {notas.conNotas} {notas.conNotas === 1 ? 'partido con notas' : 'partidos con notas'}
+            </div>
+            <div className="space-y-2">
+              {notas.tendencias.map((t) => {
+                const maxN = notas.tendencias[0].n || 1
+                return (
+                  <div key={t.id}>
+                    <div className="flex items-center justify-between" style={{ fontSize: 11, marginBottom: 3 }}>
+                      <span style={{ color: '#e2e8f0', fontWeight: 600 }}>{t.emoji} {t.label}</span>
+                      <span className="flex items-center gap-2">
+                        {t.sesgo === 'derrota' && <span style={{ fontSize: 9, color: '#f87171', fontWeight: 800 }}>↓ en derrotas</span>}
+                        {t.sesgo === 'victoria' && <span style={{ fontSize: 9, color: '#34d399', fontWeight: 800 }}>↑ en victorias</span>}
+                        <span style={{ color: '#71717a', fontVariantNumeric: 'tabular-nums' }}>{t.n} de {notas.conNotas}</span>
+                      </span>
+                    </div>
+                    <div style={{ height: 6, borderRadius: 4, background: 'rgba(255,255,255,0.05)', overflow: 'hidden' }}>
+                      <div style={{ width: `${Math.max(6, (t.n / maxN) * 100)}%`, height: '100%', background: t.color, borderRadius: 4 }} />
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+            <p style={{ fontSize: 9.5, color: '#52525b', marginTop: 10, lineHeight: 1.5 }}>
+              Análisis automático de tus notas por palabras clave. Cuanto más escribas en cada partido, más fino será.
+            </p>
+          </>
+        )}
       </div>
 
       <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(280px,1fr))' }}>
