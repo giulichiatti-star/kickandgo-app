@@ -3,7 +3,7 @@ import { Routes, Route, NavLink, Navigate, useNavigate, useLocation } from 'reac
 import { supabase, supabaseReady } from './lib/supabase'
 import { EquipoProvider, useEquipo } from './contexts/EquipoContext'
 import { getPerfil } from './lib/perfil'
-import { CATEGORIAS_PRESET } from './lib/informeGlobal'
+import { CATEGORIAS_PRESET, DIVISIONES_PRESET } from './lib/informeGlobal'
 import { useAnalyticsTracker } from './hooks/useAnalyticsTracker'
 import Logo from './components/Logo'
 import Login from './pages/Login'
@@ -173,7 +173,7 @@ function TeamSwitcher() {
   const { equipos, equipoActivo, setEquipoActivo, crearEquipo, actualizarEquipo } = useEquipo()
   const [open, setOpen] = useState(false)
   const [creando, setCreando] = useState(false)
-  const [form, setForm] = useState({ nombre: '', tipo_equipo: '11', categoria: '' })
+  const [form, setForm] = useState({ nombre: '', tipo_equipo: '11', categoria: '', division: '' })
   const [errorCrear, setErrorCrear] = useState('')
   const [escudoPerfil, setEscudoPerfil] = useState('')
 
@@ -186,9 +186,9 @@ function TeamSwitcher() {
     if (!form.nombre.trim()) return
     setErrorCrear('')
     try {
-      await crearEquipo({ nombre: form.nombre.trim(), tipo_equipo: form.tipo_equipo, categoria: form.categoria || '' })
+      await crearEquipo({ nombre: form.nombre.trim(), tipo_equipo: form.tipo_equipo, categoria: form.categoria || '', division: form.division || '' })
       setCreando(false)
-      setForm({ nombre: '', tipo_equipo: '11', categoria: '' })
+      setForm({ nombre: '', tipo_equipo: '11', categoria: '', division: '' })
       setOpen(false)
     } catch (err) {
       console.error('[crearEquipo]', err)
@@ -237,18 +237,31 @@ function TeamSwitcher() {
               )}
             </button>
           ))}
-          {/* Categoría del equipo activo (para el informe global por categoría) */}
+          {/* Categoría + división del equipo activo (para el informe global) */}
           {equipoActivo && (
-            <div style={{ padding: '8px 12px', borderBottom: '1px solid #1a1a1d', display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: 10.5, color: '#71717a', fontWeight: 600, flexShrink: 0 }}>🏷️ Categoría</span>
-              <select
-                value={equipoActivo.categoria || ''}
-                onChange={(e) => actualizarEquipo(equipoActivo.id, { categoria: e.target.value })}
-                style={{ flex: 1, minWidth: 0, background: '#18181b', border: '1px solid #27272a', borderRadius: 7, padding: '5px 7px', color: equipoActivo.categoria ? '#2dd4bf' : '#71717a', fontSize: 11, fontWeight: 700, outline: 'none', cursor: 'pointer' }}
-              >
-                <option value="">Sin categoría</option>
-                {CATEGORIAS_PRESET.map((c) => <option key={c} value={c}>{c}</option>)}
-              </select>
+            <div style={{ padding: '8px 12px', borderBottom: '1px solid #1a1a1d', display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 10.5, color: '#71717a', fontWeight: 600, flexShrink: 0, width: 62 }}>🏷️ Categoría</span>
+                <select
+                  value={equipoActivo.categoria || ''}
+                  onChange={(e) => actualizarEquipo(equipoActivo.id, { categoria: e.target.value })}
+                  style={{ flex: 1, minWidth: 0, background: '#18181b', border: '1px solid #27272a', borderRadius: 7, padding: '5px 7px', color: equipoActivo.categoria ? '#2dd4bf' : '#71717a', fontSize: 11, fontWeight: 700, outline: 'none', cursor: 'pointer' }}
+                >
+                  <option value="">Sin asignar</option>
+                  {CATEGORIAS_PRESET.map((c) => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 10.5, color: '#71717a', fontWeight: 600, flexShrink: 0, width: 62 }}>🏆 División</span>
+                <select
+                  value={equipoActivo.division || ''}
+                  onChange={(e) => actualizarEquipo(equipoActivo.id, { division: e.target.value })}
+                  style={{ flex: 1, minWidth: 0, background: '#18181b', border: '1px solid #27272a', borderRadius: 7, padding: '5px 7px', color: equipoActivo.division ? '#2dd4bf' : '#71717a', fontSize: 11, fontWeight: 700, outline: 'none', cursor: 'pointer' }}
+                >
+                  <option value="">Sin asignar</option>
+                  {DIVISIONES_PRESET.map((d) => <option key={d} value={d}>{d}</option>)}
+                </select>
+              </div>
             </div>
           )}
           {errorCrear && (
@@ -282,8 +295,16 @@ function TeamSwitcher() {
                 onChange={(e) => setForm({ ...form, categoria: e.target.value })}
                 style={{ width: '100%', background: '#18181b', border: '1px solid #27272a', borderRadius: 8, padding: '6px 9px', color: form.categoria ? '#fafafa' : '#71717a', fontSize: 12, outline: 'none', cursor: 'pointer' }}
               >
-                <option value="">Categoría (opcional)</option>
+                <option value="">Categoría por edad (opcional)</option>
                 {CATEGORIAS_PRESET.map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
+              <select
+                value={form.division}
+                onChange={(e) => setForm({ ...form, division: e.target.value })}
+                style={{ width: '100%', background: '#18181b', border: '1px solid #27272a', borderRadius: 8, padding: '6px 9px', color: form.division ? '#fafafa' : '#71717a', fontSize: 12, outline: 'none', cursor: 'pointer' }}
+              >
+                <option value="">División / nivel (opcional)</option>
+                {DIVISIONES_PRESET.map((d) => <option key={d} value={d}>{d}</option>)}
               </select>
               <div style={{ display: 'flex', gap: 6 }}>
                 <button type="button" onClick={() => setCreando(false)} style={{ flex: 1, padding: '6px', borderRadius: 7, border: '1px solid #27272a', background: 'transparent', color: '#71717a', fontSize: 11, cursor: 'pointer' }}>Cancelar</button>

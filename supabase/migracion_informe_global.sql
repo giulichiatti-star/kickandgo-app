@@ -10,8 +10,9 @@
 -- Pega en Supabase → SQL Editor → Run.
 -- ============================================================
 
--- 1) Categoría del equipo (Alevín, Cadete, Senior…)
+-- 1) Categoría por edad (Alevín, Cadete, Senior…) y división/nivel (2ª RFEF, Regional…)
 alter table equipos add column if not exists categoria text default '';
+alter table equipos add column if not exists division  text default '';
 
 -- 2) Lectura global para admin en las tablas de datos.
 --    Cada policy es PERMISIVA y se suma (OR) a la del dueño: el entrenador

@@ -79,7 +79,7 @@ function resultado(p) {
 /* ── Carga de datos (admin) ─────────────────────────────── */
 export async function cargarDatosGlobales() {
   const [eq, ju, pa, ta, en, pr] = await Promise.all([
-    supabase.from('equipos').select('id, user_id, nombre, tipo_equipo, categoria, escudo_url'),
+    supabase.from('equipos').select('id, user_id, nombre, tipo_equipo, categoria, division, escudo_url'),
     supabase.from('jugadores').select('id, equipo_id, user_id, nombre, dorsal, posicion, activo'),
     supabase.from('partidos').select('id, equipo_id, user_id, fecha, rival, local_visitante, gf, gc, notas, valoraciones, analisis_ia, activo'),
     supabase.from('tarjetas').select('id, equipo_id, jugador_id, tipo, fecha'),
@@ -109,16 +109,29 @@ export function CATEGORIAS(datos) {
   ;(datos.equipos || []).forEach((e) => { if (e.categoria && e.categoria.trim()) set.add(e.categoria.trim()) })
   return Array.from(set).sort()
 }
+export function DIVISIONES(datos) {
+  const set = new Set()
+  ;(datos.equipos || []).forEach((e) => { if (e.division && e.division.trim()) set.add(e.division.trim()) })
+  return Array.from(set).sort()
+}
 
-// Preset de categorías para el desplegable de creación/edición de equipo.
+// Preset de categorías por EDAD para el desplegable de creación/edición de equipo.
 export const CATEGORIAS_PRESET = [
   'Prebenjamín', 'Benjamín', 'Alevín', 'Infantil', 'Cadete',
   'Juvenil', 'Senior', 'Veteranos', 'Femenino', 'Fútbol base', 'Otra',
 ]
 
+// Preset de DIVISIÓN / nivel competitivo. Cubre los escalones nacionales y
+// etiquetas genéricas para el fútbol regional/amateur (varía por comunidad).
+export const DIVISIONES_PRESET = [
+  'Primera División', 'Segunda División', 'Primera Federación', 'Segunda Federación',
+  'Tercera Federación', 'Regional Preferente', 'Primera Regional', 'Segunda Regional',
+  'Tercera Regional', 'Liga local / amateur', 'Fútbol base', 'Otra',
+]
+
 /* ── Núcleo: construir el informe con filtros ───────────── */
 export function construirInforme(datos, filtros = {}) {
-  const { temporada = 'todas', categoria = 'todas', equipoId = 'todos' } = filtros
+  const { temporada = 'todas', categoria = 'todas', division = 'todas', equipoId = 'todos' } = filtros
   const { equipos, jugadores, partidos, tarjetas, entrenos, perfiles } = datos
 
   const perfilPorUser = Object.fromEntries((perfiles || []).map((p) => [p.id, p]))
@@ -132,6 +145,7 @@ export function construirInforme(datos, filtros = {}) {
   const equiposFiltrados = (equipos || []).filter((e) => {
     if (equipoId !== 'todos' && e.id !== equipoId) return false
     if (categoria !== 'todas' && (e.categoria || '').trim() !== categoria) return false
+    if (division !== 'todas' && (e.division || '').trim() !== division) return false
     return true
   })
   const equipoIds = new Set(equiposFiltrados.map((e) => e.id))
@@ -160,7 +174,8 @@ export function construirInforme(datos, filtros = {}) {
     if (!J[jug.id]) {
       J[jug.id] = {
         id: jug.id, nombre: jug.nombre, dorsal: jug.dorsal,
-        equipoId: equipo.id, equipoNombre: equipo.nombre, categoria: equipo.categoria || '—',
+        equipoId: equipo.id, equipoNombre: equipo.nombre,
+        categoria: equipo.categoria || '—', division: equipo.division || '—',
         linea: lineaDe(jug.posicion), posicion: jug.posicion || '',
         goles: 0, asist: 0, pj: 0, cleanSheets: 0, gcJugados: 0, notas: [], amarillas: 0, rojas: 0,
       }
@@ -174,7 +189,8 @@ export function construirInforme(datos, filtros = {}) {
     if (!T[equipo.id]) {
       const perfil = perfilPorUser[equipo.user_id]
       T[equipo.id] = {
-        id: equipo.id, nombre: equipo.nombre, categoria: equipo.categoria || '—',
+        id: equipo.id, nombre: equipo.nombre,
+        categoria: equipo.categoria || '—', division: equipo.division || '—',
         tipo: equipo.tipo_equipo || '11',
         coach: perfil?.entrenador || '—', club: perfil?.club_nombre || equipo.nombre,
         pj: 0, v: 0, e: 0, d: 0, gf: 0, gc: 0, entrenos: 0,
@@ -375,7 +391,7 @@ export function construirInforme(datos, filtros = {}) {
     },
     tabla,
     notas,
-    filtrosActivos: { temporada, categoria, equipoId },
+    filtrosActivos: { temporada, categoria, division, equipoId },
     vacio: partidosF.length === 0 && equiposFiltrados.length === 0,
   }
 }

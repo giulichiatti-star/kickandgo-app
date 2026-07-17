@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
-  cargarDatosGlobales, construirInforme, TEMPORADAS, CATEGORIAS,
+  cargarDatosGlobales, construirInforme, TEMPORADAS, CATEGORIAS, DIVISIONES,
 } from '../lib/informeGlobal'
 
 /* ── Helpers de formato ─────────────────────────────────── */
@@ -54,6 +54,7 @@ export default function AdminGlobal() {
   const [error, setError] = useState('')
   const [temporada, setTemporada] = useState('todas')
   const [categoria, setCategoria] = useState('todas')
+  const [division, setDivision] = useState('todas')
   const [equipoId, setEquipoId] = useState('todos')
   const [menuPdf, setMenuPdf] = useState(false)
 
@@ -67,16 +68,18 @@ export default function AdminGlobal() {
 
   const temporadas = useMemo(() => (datos ? TEMPORADAS(datos) : []), [datos])
   const categorias = useMemo(() => (datos ? CATEGORIAS(datos) : []), [datos])
+  const divisiones = useMemo(() => (datos ? DIVISIONES(datos) : []), [datos])
   const equiposOpts = useMemo(() => {
     if (!datos) return []
     return datos.equipos
       .filter((e) => categoria === 'todas' || (e.categoria || '').trim() === categoria)
+      .filter((e) => division === 'todas' || (e.division || '').trim() === division)
       .sort((a, b) => (a.nombre || '').localeCompare(b.nombre || ''))
-  }, [datos, categoria])
+  }, [datos, categoria, division])
 
   const inf = useMemo(
-    () => (datos ? construirInforme(datos, { temporada, categoria, equipoId }) : null),
-    [datos, temporada, categoria, equipoId]
+    () => (datos ? construirInforme(datos, { temporada, categoria, division, equipoId }) : null),
+    [datos, temporada, categoria, division, equipoId]
   )
 
   if (cargando) return <div className="text-sm text-muted py-16 text-center">Cargando datos globales…</div>
@@ -104,6 +107,7 @@ export default function AdminGlobal() {
   const filtroTxt = [
     temporada === 'todas' ? 'Todas las temporadas' : `Temporada ${temporada}`,
     categoria === 'todas' ? 'Todas las categorías' : categoria,
+    division === 'todas' ? 'Todas las divisiones' : division,
     equipoId === 'todos' ? 'Todos los equipos' : (datos.equipos.find((e) => e.id === equipoId)?.nombre || ''),
   ].join(' · ')
 
@@ -132,6 +136,7 @@ export default function AdminGlobal() {
       <div className="flex gap-2 flex-wrap items-center my-4">
         <Filtro label="📅 Temporada" value={temporada} onChange={setTemporada} options={[['todas', 'Todas'], ...temporadas.map((t) => [t, t])]} />
         <Filtro label="🏷️ Categoría" value={categoria} onChange={(v) => { setCategoria(v); setEquipoId('todos') }} options={[['todas', 'Todas'], ...categorias.map((c) => [c, c])]} />
+        <Filtro label="🏆 División" value={division} onChange={(v) => { setDivision(v); setEquipoId('todos') }} options={[['todas', 'Todas'], ...divisiones.map((d) => [d, d])]} />
         <Filtro label="🛡️ Equipo" value={equipoId} onChange={setEquipoId} options={[['todos', 'Todos'], ...equiposOpts.map((e) => [e.id, e.nombre])]} />
         <span className="text-[11px] text-muted ml-1">Datos a {hoyLargo()}</span>
       </div>
@@ -188,17 +193,18 @@ export default function AdminGlobal() {
         <table style={{ width: '100%', borderCollapse: 'collapse', background: '#18181b', border: '1px solid #27272a', borderRadius: 12, overflow: 'hidden', minWidth: 760 }}>
           <thead>
             <tr>
-              {['Club / Equipo', 'Categoría', 'PJ', 'V-E-D', 'GF', 'GC', 'Dif', 'Entrenos', 'Asist.', 'Índice DT', 'Máx goleador'].map((h) => (
+              {['Club / Equipo', 'Categoría', 'División', 'PJ', 'V-E-D', 'GF', 'GC', 'Dif', 'Entrenos', 'Asist.', 'Índice DT', 'Máx goleador'].map((h) => (
                 <th key={h} style={{ fontSize: 9.5, fontWeight: 900, textTransform: 'uppercase', letterSpacing: .6, color: '#71717a', textAlign: 'left', padding: '11px 14px', borderBottom: '1px solid #27272a', whiteSpace: 'nowrap' }}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {tabla.length === 0 && <tr><td colSpan={11} style={{ padding: 20, textAlign: 'center', color: '#52525b', fontSize: 12 }}>Sin equipos para este filtro.</td></tr>}
+            {tabla.length === 0 && <tr><td colSpan={12} style={{ padding: 20, textAlign: 'center', color: '#52525b', fontSize: 12 }}>Sin equipos para este filtro.</td></tr>}
             {tabla.map((t) => (
               <tr key={t.id}>
                 <td style={tdS}><b>{t.nombre}</b><div style={{ fontSize: 10, color: '#71717a' }}>{t.coach}</div></td>
                 <td style={tdS}><span style={{ fontSize: 9.5, fontWeight: 800, padding: '2px 8px', borderRadius: 5, background: 'rgba(59,130,246,.14)', color: '#60a5fa' }}>{t.categoria}</span></td>
+                <td style={{ ...tdS, color: '#a1a1aa', fontSize: 11 }}>{t.division}</td>
                 <td style={tdS}>{t.pj}</td>
                 <td style={tdS}><span style={{ color: '#34d399', fontWeight: 800 }}>{t.v}</span>-{t.e}-<span style={{ color: '#f87171', fontWeight: 800 }}>{t.d}</span></td>
                 <td style={tdS}>{t.gf}</td>
@@ -287,8 +293,8 @@ function imprimirPDF(modo, inf, filtroTxt) {
   const tablaHTML = modo === 'completo' ? `
     <h2>Detalle por equipo y categoría</h2>
     <table class="grid">
-      <thead><tr><th>Club / Equipo</th><th>Cat.</th><th>PJ</th><th>V-E-D</th><th>GF</th><th>GC</th><th>Dif</th><th>Entren.</th><th>Asist.</th><th>Índice DT</th><th>Máx goleador</th></tr></thead>
-      <tbody>${tabla.map((t) => `<tr><td><b>${esc(t.nombre)}</b><br><span class="sub">${esc(t.coach)}</span></td><td>${esc(t.categoria)}</td><td>${t.pj}</td><td>${t.registro}</td><td>${t.gf}</td><td>${t.gc}</td><td>${t.dif >= 0 ? '+' : ''}${t.dif}</td><td>${t.entrenos}</td><td>${t.asistencia != null ? t.asistencia + '%' : '—'}</td><td><b>${t.dtIndice}</b></td><td>${t.maxGoleador ? esc(t.maxGoleador.nombre) + ' (' + t.maxGoleador.goles + ')' : '—'}</td></tr>`).join('')}</tbody>
+      <thead><tr><th>Club / Equipo</th><th>Cat.</th><th>División</th><th>PJ</th><th>V-E-D</th><th>GF</th><th>GC</th><th>Dif</th><th>Entren.</th><th>Asist.</th><th>Índice DT</th><th>Máx goleador</th></tr></thead>
+      <tbody>${tabla.map((t) => `<tr><td><b>${esc(t.nombre)}</b><br><span class="sub">${esc(t.coach)}</span></td><td>${esc(t.categoria)}</td><td>${esc(t.division)}</td><td>${t.pj}</td><td>${t.registro}</td><td>${t.gf}</td><td>${t.gc}</td><td>${t.dif >= 0 ? '+' : ''}${t.dif}</td><td>${t.entrenos}</td><td>${t.asistencia != null ? t.asistencia + '%' : '—'}</td><td><b>${t.dtIndice}</b></td><td>${t.maxGoleador ? esc(t.maxGoleador.nombre) + ' (' + t.maxGoleador.goles + ')' : '—'}</td></tr>`).join('')}</tbody>
     </table>
     ${notas.tendencias.length ? `<h2>Temas recurrentes en las notas</h2><p class="notatxt">${esc(notas.resumen)}</p><p>${notas.tendencias.map((t) => `<span class="tag">${t.emoji} ${esc(t.label)} · ${t.n}</span>`).join(' ')}</p>` : ''}
   ` : ''
