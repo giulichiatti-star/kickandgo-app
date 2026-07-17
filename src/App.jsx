@@ -3,6 +3,7 @@ import { Routes, Route, NavLink, Navigate, useNavigate, useLocation } from 'reac
 import { supabase, supabaseReady } from './lib/supabase'
 import { EquipoProvider, useEquipo } from './contexts/EquipoContext'
 import { getPerfil } from './lib/perfil'
+import { CATEGORIAS_PRESET } from './lib/informeGlobal'
 import { useAnalyticsTracker } from './hooks/useAnalyticsTracker'
 import Logo from './components/Logo'
 import Login from './pages/Login'
@@ -26,6 +27,7 @@ import PlanTemporada from './pages/PlanTemporada'
 import Terminos from './pages/Terminos'
 import Landing from './pages/Landing'
 import AdminLeads from './pages/AdminLeads'
+import AdminGlobal from './pages/AdminGlobal'
 import OnboardingWizard, { useWizard } from './components/OnboardingWizard'
 
 import { createContext, useContext } from 'react'
@@ -168,10 +170,10 @@ function OfflineBanner() {
 }
 
 function TeamSwitcher() {
-  const { equipos, equipoActivo, setEquipoActivo, crearEquipo } = useEquipo()
+  const { equipos, equipoActivo, setEquipoActivo, crearEquipo, actualizarEquipo } = useEquipo()
   const [open, setOpen] = useState(false)
   const [creando, setCreando] = useState(false)
-  const [form, setForm] = useState({ nombre: '', tipo_equipo: '11' })
+  const [form, setForm] = useState({ nombre: '', tipo_equipo: '11', categoria: '' })
   const [errorCrear, setErrorCrear] = useState('')
   const [escudoPerfil, setEscudoPerfil] = useState('')
 
@@ -184,9 +186,9 @@ function TeamSwitcher() {
     if (!form.nombre.trim()) return
     setErrorCrear('')
     try {
-      await crearEquipo({ nombre: form.nombre.trim(), tipo_equipo: form.tipo_equipo })
+      await crearEquipo({ nombre: form.nombre.trim(), tipo_equipo: form.tipo_equipo, categoria: form.categoria || '' })
       setCreando(false)
-      setForm({ nombre: '', tipo_equipo: '11' })
+      setForm({ nombre: '', tipo_equipo: '11', categoria: '' })
       setOpen(false)
     } catch (err) {
       console.error('[crearEquipo]', err)
@@ -235,6 +237,20 @@ function TeamSwitcher() {
               )}
             </button>
           ))}
+          {/* Categoría del equipo activo (para el informe global por categoría) */}
+          {equipoActivo && (
+            <div style={{ padding: '8px 12px', borderBottom: '1px solid #1a1a1d', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 10.5, color: '#71717a', fontWeight: 600, flexShrink: 0 }}>🏷️ Categoría</span>
+              <select
+                value={equipoActivo.categoria || ''}
+                onChange={(e) => actualizarEquipo(equipoActivo.id, { categoria: e.target.value })}
+                style={{ flex: 1, minWidth: 0, background: '#18181b', border: '1px solid #27272a', borderRadius: 7, padding: '5px 7px', color: equipoActivo.categoria ? '#2dd4bf' : '#71717a', fontSize: 11, fontWeight: 700, outline: 'none', cursor: 'pointer' }}
+              >
+                <option value="">Sin categoría</option>
+                {CATEGORIAS_PRESET.map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+          )}
           {errorCrear && (
             <div style={{ margin: '6px 12px', padding: '7px 9px', borderRadius: 8, background: 'rgba(239,68,68,.1)', border: '1px solid rgba(239,68,68,.3)', color: '#fca5a5', fontSize: 10.5, lineHeight: 1.4 }}>
               ⚠️ {errorCrear}
@@ -261,6 +277,14 @@ function TeamSwitcher() {
                   }}>F{t}</button>
                 ))}
               </div>
+              <select
+                value={form.categoria}
+                onChange={(e) => setForm({ ...form, categoria: e.target.value })}
+                style={{ width: '100%', background: '#18181b', border: '1px solid #27272a', borderRadius: 8, padding: '6px 9px', color: form.categoria ? '#fafafa' : '#71717a', fontSize: 12, outline: 'none', cursor: 'pointer' }}
+              >
+                <option value="">Categoría (opcional)</option>
+                {CATEGORIAS_PRESET.map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
               <div style={{ display: 'flex', gap: 6 }}>
                 <button type="button" onClick={() => setCreando(false)} style={{ flex: 1, padding: '6px', borderRadius: 7, border: '1px solid #27272a', background: 'transparent', color: '#71717a', fontSize: 11, cursor: 'pointer' }}>Cancelar</button>
                 <button type="submit" style={{ flex: 1, padding: '6px', borderRadius: 7, border: 'none', background: '#2dd4bf', color: '#0f0f11', fontSize: 11, fontWeight: 800, cursor: 'pointer' }}>Crear</button>
@@ -335,6 +359,7 @@ function Shell({ children, onLogout, esAdmin }) {
           <div className="kg-nav-label">Más</div>
           {NAV_MAS.map((n) => <Item key={n.to} to={n.to} label={n.label} svg={n.svg} external={n.external} />)}
           {esAdmin && <Item to="/admin" label="Admin" svg={IC_ADMIN} />}
+          {esAdmin && <Item to="/admin/global" label="Informe global" svg={IC_ADMIN} />}
         </nav>
         <button onClick={onLogout}
           className="kg-nav-item border-t border-borde !py-3 text-rojo hover:text-rojo">
@@ -437,6 +462,7 @@ export default function App() {
         <Route path="/asistente" element={<Asistente />} />
         <Route path="/ajustes" element={<Ajustes />} />
         <Route path="/admin" element={esAdmin ? <AdminLeads /> : <Navigate to="/inicio" replace />} />
+        <Route path="/admin/global" element={esAdmin ? <AdminGlobal /> : <Navigate to="/inicio" replace />} />
         <Route path="*" element={<Navigate to="/inicio" replace />} />
       </Routes>
     </Shell>
