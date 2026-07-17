@@ -5,6 +5,16 @@ import '../pizarra-entrenos.css'
 const W = 480, H = 660
 const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#fafafa']
 
+// Campo real ~105×68 m mapeado al rectángulo interior (borde a 10px).
+const PITCH_M = { largo: 105, ancho: 68 }
+function pxToMetros(x1, y1, x2, y2) {
+  const mx = ((x2 - x1) / (W - 20)) * PITCH_M.ancho
+  const my = ((y2 - y1) / (H - 20)) * PITCH_M.largo
+  return Math.hypot(mx, my)
+}
+// Kinds de "objeto móvil" que entran en la selección en bloque.
+const MOVIBLES = ['propio', 'rival', 'balon', 'cono', 'porteria', 'obstaculo', 'texto']
+
 function blankFrame() { return { items: [], lines: [] } }
 function todayISO() {
   const d = new Date()
@@ -47,6 +57,7 @@ const TOOLS = [
   ] },
   { group: 'Zonas', items: [
     { id: 'zona', label: 'Zona / área' },
+    { id: 'medir', label: 'Medir distancia (toca 2 puntos)' },
     { id: 'texto', label: 'Texto (doble clic para editar)' },
     { id: 'borrar', label: 'Borrar' },
   ] },
@@ -63,6 +74,7 @@ const ICONS = {
   pase: '<path d="M4 12h14" stroke-dasharray="2.5 2.5"/><path d="M13 7l5 5-5 5"/>',
   regate: '<path d="M4 18c3-2 3-4 6-4s3 4 6 4 3-4 4-6" stroke-width="2"/>',
   zona: '<rect x="4" y="6" width="16" height="12" rx="2" stroke-dasharray="3 2.5"/>',
+  medir: '<path d="M3 8h18v8H3z"/><path d="M7 8v4M11 8v4M15 8v4M19 8v4" stroke-width="1.2"/>',
   texto: '<path d="M5 5h14M12 5v14"/>', borrar: '<path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="M6 7l1 13h10l1-13"/>',
 }
 function svgIcon(name) {
@@ -132,23 +144,25 @@ export default function PizarraTactica({ eid, jugadores = [], abrirId, onAbierto
     let frames = [blankFrame()], frameIdx = 0, history = [], future = []
     let drag = null
     let dblclickCandidate = null, dblclickTime = 0
+    let marquee = null      // recuadro de selección en curso {x0,y0,x1,y1}
+    let groupSel = []        // items seleccionados en bloque
 
     function selectTool(id) {
       current = id
       railRef.current.querySelectorAll('.tool').forEach(b => b.classList.toggle('on', b.dataset.id === id))
-      pendingStart = null
+      pendingStart = null; marquee = null; groupSel = []
       if (id !== 'select') selected = null
       const hint = hintRef.current
-      const showHint = ['flecha', 'pase', 'regate'].includes(id)
-      if (showHint) { hint.textContent = 'Toca el punto de origen y luego el destino'; hint.classList.add('show') }
-      else if (id === 'select') { hint.textContent = 'Toca un objeto para editarlo · arrastra para moverlo · Supr para borrar'; hint.classList.add('show') }
+      const showHint = ['flecha', 'pase', 'regate', 'medir'].includes(id)
+      if (showHint) { hint.textContent = id === 'medir' ? 'Toca dos puntos (o dos jugadores) para medir la distancia' : 'Toca el punto de origen y luego el destino'; hint.classList.add('show') }
+      else if (id === 'select') { hint.textContent = 'Toca para editar · arrastra en vacío para seleccionar en bloque · Supr para borrar'; hint.classList.add('show') }
       else hint.classList.remove('show')
-      renderProps()
+      render(); renderProps()
     }
 
     function snapshot() { history.push(JSON.stringify(frames)); if (history.length > 50) history.shift(); future = []; updateUndoRedo() }
-    function undo() { if (!history.length) return; future.push(JSON.stringify(frames)); frames = JSON.parse(history.pop()); if (frameIdx >= frames.length) frameIdx = frames.length - 1; selected = null; render(); renderFrames(); renderProps(); updateUndoRedo() }
-    function redo() { if (!future.length) return; history.push(JSON.stringify(frames)); frames = JSON.parse(future.pop()); selected = null; render(); renderFrames(); renderProps(); updateUndoRedo() }
+    function undo() { if (!history.length) return; future.push(JSON.stringify(frames)); frames = JSON.parse(history.pop()); if (frameIdx >= frames.length) frameIdx = frames.length - 1; selected = null; groupSel = []; render(); renderFrames(); renderProps(); updateUndoRedo() }
+    function redo() { if (!future.length) return; history.push(JSON.stringify(frames)); frames = JSON.parse(future.pop()); selected = null; groupSel = []; render(); renderFrames(); renderProps(); updateUndoRedo() }
     function updateUndoRedo() { undoBtnRef.current.disabled = !history.length; redoBtnRef.current.disabled = !future.length }
 
     function pitchGrad(c) {
@@ -230,6 +244,27 @@ export default function PizarraTactica({ eid, jugadores = [], abrirId, onAbierto
       prog = prog === undefined ? 1 : prog
       const x2 = l.x1 + (l.x2 - l.x1) * prog, y2 = l.y1 + (l.y2 - l.y1) * prog
       ctx.save()
+      // Medición de distancia: línea con topes + etiqueta en metros, sin flecha.
+      if (l.kind === 'medida') {
+        ctx.strokeStyle = isSel ? '#fafafa' : '#eab308'; ctx.lineWidth = isSel ? 2.4 : 1.6
+        ctx.setLineDash([5, 4])
+        ctx.beginPath(); ctx.moveTo(l.x1, l.y1); ctx.lineTo(l.x2, l.y2); ctx.stroke()
+        ctx.setLineDash([])
+        // topes perpendiculares en cada extremo
+        const ang = Math.atan2(l.y2 - l.y1, l.x2 - l.x1), nx = -Math.sin(ang), ny = Math.cos(ang)
+        ;[[l.x1, l.y1], [l.x2, l.y2]].forEach(([px, py]) => {
+          ctx.beginPath(); ctx.moveTo(px + nx * 5, py + ny * 5); ctx.lineTo(px - nx * 5, py - ny * 5); ctx.stroke()
+        })
+        const metros = pxToMetros(l.x1, l.y1, l.x2, l.y2)
+        const mx = (l.x1 + l.x2) / 2, my = (l.y1 + l.y2) / 2
+        const txt = `${metros.toFixed(1)} m`
+        ctx.font = '700 11px Inter'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
+        const w = ctx.measureText(txt).width + 10
+        ctx.fillStyle = 'rgba(15,15,17,.85)'; ctx.fillRect(mx - w / 2, my - 9, w, 18)
+        ctx.fillStyle = '#fde047'; ctx.fillText(txt, mx, my + 0.5)
+        if (isSel) { ctx.fillStyle = '#fafafa'; ctx.beginPath(); ctx.arc(l.x1, l.y1, 4, 0, 7); ctx.fill(); ctx.beginPath(); ctx.arc(l.x2, l.y2, 4, 0, 7); ctx.fill() }
+        ctx.restore(); return
+      }
       ctx.strokeStyle = l.color; ctx.lineWidth = isSel ? 3.4 : 2.4
       if (l.style === 'dashed') ctx.setLineDash([6, 5])
       if (l.kind === 'regate') {
@@ -263,6 +298,19 @@ export default function PizarraTactica({ eid, jugadores = [], abrirId, onAbierto
       const f = frames[frameIdx]
       f.lines.forEach(l => drawLine(l, 1, selected && selected.obj === l))
       f.items.forEach(p => drawItem(p, selected && selected.obj === p))
+      // Anillos de la selección en bloque
+      if (groupSel.length) {
+        ctx.save(); ctx.strokeStyle = '#34d399'; ctx.lineWidth = 2; ctx.setLineDash([3, 2])
+        groupSel.forEach(o => { if (o && o.x != null) { ctx.beginPath(); ctx.arc(o.x, o.y, 20, 0, 7); ctx.stroke() } })
+        ctx.restore()
+      }
+      // Recuadro de selección en curso
+      if (marquee) {
+        const x = Math.min(marquee.x0, marquee.x1), y = Math.min(marquee.y0, marquee.y1)
+        const w = Math.abs(marquee.x1 - marquee.x0), h = Math.abs(marquee.y1 - marquee.y0)
+        ctx.save(); ctx.setLineDash([4, 3]); ctx.strokeStyle = '#34d399'; ctx.fillStyle = 'rgba(52,211,153,.08)'; ctx.lineWidth = 1.5
+        ctx.fillRect(x, y, w, h); ctx.strokeRect(x, y, w, h); ctx.restore()
+      }
     }
 
     function toCanvasXY(e) {
@@ -318,32 +366,43 @@ export default function PizarraTactica({ eid, jugadores = [], abrirId, onAbierto
         if (hit) { snapshot(); const f = frames[frameIdx]; f.items = f.items.filter(p => p !== hit); f.lines = f.lines.filter(l => l !== hit); render() }
         return
       }
-      if (current === 'flecha' || current === 'pase' || current === 'regate') {
+      if (current === 'flecha' || current === 'pase' || current === 'regate' || current === 'medir') {
         if (!pendingStart) { pendingStart = { x: sn(pt.x), y: sn(pt.y) } }
         else {
           snapshot()
-          frames[frameIdx].lines.push({ kind: current, color: currentColor, style: currentLineStyle, x1: pendingStart.x, y1: pendingStart.y, x2: sn(pt.x), y2: sn(pt.y) })
+          const kind = current === 'medir' ? 'medida' : current
+          frames[frameIdx].lines.push({ kind, color: currentColor, style: currentLineStyle, x1: pendingStart.x, y1: pendingStart.y, x2: sn(pt.x), y2: sn(pt.y) })
           pendingStart = null; render()
         }
         return
       }
       if (current === 'select') {
         const zh = zoneHandle(pt.x, pt.y)
-        if (zh) { selected = { obj: zh, type: 'zona' }; drag = { mode: 'resize', obj: zh }; snapshot(); renderProps(); render(); return }
+        if (zh) { groupSel = []; selected = { obj: zh, type: 'zona' }; drag = { mode: 'resize', obj: zh }; snapshot(); renderProps(); render(); return }
         const ep = hitLineEndpoint(pt.x, pt.y)
-        if (ep) { selected = { obj: ep.line, type: 'linea' }; drag = { mode: 'endpoint', end: ep.end, line: ep.line }; snapshot(); renderProps(); render(); return }
+        if (ep) { groupSel = []; selected = { obj: ep.line, type: 'linea' }; drag = { mode: 'endpoint', end: ep.end, line: ep.line }; snapshot(); renderProps(); render(); return }
         const it = hitItem(pt.x, pt.y)
         if (it) {
+          // Si el item pertenece a la selección en bloque, arrastramos todo el grupo.
+          if (groupSel.includes(it) && groupSel.length > 1) {
+            snapshot()
+            drag = { mode: 'group', sx: pt.x, sy: pt.y, refs: groupSel.map(o => ({ o, ox: o.x, oy: o.y })) }
+            return
+          }
           if (dblclickCandidate === it && Date.now() - dblclickTime < 380 && it.kind === 'texto') {
             const nv = prompt('Editar texto:', it.text || ''); if (nv !== null) { snapshot(); it.text = nv; render() }
             dblclickCandidate = null; return
           }
+          groupSel = []
           dblclickCandidate = it; dblclickTime = Date.now()
           selected = { obj: it, type: it.kind }; drag = { mode: 'move', obj: it }; snapshot(); renderProps(); render(); return
         }
         const ln = hitLine(pt.x, pt.y)
-        if (ln) { selected = { obj: ln, type: 'linea' }; drag = null; renderProps(); render(); return }
-        selected = null; drag = null; renderProps(); render(); return
+        if (ln) { groupSel = []; selected = { obj: ln, type: 'linea' }; drag = null; renderProps(); render(); return }
+        // Zona vacía → iniciar recuadro de selección en bloque
+        groupSel = []; selected = null; drag = null
+        marquee = { x0: pt.x, y0: pt.y, x1: pt.x, y1: pt.y }
+        renderProps(); render(); return
       }
 
       snapshot()
@@ -358,8 +417,17 @@ export default function PizarraTactica({ eid, jugadores = [], abrirId, onAbierto
     }
 
     function onPointerMove(e) {
-      if (!drag) return
       const pt = toCanvasXY(e)
+      if (marquee) { marquee.x1 = pt.x; marquee.y1 = pt.y; render(); return }
+      if (!drag) return
+      if (drag.mode === 'group') {
+        const dx = pt.x - drag.sx, dy = pt.y - drag.sy
+        drag.refs.forEach(r => {
+          r.o.x = sn(Math.max(14, Math.min(W - 14, r.ox + dx)))
+          r.o.y = sn(Math.max(14, Math.min(H - 14, r.oy + dy)))
+        })
+        render(); return
+      }
       if (drag.mode === 'move') { drag.obj.x = sn(Math.max(14, Math.min(W - 14, pt.x))); drag.obj.y = sn(Math.max(14, Math.min(H - 14, pt.y))) }
       else if (drag.mode === 'endpoint') {
         if (drag.end === 'x1y1') { drag.line.x1 = sn(pt.x); drag.line.y1 = sn(pt.y) } else { drag.line.x2 = sn(pt.x); drag.line.y2 = sn(pt.y) }
@@ -368,20 +436,36 @@ export default function PizarraTactica({ eid, jugadores = [], abrirId, onAbierto
       }
       render()
     }
-    function onPointerUp() { drag = null }
+    function onPointerUp() {
+      if (marquee) {
+        const x = Math.min(marquee.x0, marquee.x1), y = Math.min(marquee.y0, marquee.y1)
+        const X = Math.max(marquee.x0, marquee.x1), Y = Math.max(marquee.y0, marquee.y1)
+        marquee = null
+        // Solo cuenta como selección si el recuadro tiene tamaño real
+        if (X - x > 6 && Y - y > 6) {
+          const f = frames[frameIdx]
+          groupSel = f.items.filter(p => MOVIBLES.includes(p.kind) && p.x >= x && p.x <= X && p.y >= y && p.y <= Y)
+          if (groupSel.length) { hintRef.current.textContent = `${groupSel.length} jugadores seleccionados · arrastra para moverlos juntos · Supr para borrar`; hintRef.current.classList.add('show') }
+        }
+        render(); return
+      }
+      drag = null
+    }
 
     function onKeyDown(e) {
       if (!document.body.contains(canvas)) return
       const tag = document.activeElement && document.activeElement.tagName
-      if ((e.key === 'Delete' || e.key === 'Backspace') && selected && tag !== 'INPUT') {
+      if ((e.key === 'Delete' || e.key === 'Backspace') && tag !== 'INPUT' && (selected || groupSel.length)) {
         snapshot()
         const f = frames[frameIdx]
-        f.items = f.items.filter(p => p !== selected.obj)
-        f.lines = f.lines.filter(l => l !== selected.obj)
-        selected = null; render(); renderProps()
+        const borrar = new Set(groupSel)
+        if (selected) borrar.add(selected.obj)
+        f.items = f.items.filter(p => !borrar.has(p))
+        f.lines = f.lines.filter(l => !borrar.has(l))
+        selected = null; groupSel = []; render(); renderProps()
         e.preventDefault()
       }
-      if (e.key === 'Escape') { pendingStart = null; selected = null; render(); renderProps(); hintRef.current.classList.remove('show') }
+      if (e.key === 'Escape') { pendingStart = null; selected = null; groupSel = []; marquee = null; render(); renderProps(); hintRef.current.classList.remove('show') }
       if (e.ctrlKey && e.key.toLowerCase() === 'z' && !e.shiftKey) { undo(); e.preventDefault() }
       if (e.ctrlKey && (e.key.toLowerCase() === 'y' || (e.key.toLowerCase() === 'z' && e.shiftKey))) { redo(); e.preventDefault() }
     }
@@ -458,7 +542,7 @@ export default function PizarraTactica({ eid, jugadores = [], abrirId, onAbierto
       body.querySelector('#pz2-delobj').onclick = () => {
         snapshot(); const f = frames[frameIdx]
         f.items = f.items.filter(p => p !== o); f.lines = f.lines.filter(l => l !== o)
-        selected = null; render(); renderProps()
+        selected = null; groupSel = []; render(); renderProps()
       }
     }
 
@@ -483,10 +567,10 @@ export default function PizarraTactica({ eid, jugadores = [], abrirId, onAbierto
         if (frames.length > 1) { const fx = document.createElement('span'); fx.className = 'pz-fx'; fx.textContent = '×'; d.appendChild(fx) }
         d.onclick = (e) => {
           if (e.target.classList.contains('pz-fx')) {
-            if (frames.length > 1) { snapshot(); frames.splice(i, 1); if (frameIdx >= frames.length) frameIdx = frames.length - 1; selected = null; render(); renderFrames(); renderProps() }
+            if (frames.length > 1) { snapshot(); frames.splice(i, 1); if (frameIdx >= frames.length) frameIdx = frames.length - 1; selected = null; groupSel = []; render(); renderFrames(); renderProps() }
             return
           }
-          frameIdx = i; selected = null; render(); renderFrames(); renderProps()
+          frameIdx = i; selected = null; groupSel = []; render(); renderFrames(); renderProps()
         }
         wrap.appendChild(d)
       })
@@ -523,13 +607,47 @@ export default function PizarraTactica({ eid, jugadores = [], abrirId, onAbierto
         playLine()
         return
       }
-      let idx = 0
-      function playFrame() {
-        frameIdx = idx; render(); renderFrames()
-        idx++
-        if (idx < frames.length) setTimeout(playFrame, 700 / speed)
+      // Varios frames → interpolación suave (tween) con rastro de recorrido.
+      // Cada item se empareja por id entre frame origen y destino; si existe en
+      // ambos, se desplaza gradualmente y deja una estela punteada.
+      groupSel = []; marquee = null
+      let seg = 0
+      function easeInOut(t) { return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2 }
+      function drawTween(fromF, toF, tRaw) {
+        const t = easeInOut(tRaw)
+        drawPitch()
+        toF.lines.forEach(l => drawLine(l, 1, false))
+        const fromById = {}; fromF.items.forEach(p => { if (p.id) fromById[p.id] = p })
+        // Rastros primero (por debajo de las fichas)
+        toF.items.forEach(p => {
+          const src = p.id ? fromById[p.id] : null
+          if (src && (src.x !== p.x || src.y !== p.y)) {
+            const x = src.x + (p.x - src.x) * t, y = src.y + (p.y - src.y) * t
+            ctx.save(); ctx.setLineDash([4, 4]); ctx.lineWidth = 1.6
+            ctx.strokeStyle = p.kind === 'rival' ? 'rgba(239,68,68,.5)' : 'rgba(52,211,153,.55)'
+            ctx.beginPath(); ctx.moveTo(src.x, src.y); ctx.lineTo(x, y); ctx.stroke(); ctx.restore()
+          }
+        })
+        toF.items.forEach(p => {
+          const src = p.id ? fromById[p.id] : null
+          if (src) drawItem({ ...p, x: src.x + (p.x - src.x) * t, y: src.y + (p.y - src.y) * t }, false)
+          else drawItem(p, false)
+        })
       }
-      playFrame()
+      function playSeg() {
+        if (seg >= frames.length - 1) { frameIdx = frames.length - 1; render(); renderFrames(); return }
+        frameIdx = seg
+        let t0 = null
+        function step(ts) {
+          if (!t0) t0 = ts
+          const prog = Math.min(1, (ts - t0) / (1000 / speed))
+          drawTween(frames[seg], frames[seg + 1], prog)
+          if (prog < 1) requestAnimationFrame(step)
+          else { seg++; frameIdx = Math.min(seg, frames.length - 1); renderFrames(); playSeg() }
+        }
+        requestAnimationFrame(step)
+      }
+      playSeg()
     }
 
     // Rail de herramientas
@@ -551,7 +669,7 @@ export default function PizarraTactica({ eid, jugadores = [], abrirId, onAbierto
     engineRef.current.getState = () => ({ frames })
     engineRef.current.loadFrames = (newFrames) => {
       frames = newFrames && newFrames.length ? JSON.parse(JSON.stringify(newFrames)) : [blankFrame()]
-      frameIdx = 0; selected = null; history = []; future = []
+      frameIdx = 0; selected = null; groupSel = []; history = []; future = []
       updateUndoRedo(); render(); renderFrames(); renderProps()
     }
 
@@ -564,7 +682,7 @@ export default function PizarraTactica({ eid, jugadores = [], abrirId, onAbierto
     undoBtnRef.current.onclick = undo
     redoBtnRef.current.onclick = redo
     playBtnRef.current.onclick = play
-    document.getElementById('pz2-clear').onclick = () => { snapshot(); frames[frameIdx] = blankFrame(); selected = null; render(); renderProps() }
+    document.getElementById('pz2-clear').onclick = () => { snapshot(); frames[frameIdx] = blankFrame(); selected = null; groupSel = []; render(); renderProps() }
     document.getElementById('pz2-zoomin').onclick = () => setZoom(scale + 0.1)
     document.getElementById('pz2-zoomout').onclick = () => setZoom(scale - 0.1)
     function setZoom(s) {
@@ -890,7 +1008,7 @@ export default function PizarraTactica({ eid, jugadores = [], abrirId, onAbierto
         <button id="pz2-addframe" className="pz-frame-add" title="Duplicar frame actual"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 5v14M5 12h14" /></svg></button>
         <div className="pz-tl-speed">
           <span>Velocidad</span>
-          <div className="pz-seg" id="pz2-speed"><button data-v="0.6">×0.6</button><button data-v="1" className="on">×1</button><button data-v="1.8">×1.8</button></div>
+          <div className="pz-seg" id="pz2-speed"><button data-v="0.5">×0.5</button><button data-v="1" className="on">×1</button><button data-v="1.5">×1.5</button><button data-v="2">×2</button></div>
         </div>
       </div>
     </div>
