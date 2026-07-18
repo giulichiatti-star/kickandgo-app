@@ -21,20 +21,41 @@ function nombreMes(key) {
   return d.toLocaleDateString('es-ES', { month: 'short', year: '2-digit' })
 }
 
+// Genera y descarga un CSV con todas las cuentas (para análisis offline).
+export function exportarCuentasCSV(profiles, catsPorUser = {}) {
+  const cols = ['club', 'entrenador', 'email', 'plan', 'fundador', 'precio', 'alta', 'ultimo_pago', 'vence', 'categorias']
+  const esc = (v) => { const s = String(v ?? ''); return /[",;\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s }
+  const filas = profiles.map((c) => [
+    c.club_nombre || '', c.entrenador || '', c.email || '', c.plan_estado || '',
+    c.es_fundador ? 'sí' : 'no', precioCuenta(c).toFixed(2),
+    (c.creado || '').slice(0, 10), (c.ultimo_pago_en || '').slice(0, 10),
+    (c.pago_vence || c.prueba_vence || '').slice(0, 10),
+    Array.from(catsPorUser[c.id] || []).join(' / '),
+  ].map(esc).join(';'))
+  const csv = '﻿' + cols.join(';') + '\n' + filas.join('\n')
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(blob)
+  a.download = `cuentas_kickandgo_${new Date().toISOString().slice(0, 10)}.csv`
+  a.click()
+}
+
 export async function cargarResumenAdmin() {
-  const [pf, ld, ev, ju, pa, en] = await Promise.all([
+  const [pf, ld, ev, ju, pa, en, eq] = await Promise.all([
     supabase.from('profiles').select('id, email, club_nombre, entrenador, activo, plan_estado, prueba_vence, pago_vence, ultimo_pago_en, creado, es_fundador'),
     supabase.from('leads').select('id, estado, respondio, creado, contactado_en, activado_en'),
     supabase.from('analytics_eventos').select('user_id, creado'),
     supabase.from('jugadores').select('user_id'),
-    supabase.from('partidos').select('user_id'),
+    supabase.from('partidos').select('user_id, fecha'),
     supabase.from('entrenamientos').select('user_id'),
+    supabase.from('equipos').select('user_id, categoria, division'),
   ])
-  const err = [pf, ld, ev, ju, pa, en].find((r) => r.error)
+  const err = [pf, ld, ev, ju, pa, en, eq].find((r) => r.error)
   if (err) throw new Error(err.error.message)
   return {
     profiles: pf.data || [], leads: ld.data || [], eventos: ev.data || [],
     jugadores: ju.data || [], partidos: pa.data || [], entrenos: en.data || [],
+    equipos: eq.data || [],
   }
 }
 
@@ -157,5 +178,86 @@ export function computeResumen(datos, opts = {}) {
     return { mes: nombreMes(k), altas, acumulado: acum }
   })
 
-  return { dinero, cuentas, embudo, churn, riesgo, tendencias, sinActividad: eventos.length === 0 }
+  // ── Health score por cuenta (0–100) ──
+  function healthDe(c) {
+    let s = 0
+    // Pago (0–40)
+    s += c.plan_estado === 'pagado' ? 40 : c.plan_estado === 'prueba' ? 25 : c.plan_estado === 'mora' ? 10 : 0
+    // Uso reciente (0–35)
+    const d = diasEntre(ultActividad[c.id], hoy)
+    s += d == null ? 0 : d <= 2 ? 35 : d <= 7 ? 28 : d <= 14 ? 18 : d <= 30 ? 8 : 2
+    // Datos cargados (0–25)
+    const jg = nJug[c.id] || 0, pj = nPar[c.id] || 0, et = nEnt[c.id] || 0
+    s += (jg >= 8 ? 10 : jg > 0 ? 5 : 0) + (pj > 0 ? 8 : 0) + (et > 0 ? 7 : 0)
+    return Math.min(100, s)
+  }
+  const salud = profiles
+    .filter((c) => c.plan_estado !== 'baja')
+    .map((c) => ({
+      id: c.id, club: c.club_nombre || '—', entrenador: c.entrenador || '—', plan: c.plan_estado,
+      score: healthDe(c),
+      dias: diasEntre(ultActividad[c.id], hoy),
+      jug: nJug[c.id] || 0, par: nPar[c.id] || 0,
+    }))
+    .sort((a, b) => b.score - a.score)
+  const saludResumen = {
+    media: salud.length ? Math.round(salud.reduce((a, x) => a + x.score, 0) / salud.length) : 0,
+    champions: salud.filter((x) => x.score >= 70).length,
+    ok: salud.filter((x) => x.score >= 40 && x.score < 70).length,
+    riesgoN: salud.filter((x) => x.score < 40).length,
+    top: salud.slice(0, 5),
+  }
+
+  // ── Activación (time-to-value): primer partido dentro de 7 días del alta ──
+  const primerPartido = {}
+  partidos.forEach((p) => {
+    if (!p.user_id || !p.fecha) return
+    if (!primerPartido[p.user_id] || p.fecha < primerPartido[p.user_id]) primerPartido[p.user_id] = p.fecha
+  })
+  const hace90 = new Date(hoy); hace90.setDate(hace90.getDate() - 90)
+  const nuevas90 = profiles.filter((c) => c.creado && new Date(c.creado) >= hace90)
+  const activadas = nuevas90.filter((c) => {
+    const fp = primerPartido[c.id]
+    if (!fp) return false
+    const dif = (new Date(fp) - new Date(c.creado)) / 86400000
+    return dif >= -1 && dif <= 7
+  }).length
+  const activacion = {
+    ventana: 'últimos 90 días',
+    nuevas: nuevas90.length,
+    activadas,
+    pct: nuevas90.length ? Math.round((activadas / nuevas90.length) * 100) : 0,
+    conPartido: profiles.filter((c) => (nPar[c.id] || 0) > 0).length,
+    conPlantilla: profiles.filter((c) => (nJug[c.id] || 0) >= 8).length,
+  }
+
+  // ── Cohortes de retención por mes de alta (últimos 6) ──
+  const cohortes = meses.map((k) => {
+    const grupo = profiles.filter((c) => mesKey(c.creado) === k)
+    const activos = grupo.filter((c) => c.activo).length
+    return { mes: nombreMes(k), total: grupo.length, activos, retencion: grupo.length ? Math.round((activos / grupo.length) * 100) : 0 }
+  })
+
+  // ── LTV estimado (orientativo) ──
+  const arpu = cuentas.pagado ? mrr / cuentas.pagado : 0
+  const ltv = {
+    arpu,
+    // Vida media ≈ 1/churn. Usamos el churn acumulado como aproximación (orientativo).
+    ltv: churn.churnPct > 0 ? arpu / (churn.churnPct / 100) : null,
+  }
+
+  // Categorías/divisiones por cuenta (para etiquetas y export)
+  const catsPorUser = {}
+  ;(datos.equipos || []).forEach((e) => {
+    if (!e.user_id) return
+    const set = catsPorUser[e.user_id] || (catsPorUser[e.user_id] = new Set())
+    if (e.categoria && e.categoria.trim()) set.add(e.categoria.trim())
+  })
+
+  return {
+    dinero, cuentas, embudo, churn, riesgo, tendencias,
+    salud: saludResumen, activacion, cohortes, ltv,
+    catsPorUser,
+    sinActividad: eventos.length === 0,
+  }
 }

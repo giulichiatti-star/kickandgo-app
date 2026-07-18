@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from 'recharts'
-import { cargarResumenAdmin, computeResumen, eur } from '../../lib/adminResumen'
+import { cargarResumenAdmin, computeResumen, eur, exportarCuentasCSV } from '../../lib/adminResumen'
 
 const CUPO_FUNDADORES = 50
 
@@ -40,11 +40,16 @@ export default function TabResumen() {
   )
   if (!r) return null
 
-  const { dinero, cuentas, embudo, churn, riesgo, tendencias } = r
+  const { dinero, cuentas, embudo, churn, riesgo, tendencias, salud, activacion, cohortes, ltv } = r
   const maxPaso = embudo.pasos[0].n || 1
 
   return (
     <div className="space-y-5">
+      {/* ── Barra de acciones ── */}
+      <div className="flex justify-end">
+        <button className="btn btn-outline text-xs" onClick={() => exportarCuentasCSV(datos.profiles, r.catsPorUser)}>⬇ Exportar cuentas a CSV</button>
+      </div>
+
       {/* ── Dinero ── */}
       <div>
         <div className="text-xs font-bold text-muted uppercase tracking-wide mb-2">💰 Ingresos</div>
@@ -108,6 +113,66 @@ export default function TabResumen() {
                 : 'Sin bajas todavía. ¡Bien!'}
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* ── Salud · Activación · LTV ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Health score */}
+        <div className="card p-4">
+          <div className="text-xs font-bold text-muted uppercase tracking-wide mb-3">💚 Salud de las cuentas</div>
+          <div className="flex items-center gap-4 mb-3">
+            <div className="text-3xl font-extrabold" style={{ color: salud.media >= 60 ? '#4ade80' : salud.media >= 40 ? '#f59e0b' : '#f87171' }}>{salud.media}<span className="text-sm text-muted">/100</span></div>
+            <div className="text-[11px] leading-relaxed">
+              <div style={{ color: '#4ade80' }}>🟢 {salud.champions} champions (≥70)</div>
+              <div style={{ color: '#f59e0b' }}>🟡 {salud.ok} estables</div>
+              <div style={{ color: '#f87171' }}>🔴 {salud.riesgoN} en riesgo (&lt;40)</div>
+            </div>
+          </div>
+          <div className="text-[10px] text-muted uppercase tracking-wide mb-1 font-semibold">Top cuentas</div>
+          <div className="space-y-1">
+            {salud.top.map((x) => (
+              <div key={x.id} className="flex items-center justify-between text-[11px]">
+                <span className="truncate">{x.club}</span>
+                <span className="font-bold" style={{ color: x.score >= 70 ? '#4ade80' : x.score >= 40 ? '#f59e0b' : '#f87171' }}>{x.score}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Activación */}
+        <div className="card p-4">
+          <div className="text-xs font-bold text-muted uppercase tracking-wide mb-3">🚀 Activación</div>
+          <div className="text-3xl font-extrabold" style={{ color: activacion.pct >= 50 ? '#4ade80' : activacion.pct >= 25 ? '#f59e0b' : '#f87171' }}>{activacion.pct}%</div>
+          <div className="text-[11px] text-muted mt-1">registran ≥1 partido en 7 días<br />({activacion.activadas} de {activacion.nuevas} altas, {activacion.ventana})</div>
+          <div className="mt-3 pt-3 border-t border-borde grid grid-cols-2 gap-2 text-[11px]">
+            <div><b className="text-cyan">{activacion.conPartido}</b> <span className="text-muted">con partidos</span></div>
+            <div><b className="text-cyan">{activacion.conPlantilla}</b> <span className="text-muted">con plantilla</span></div>
+          </div>
+        </div>
+
+        {/* LTV / ARPU */}
+        <div className="card p-4">
+          <div className="text-xs font-bold text-muted uppercase tracking-wide mb-3">💎 LTV estimado</div>
+          <div className="text-3xl font-extrabold" style={{ color: '#a78bfa' }}>{ltv.ltv != null ? eur(ltv.ltv) : '—'}</div>
+          <div className="text-[11px] text-muted mt-1">valor de vida por cliente<br />ARPU: {eur(ltv.arpu)}/mes</div>
+          <div className="text-[10px] text-muted mt-3 pt-3 border-t border-borde">Orientativo — se afina con el histórico de churn mensual (lo damos con el cron).</div>
+        </div>
+      </div>
+
+      {/* ── Cohortes ── */}
+      <div className="card p-4">
+        <div className="text-xs font-bold text-muted uppercase tracking-wide mb-3">🧬 Retención por cohorte (mes de alta)</div>
+        <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${cohortes.length}, 1fr)` }}>
+          {cohortes.map((c) => (
+            <div key={c.mes} className="text-center">
+              <div className="text-[10px] text-muted mb-1">{c.mes}</div>
+              <div className="rounded-lg py-2" style={{ background: c.total === 0 ? 'rgba(255,255,255,.03)' : `rgba(52,211,153,${0.08 + (c.retencion / 100) * 0.25})` }}>
+                <div className="text-sm font-extrabold" style={{ color: c.total === 0 ? '#52525b' : '#34d399' }}>{c.total === 0 ? '—' : `${c.retencion}%`}</div>
+                <div className="text-[9px] text-muted">{c.activos}/{c.total}</div>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 
