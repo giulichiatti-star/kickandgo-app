@@ -9,6 +9,30 @@ export async function listarCuentas() {
   return data || []
 }
 
+// Editar datos básicos de la cuenta (nombre de club, entrenador).
+export async function actualizarCuenta(id, cambios) {
+  const permitido = {}
+  if (cambios.club_nombre !== undefined) permitido.club_nombre = cambios.club_nombre
+  if (cambios.entrenador !== undefined) permitido.entrenador = cambios.entrenador
+  const { error } = await supabase.from('profiles').update(permitido).eq('id', id)
+  if (error) throw error
+}
+
+// Categorías/divisiones de los equipos de cada cuenta → { [userId]: {cats:[], divs:[]} }
+export async function listarCategoriasCuentas() {
+  const { data, error } = await supabase.from('equipos').select('user_id, categoria, division')
+  if (error) throw error
+  const map = {}
+  ;(data || []).forEach((e) => {
+    if (!e.user_id) return
+    const m = map[e.user_id] || (map[e.user_id] = { cats: new Set(), divs: new Set() })
+    if (e.categoria && e.categoria.trim()) m.cats.add(e.categoria.trim())
+    if (e.division && e.division.trim()) m.divs.add(e.division.trim())
+  })
+  Object.keys(map).forEach((k) => { map[k] = { cats: Array.from(map[k].cats), divs: Array.from(map[k].divs) } })
+  return map
+}
+
 export async function marcarFundador(id, valor) {
   const { error } = await supabase.from('profiles').update({ es_fundador: valor }).eq('id', id)
   if (error) throw error

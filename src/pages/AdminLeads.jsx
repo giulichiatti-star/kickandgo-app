@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { listarLeads, actualizarLead, activarLeads, contactarLeads, linkWhatsapp } from '../lib/leads'
-import { listarCuentas, marcarPagado, marcarMora, darDeBaja, reactivar, resetearPassword, proximoVencimiento, eliminarCuenta, marcarFundador, listarAvisosPago, confirmarAviso } from '../lib/cuentas'
+import { listarCuentas, marcarPagado, marcarMora, darDeBaja, reactivar, resetearPassword, proximoVencimiento, eliminarCuenta, marcarFundador, listarAvisosPago, confirmarAviso, actualizarCuenta, listarCategoriasCuentas } from '../lib/cuentas'
 import { listarUsoApp, nombreRuta } from '../lib/analytics'
 import TabResumen from '../components/admin/TabResumen'
 import { generarAccesoCliente, listarAccesos } from '../lib/adminAcceso'
@@ -481,8 +481,10 @@ function calcularAlertas(cuentas) {
 
 function TabCuentas() {
   const [cuentas, setCuentas] = useState([])
+  const [cats, setCats] = useState({})
   const [cargando, setCargando] = useState(true)
   const [filtro, setFiltro] = useState('todos')
+  const [busq, setBusq] = useState('')
   const [error, setError] = useState('')
   const [passwordReseteada, setPasswordReseteada] = useState(null)
   const [accesoGenerado, setAccesoGenerado] = useState(null)
@@ -500,11 +502,21 @@ function TabCuentas() {
 
   async function recargar() {
     setCargando(true)
-    try { setCuentas(await listarCuentas()) }
+    try {
+      const [cs, ct] = await Promise.all([listarCuentas(), listarCategoriasCuentas().catch(() => ({}))])
+      setCuentas(cs); setCats(ct)
+    }
     catch (e) { setError(e.message) }
     finally { setCargando(false) }
   }
   useEffect(() => { recargar() }, [])
+
+  async function onEditar(cuenta, cambios) {
+    try {
+      await actualizarCuenta(cuenta.id, cambios)
+      setCuentas((cs) => cs.map((c) => c.id === cuenta.id ? { ...c, ...cambios } : c))
+    } catch (e) { setError(e.message) }
+  }
 
   function onResetPassword(cuenta) {
     confirmar(`¿Generar una contraseña nueva para ${cuenta.club_nombre}? La anterior dejará de funcionar.`, async () => {
@@ -516,11 +528,19 @@ function TabCuentas() {
   }
 
   const visibles = useMemo(() => {
-    if (filtro === 'todos') return cuentas
-    if (filtro === 'por_vencer') return cuentas.filter(c => c.plan_estado === 'prueba' && diasRestantes(c.prueba_vence) !== null && diasRestantes(c.prueba_vence) <= 3)
-    if (filtro === 'suspendidos') return cuentas.filter(c => !c.activo)
-    return cuentas.filter(c => c.plan_estado === filtro)
-  }, [cuentas, filtro])
+    let arr = cuentas
+    if (filtro === 'por_vencer') arr = cuentas.filter(c => c.plan_estado === 'prueba' && diasRestantes(c.prueba_vence) !== null && diasRestantes(c.prueba_vence) <= 3)
+    else if (filtro === 'suspendidos') arr = cuentas.filter(c => !c.activo)
+    else if (filtro === 'fundador') arr = cuentas.filter(c => c.es_fundador)
+    else if (filtro !== 'todos') arr = cuentas.filter(c => c.plan_estado === filtro)
+    const q = busq.trim().toLowerCase()
+    if (q) arr = arr.filter(c =>
+      (c.club_nombre || '').toLowerCase().includes(q) ||
+      (c.entrenador || '').toLowerCase().includes(q) ||
+      (c.email || '').toLowerCase().includes(q) ||
+      (cats[c.id]?.cats || []).some(x => x.toLowerCase().includes(q)))
+    return arr
+  }, [cuentas, filtro, busq, cats])
 
   const alertas = useMemo(() => calcularAlertas(cuentas), [cuentas])
   const fundadoresActuales = useMemo(() => cuentas.filter(c => c.es_fundador).length, [cuentas])
@@ -574,13 +594,19 @@ function TabCuentas() {
         )}
       </div>
 
-      <div className="flex gap-2 flex-wrap">
-        {['todos', 'por_vencer', 'prueba', 'pagado', 'mora', 'baja', 'suspendidos'].map(f => (
+      <div className="flex gap-2 flex-wrap items-center">
+        {['todos', 'pagado', 'prueba', 'mora', 'baja', 'fundador', 'por_vencer', 'suspendidos'].map(f => (
           <button key={f} onClick={() => setFiltro(f)}
             className={`btn text-xs ${filtro === f ? 'btn-primary' : 'btn-outline'}`}>
-            {{ todos: 'Todos', por_vencer: 'Por vencer (≤3 días)', prueba: 'En prueba', pagado: 'Pagados', mora: 'En mora', baja: 'De baja', suspendidos: 'Suspendidos' }[f]}
+            {{ todos: 'Todos', por_vencer: 'Por vencer (≤3 días)', prueba: 'En prueba', pagado: 'Pagados (recurrente)', mora: 'En mora', baja: 'De baja', suspendidos: 'Suspendidos', fundador: '🔥 Fundadores' }[f]}
           </button>
         ))}
+        <input
+          className="field !py-1.5 text-xs ml-auto" style={{ width: 200 }}
+          placeholder="🔍 Buscar club, email, categoría…"
+          value={busq} onChange={(e) => setBusq(e.target.value)}
+        />
+        <span className="text-[11px] text-muted">{visibles.length} cuenta{visibles.length === 1 ? '' : 's'}</span>
       </div>
 
       {error && (
@@ -619,7 +645,7 @@ function TabCuentas() {
       ) : (
         <div className="space-y-3">
           {visibles.map(c => (
-            <CuentaCard key={c.id} cuenta={c}
+            <CuentaCard key={c.id} cuenta={c} cats={cats[c.id]} onEditar={onEditar}
               onPagado={() => accion(marcarPagado, c)}
               onMora={() => accion(marcarMora, c.id)}
               onBaja={() => confirmar(`¿Dar de baja a ${c.club_nombre}? Perderá el acceso inmediatamente.`, () => accion(darDeBaja, c.id))}
@@ -896,24 +922,45 @@ function TabPagos() {
   )
 }
 
-function CuentaCard({ cuenta, onPagado, onMora, onBaja, onReactivar, onResetPassword, onEliminar, onToggleFundador, onVerComo, generandoAcceso }) {
+function CuentaCard({ cuenta, cats, onEditar, onPagado, onMora, onBaja, onReactivar, onResetPassword, onEliminar, onToggleFundador, onVerComo, generandoAcceso }) {
   const est = ESTADOS_PLAN[cuenta.plan_estado] || ESTADOS_PLAN.prueba
   const diasPrueba = cuenta.plan_estado === 'prueba' ? diasRestantes(cuenta.prueba_vence) : null
   const diasPago = (cuenta.plan_estado === 'pagado' || cuenta.plan_estado === 'mora') ? diasRestantes(cuenta.pago_vence) : null
   const nuevoVence = proximoVencimiento(cuenta)
+  const [editando, setEditando] = useState(false)
+  const [ed, setEd] = useState({ club_nombre: cuenta.club_nombre || '', entrenador: cuenta.entrenador || '' })
+
+  async function guardarEdit() {
+    await onEditar(cuenta, { club_nombre: ed.club_nombre.trim(), entrenador: ed.entrenador.trim() })
+    setEditando(false)
+  }
 
   return (
     <div className="card p-4">
       <div className="flex items-start justify-between flex-wrap gap-2">
         <div>
+          {editando ? (
+            <div className="flex flex-col gap-2 mb-1" style={{ minWidth: 240 }}>
+              <input className="field !py-1.5 text-xs" value={ed.club_nombre} onChange={(e) => setEd({ ...ed, club_nombre: e.target.value })} placeholder="Nombre del club" />
+              <input className="field !py-1.5 text-xs" value={ed.entrenador} onChange={(e) => setEd({ ...ed, entrenador: e.target.value })} placeholder="Entrenador" />
+              <div className="flex gap-2">
+                <button className="btn btn-primary text-xs" onClick={guardarEdit}>💾 Guardar</button>
+                <button className="btn btn-outline text-xs" onClick={() => { setEditando(false); setEd({ club_nombre: cuenta.club_nombre || '', entrenador: cuenta.entrenador || '' }) }}>Cancelar</button>
+              </div>
+            </div>
+          ) : (
           <div className="flex items-center gap-2 flex-wrap">
             <span className="font-bold text-sm">{cuenta.club_nombre}</span>
             <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: est.bg, color: est.fg }}>{est.label}</span>
             <TipoCliente cuenta={cuenta} />
             {cuenta.es_fundador && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: 'rgba(245,166,35,.15)', color: '#f5a623' }}>🔥 Fundador</span>}
             {!cuenta.activo && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: 'rgba(239,68,68,.12)', color: '#f87171' }}>Suspendido</span>}
+            {(cats?.cats || []).map(c => <span key={c} className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: 'rgba(59,130,246,.14)', color: '#60a5fa' }}>{c}</span>)}
+            {(cats?.divs || []).map(d => <span key={d} className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: 'rgba(255,255,255,.05)', color: '#a1a1aa' }}>{d}</span>)}
+            <button className="text-[11px] text-muted hover:text-white ml-1" title="Editar club/entrenador" onClick={() => setEditando(true)}>✏️</button>
           </div>
-          <div className="text-xs text-muted mt-1">{cuenta.entrenador} · {cuenta.email}</div>
+          )}
+          {!editando && <div className="text-xs text-muted mt-1">{cuenta.entrenador} · {cuenta.email}</div>}
           <div className="text-[10px] text-muted mt-1">
             {diasPrueba !== null && (diasPrueba >= 0 ? `Prueba vence en ${diasPrueba} día(s)` : `Prueba vencida hace ${-diasPrueba} día(s)`)}
             {diasPago !== null && (diasPago >= 0 ? `Pago vence en ${diasPago} día(s)` : `Pago vencido hace ${-diasPago} día(s)`)}
