@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { listarLeads, actualizarLead, activarLeads, contactarLeads, linkWhatsapp } from '../lib/leads'
 import { listarCuentas, marcarPagado, marcarMora, darDeBaja, reactivar, resetearPassword, proximoVencimiento, eliminarCuenta, marcarFundador, listarAvisosPago, confirmarAviso } from '../lib/cuentas'
 import { listarUsoApp, nombreRuta } from '../lib/analytics'
+import TabResumen from '../components/admin/TabResumen'
 import { generarAccesoCliente, listarAccesos } from '../lib/adminAcceso'
 
 const CUPO_FUNDADORES = 50
@@ -52,7 +53,7 @@ const ESTADOS_PLAN = {
 }
 
 export default function AdminLeads() {
-  const [tab, setTab] = useState('leads')
+  const [tab, setTab] = useState('resumen')
   const [avisosPendientes, setAvisosPendientes] = useState(0)
 
   useEffect(() => {
@@ -68,6 +69,7 @@ export default function AdminLeads() {
         <p className="text-xs text-muted">Leads, contacto, alta y ciclo de vida de cuentas</p>
       </div>
       <div className="flex gap-2 flex-wrap">
+        <button className={`btn text-xs ${tab === 'resumen' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setTab('resumen')}>📊 Resumen</button>
         <button className={`btn text-xs ${tab === 'leads' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setTab('leads')}>Leads</button>
         <button className={`btn text-xs ${tab === 'cuentas' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setTab('cuentas')}>Cuentas</button>
         <button className={`btn text-xs ${tab === 'pagos' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setTab('pagos')} style={{ position: 'relative' }}>
@@ -80,6 +82,7 @@ export default function AdminLeads() {
         </button>
         <button className={`btn text-xs ${tab === 'uso' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setTab('uso')}>Uso de la app</button>
       </div>
+      {tab === 'resumen' && <TabResumen />}
       {tab === 'leads' && <TabLeads />}
       {tab === 'cuentas' && <TabCuentas />}
       {tab === 'pagos' && <TabPagos />}
