@@ -175,12 +175,15 @@ export default function Disciplina() {
   const normales = conTarjetas.filter((x) => x.am < 4 && x.ro === 0)
   const limpios = jugadores.filter((j) => { const c = cuentaT(j.id); return c.am === 0 && c.ro === 0 })
 
-  /* ── datos lesiones (temporada seleccionada) ── */
-  const lesActivas = lesiones_.filter((l) => !l.alta)
+  /* ── datos lesiones ── */
+  // Las lesiones ACTIVAS se muestran siempre (una baja no se "cierra" al cambiar
+  // de campeonato: el jugador sigue lesionado). El historial (con alta) sí se
+  // filtra por la temporada seleccionada.
+  const lesActivas = lesiones.filter((l) => !l.alta)
   const lesHistorial = lesiones_.filter((l) => l.alta)
 
   const sugsDisc = sugerenciasIA(tarjetas_, jugadores)
-  const sugsLes = sugerenciasLesionesIA(lesiones_, jugadores)
+  const sugsLes = sugerenciasLesionesIA([...lesActivas, ...lesHistorial], jugadores)
 
   const colorSug = { ok: 'rgba(16,185,129,0.08)', advertencia: 'rgba(245,158,11,0.08)', error: 'rgba(239,68,68,0.08)', info: 'rgba(59,130,246,0.08)' }
   const borderSug = { ok: 'rgba(16,185,129,0.25)', advertencia: 'rgba(245,158,11,0.25)', error: 'rgba(239,68,68,0.25)', info: 'rgba(59,130,246,0.25)' }
@@ -370,7 +373,7 @@ export default function Disciplina() {
               <div className="text-[10px] text-muted mt-0.5">✅ Disponibles</div>
             </div>
             <div className="card p-3 text-center">
-              <div className="text-2xl font-black text-rojo">{lesiones_.filter((l) => l.gravedad === 'grave' && !l.alta).length}</div>
+              <div className="text-2xl font-black text-rojo">{lesActivas.filter((l) => l.gravedad === 'grave').length}</div>
               <div className="text-[10px] text-muted mt-0.5">🚨 Lesiones graves</div>
             </div>
             <div className="card p-3 text-center">
