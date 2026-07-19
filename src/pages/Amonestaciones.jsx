@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { temporadaDe, temporadasDe, temporadaActual } from '../lib/season'
 import { listarJugadores } from '../lib/jugadores'
 import { listarTarjetas, crearTarjeta, borrarTarjeta } from '../lib/tarjetas'
 import { listarLesiones, crearLesion, darAlta, borrarLesion } from '../lib/lesiones'
@@ -92,6 +93,7 @@ export default function Disciplina() {
   const [tarjetas, setTarjetas] = useState([])
   const [lesiones, setLesiones] = useState([])
   const [cargando, setCargando] = useState(true)
+  const [tempSel, setTempSel] = useState(null) // null = campeonato actual
 
   /* modales */
   const [modalT, setModalT] = useState(false)
@@ -113,9 +115,22 @@ export default function Disciplina() {
   }
   useEffect(() => { refrescar() }, [eid])
 
-  /* cuentas tarjetas */
+  /* ── Filtro por campeonato/temporada ── */
+  const fechaT = (t) => t.fecha || t.creado
+  const fechaL = (l) => l.fecha_inicio || l.creado
+  const temporadas = useMemo(
+    () => temporadasDe([...tarjetas.map(fechaT), ...lesiones.map(fechaL)]),
+    [tarjetas, lesiones]
+  )
+  const actual = temporadas[0] || temporadaActual([])
+  const temp = tempSel || actual  // temporada efectiva ('todas' = sin filtro)
+  const enTemp = (fecha) => temp === 'todas' || temporadaDe(fecha) === temp
+  const tarjetas_ = useMemo(() => temp === 'todas' ? tarjetas : tarjetas.filter((t) => enTemp(fechaT(t))), [tarjetas, temp])
+  const lesiones_ = useMemo(() => temp === 'todas' ? lesiones : lesiones.filter((l) => enTemp(fechaL(l))), [lesiones, temp])
+
+  /* cuentas tarjetas (de la temporada seleccionada) */
   function cuentaT(jid) {
-    const ts = tarjetas.filter((t) => t.jugador_id === jid)
+    const ts = tarjetas_.filter((t) => t.jugador_id === jid)
     return { am: ts.filter((t) => t.tipo === 'amarilla').length, ro: ts.filter((t) => t.tipo === 'roja').length }
   }
   const nombreJ = (jid) => jugadores.find((j) => j.id === jid)?.nombre || '—'
@@ -148,9 +163,9 @@ export default function Disciplina() {
 
   if (cargando) return <div className="text-sm text-muted py-10 text-center">Cargando…</div>
 
-  /* ── datos disciplina ── */
-  const totalAm = tarjetas.filter((t) => t.tipo === 'amarilla').length
-  const totalRo = tarjetas.filter((t) => t.tipo === 'roja').length
+  /* ── datos disciplina (temporada seleccionada) ── */
+  const totalAm = tarjetas_.filter((t) => t.tipo === 'amarilla').length
+  const totalRo = tarjetas_.filter((t) => t.tipo === 'roja').length
   const conTarjetas = jugadores
     .map((j) => ({ j, ...cuentaT(j.id) }))
     .filter((x) => x.am > 0 || x.ro > 0)
@@ -160,12 +175,12 @@ export default function Disciplina() {
   const normales = conTarjetas.filter((x) => x.am < 4 && x.ro === 0)
   const limpios = jugadores.filter((j) => { const c = cuentaT(j.id); return c.am === 0 && c.ro === 0 })
 
-  /* ── datos lesiones ── */
-  const lesActivas = lesiones.filter((l) => !l.alta)
-  const lesHistorial = lesiones.filter((l) => l.alta)
+  /* ── datos lesiones (temporada seleccionada) ── */
+  const lesActivas = lesiones_.filter((l) => !l.alta)
+  const lesHistorial = lesiones_.filter((l) => l.alta)
 
-  const sugsDisc = sugerenciasIA(tarjetas, jugadores)
-  const sugsLes = sugerenciasLesionesIA(lesiones, jugadores)
+  const sugsDisc = sugerenciasIA(tarjetas_, jugadores)
+  const sugsLes = sugerenciasLesionesIA(lesiones_, jugadores)
 
   const colorSug = { ok: 'rgba(16,185,129,0.08)', advertencia: 'rgba(245,158,11,0.08)', error: 'rgba(239,68,68,0.08)', info: 'rgba(59,130,246,0.08)' }
   const borderSug = { ok: 'rgba(16,185,129,0.25)', advertencia: 'rgba(245,158,11,0.25)', error: 'rgba(239,68,68,0.25)', info: 'rgba(59,130,246,0.25)' }
@@ -176,9 +191,27 @@ export default function Disciplina() {
       <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
         <div>
           <h1 className="text-xl font-extrabold">Disciplina & Lesiones</h1>
-          <p className="text-[11px] text-muted">Control médico y disciplinario del plantel</p>
+          <p className="text-[11px] text-muted">
+            {temp === 'todas' ? 'Histórico completo (todas las temporadas)' : `Campeonato ${temp}`} · control médico y disciplinario
+          </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center flex-wrap">
+          {temporadas.length > 0 && (
+            <label className="flex items-center gap-1.5 text-[11px] text-muted bg-[#18181b] border border-[#27272a] rounded-lg px-2.5 py-1.5">
+              🏆
+              <select
+                value={temp}
+                onChange={(e) => setTempSel(e.target.value)}
+                style={{ background: 'transparent', border: 'none', color: '#2dd4bf', fontWeight: 700, fontSize: 12, outline: 'none', cursor: 'pointer' }}
+              >
+                <option value={actual} style={{ background: '#18181b', color: '#fafafa' }}>Actual · {actual}</option>
+                {temporadas.filter((t) => t !== actual).map((t) => (
+                  <option key={t} value={t} style={{ background: '#18181b', color: '#fafafa' }}>{t}</option>
+                ))}
+                <option value="todas" style={{ background: '#18181b', color: '#fafafa' }}>Todas (histórico)</option>
+              </select>
+            </label>
+          )}
           <button className="btn btn-outline" onClick={() => { setMsg(''); setModalL(true) }}>+ Lesión</button>
           <button className="btn btn-primary" onClick={() => { setMsg(''); setModalT(true) }}>+ Tarjeta</button>
         </div>
@@ -300,11 +333,11 @@ export default function Disciplina() {
               )}
 
               {/* Historial */}
-              {tarjetas.length > 0 && (
+              {tarjetas_.length > 0 && (
                 <div className="card p-4">
                   <div className="text-xs font-bold text-muted uppercase tracking-wide mb-3">📅 Historial reciente</div>
                   <div className="flex flex-col gap-2">
-                    {tarjetas.slice(0, 8).map((t) => (
+                    {tarjetas_.slice(0, 8).map((t) => (
                       <div key={t.id} className="flex items-start gap-2.5">
                         <span className="text-sm flex-shrink-0">{t.tipo === 'roja' ? '🟥' : '🟨'}</span>
                         <div className="flex-1 min-w-0">
@@ -337,7 +370,7 @@ export default function Disciplina() {
               <div className="text-[10px] text-muted mt-0.5">✅ Disponibles</div>
             </div>
             <div className="card p-3 text-center">
-              <div className="text-2xl font-black text-rojo">{lesiones.filter((l) => l.gravedad === 'grave' && !l.alta).length}</div>
+              <div className="text-2xl font-black text-rojo">{lesiones_.filter((l) => l.gravedad === 'grave' && !l.alta).length}</div>
               <div className="text-[10px] text-muted mt-0.5">🚨 Lesiones graves</div>
             </div>
             <div className="card p-3 text-center">
