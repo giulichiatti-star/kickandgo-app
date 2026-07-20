@@ -2,7 +2,7 @@
 // ratón para poder clicar cada logo. Reutilizable en Landing y en Formación.
 // Los logos son SVG (reemplazables por los oficiales cuando lleguen).
 
-const CRUYFF_URL = 'https://www.cruyff-football.com'
+const CRUYFF_URL = 'https://cruyfffootball.com'
 const FAM_URL = 'https://www.instagram.com/famsoccer_/'
 
 function CruyffLogo() {

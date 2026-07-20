@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom'
 import '../landing.css'
 import PartnersStrip from '../components/PartnersStrip'
 
-const CRUYFF_URL = 'https://www.cruyff-football.com'
+const CRUYFF_URL = 'https://cruyfffootball.com'
 const FAM_URL = 'https://www.instagram.com/famsoccer_/'
 
 const ic = (inner) => (
