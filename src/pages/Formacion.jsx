@@ -2,7 +2,8 @@ import { useNavigate } from 'react-router-dom'
 import '../landing.css'
 import PartnersStrip from '../components/PartnersStrip'
 
-const CRUYFF_URL = 'https://cruyfffootball.com'
+// Curso "Técnico de Fútbol I y II" de Escuela Vitae (metodología Cruyff).
+const CRUYFF_URL = 'https://www.escuelavitae.com/es/cursos/tecnico-de-futbol-nivel-i-y-ii/'
 const FAM_URL = 'https://www.instagram.com/famsoccer_/'
 
 const ic = (inner) => (
@@ -108,16 +109,16 @@ export default function Formacion() {
       <div className="kg-feature">
         <div className="kg-flogo navy"><CruyffPanel /></div>
         <div className="kg-fbody">
-          <span className="kg-ftag">◆ Partner oficial de metodología</span>
-          <h2>Cruyff Football</h2>
-          <p>La metodología que llevó al fútbol a otro nivel, ahora a tu alcance. Aprende los principios de juego, la lectura táctica y el desarrollo del jugador que definen a Cruyff Football — una referencia mundial en formación de entrenadores.</p>
+          <span className="kg-ftag">◆ Titulación oficial · Metodología Cruyff</span>
+          <h2>Técnico de Fútbol · Nivel I y II</h2>
+          <p>Fórmate como entrenador con una titulación oficial de enseñanzas deportivas, impartida con la metodología Cruyff Football y la pedagogía Vitae. Aprendes haciendo: táctica inteligente, dirección de equipos y formación de jugadores con criterio, desde la iniciación hasta la competición.</p>
           <div className="kg-feats">
-            <Feat icon={IC.cap} t="Metodología de élite" s="Principios de juego reconocidos en todo el mundo" />
-            <Feat icon={IC.globe} t="100% online" s="A tu ritmo, desde cualquier lugar" />
-            <Feat icon={IC.chart} t="Desarrollo del jugador" s="Herramientas para hacer crecer a tu plantilla" />
-            <Feat icon={IC.badge} t="Sello de prestigio" s="Formación con una marca de referencia" />
+            <Feat icon={IC.badge} t="Titulación oficial" s="Enseñanzas deportivas reconocidas" />
+            <Feat icon={IC.cap} t="Metodología Cruyff" s="El juego de posición de Johan Cruyff" />
+            <Feat icon={IC.globe} t="Presencial y semipresencial" s="Elige el horario que se adapta a ti" />
+            <Feat icon={IC.chart} t="Salida profesional real" s="Dirige equipos de infantil a competición" />
           </div>
-          <a className="kg-cta" href={CRUYFF_URL} target="_blank" rel="noreferrer">Descubre la formación {arrow}</a>
+          <a className="kg-cta" href={CRUYFF_URL} target="_blank" rel="noreferrer">Fórmate como técnico {arrow}</a>
         </div>
       </div>
 

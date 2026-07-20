@@ -2,7 +2,9 @@
 // ratón para poder clicar cada logo. Reutilizable en Landing y en Formación.
 // Los logos son SVG (reemplazables por los oficiales cuando lleguen).
 
-const CRUYFF_URL = 'https://cruyfffootball.com'
+// Curso "Técnico de Fútbol I y II" de Escuela Vitae, impartido con metodología
+// Cruyff (por eso se muestra el logo de Cruyff).
+const CRUYFF_URL = 'https://www.escuelavitae.com/es/cursos/tecnico-de-futbol-nivel-i-y-ii/'
 const FAM_URL = 'https://www.instagram.com/famsoccer_/'
 
 function CruyffLogo() {
@@ -44,7 +46,6 @@ function Set({ k }) {
       <a className="kg-chip" href={CRUYFF_URL} target="_blank" rel="noreferrer" aria-label="Cruyff Football"><CruyffLogo /></a>
       <a className="kg-chip" href={FAM_URL} target="_blank" rel="noreferrer" aria-label="FAM Soccer Academy"><FamLogo id={k} /></a>
       <div className="kg-chip ghost"><div className="kg-ghost"><span className="kg-plus">+</span><span>Espacio disponible</span></div></div>
-      <div className="kg-chip ghost"><div className="kg-ghost"><span className="kg-plus">+</span><span>Tu marca aquí</span></div></div>
     </>
   )
 }
