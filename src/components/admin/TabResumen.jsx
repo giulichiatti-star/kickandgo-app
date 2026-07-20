@@ -3,6 +3,7 @@ import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from 'recharts'
 import { cargarResumenAdmin, computeResumen, eur, exportarCuentasCSV } from '../../lib/adminResumen'
+import { listarAvisosPago } from '../../lib/cuentas'
 
 const CUPO_FUNDADORES = 50
 
@@ -16,10 +17,11 @@ function Kpi({ label, val, sub, color = '#fafafa', big }) {
   )
 }
 
-export default function TabResumen() {
+export default function TabResumen({ onIrAPagos }) {
   const [datos, setDatos] = useState(null)
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
+  const [avisosPend, setAvisosPend] = useState([])
 
   useEffect(() => {
     (async () => {
@@ -27,6 +29,9 @@ export default function TabResumen() {
       catch (e) { setError(e.message) }
       finally { setCargando(false) }
     })()
+    listarAvisosPago()
+      .then((a) => setAvisosPend(a.filter((x) => x.estado === 'pendiente')))
+      .catch(() => {})
   }, [])
 
   const r = useMemo(() => (datos ? computeResumen(datos) : null), [datos])
@@ -45,6 +50,24 @@ export default function TabResumen() {
 
   return (
     <div className="space-y-5">
+      {/* ── Alerta: clientes que dicen haber pagado (pendientes de confirmar) ── */}
+      {avisosPend.length > 0 && (
+        <div className="card p-4" style={{ background: 'rgba(52,211,153,.08)', border: '1px solid rgba(52,211,153,.35)' }}>
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div>
+              <div className="text-sm font-extrabold" style={{ color: '#34d399' }}>
+                💳 {avisosPend.length} {avisosPend.length === 1 ? 'cliente dice que pagó' : 'clientes dicen que pagaron'} — pendiente de confirmar
+              </div>
+              <div className="text-[11px] text-muted mt-1">
+                {avisosPend.slice(0, 4).map((a) => `${a.profiles?.club_nombre || 'Cuenta'} (${a.metodo})`).join(' · ')}
+                {avisosPend.length > 4 ? ` +${avisosPend.length - 4} más` : ''}
+              </div>
+            </div>
+            {onIrAPagos && <button className="btn btn-primary text-xs" onClick={onIrAPagos}>Revisar avisos de pago →</button>}
+          </div>
+        </div>
+      )}
+
       {/* ── Barra de acciones ── */}
       <div className="flex justify-end">
         <button className="btn btn-outline text-xs" onClick={() => exportarCuentasCSV(datos.profiles, r.catsPorUser)}>⬇ Exportar cuentas a CSV</button>

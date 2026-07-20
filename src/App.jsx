@@ -4,6 +4,7 @@ import { supabase, supabaseReady } from './lib/supabase'
 import { EquipoProvider, useEquipo } from './contexts/EquipoContext'
 import { getPerfil } from './lib/perfil'
 import { CATEGORIAS_PRESET, DIVISIONES_PRESET } from './lib/informeGlobal'
+import { listarAvisosPago } from './lib/cuentas'
 import { useAnalyticsTracker } from './hooks/useAnalyticsTracker'
 import Logo from './components/Logo'
 import Login from './pages/Login'
@@ -350,12 +351,16 @@ function WhatsAppFab() {
   )
 }
 
-function Shell({ children, onLogout, esAdmin }) {
+function Shell({ children, onLogout, esAdmin, avisosPend = 0 }) {
   const [open, setOpen] = useState(false)
   const nav = useNavigate()
   const ir = (to) => { setOpen(false); nav(to) }
 
-  const Item = ({ to, label, svg, external }) => (
+  const Badge = ({ n }) => n > 0 ? (
+    <span style={{ marginLeft: 'auto', background: '#ef4444', color: '#fff', borderRadius: 999, minWidth: 18, height: 18, padding: '0 5px', fontSize: 10, fontWeight: 800, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>{n}</span>
+  ) : null
+
+  const Item = ({ to, label, svg, external, badge }) => (
     external ? (
       <a href={to} target="_blank" rel="noopener noreferrer" onClick={() => setOpen(false)} className="kg-nav-item">
         <span className="kg-nav-ico">{svg}</span>{label}
@@ -363,7 +368,7 @@ function Shell({ children, onLogout, esAdmin }) {
     ) : (
       <NavLink to={to} onClick={() => setOpen(false)}
         className={({ isActive }) => `kg-nav-item ${isActive ? 'active' : ''}`}>
-        <span className="kg-nav-ico">{svg}</span>{label}
+        <span className="kg-nav-ico">{svg}</span>{label}<Badge n={badge} />
       </NavLink>
     )
   )
@@ -379,7 +384,7 @@ function Shell({ children, onLogout, esAdmin }) {
           {NAV_PRINCIPAL.map((n) => <Item key={n.to} to={n.to} label={n.label} svg={n.svg} />)}
           <div className="kg-nav-label">Más</div>
           {NAV_MAS.map((n) => <Item key={n.to} to={n.to} label={n.label} svg={n.svg} external={n.external} />)}
-          {esAdmin && <Item to="/admin" label="Admin" svg={IC_ADMIN} />}
+          {esAdmin && <Item to="/admin" label="Admin" svg={IC_ADMIN} badge={avisosPend} />}
           {esAdmin && <Item to="/admin/global" label="Informe global" svg={IC_ADMIN} />}
         </nav>
         <button onClick={onLogout}
@@ -416,6 +421,7 @@ export default function App() {
   const [sesion, setSesion] = useState(null)
   const [activo, setActivo] = useState(null) // null = sin saber aún
   const [esAdmin, setEsAdmin] = useState(false)
+  const [avisosPend, setAvisosPend] = useState(0)
   const [listo, setListo] = useState(false)
 
   useAnalyticsTracker(Boolean(sesion))
@@ -436,6 +442,11 @@ export default function App() {
         if (cancelado) return
         setActivo(Boolean(data?.activo))
         setEsAdmin(Boolean(data?.is_admin))
+        if (data?.is_admin) {
+          listarAvisosPago()
+            .then((a) => { if (!cancelado) setAvisosPend(a.filter((x) => x.estado === 'pendiente').length) })
+            .catch(() => {})
+        }
       })
     return () => { cancelado = true }
   }, [sesion])
@@ -464,7 +475,7 @@ export default function App() {
   return (
     <EquipoProvider>
     <WizardRoot>
-    <Shell onLogout={logout} esAdmin={esAdmin}>
+    <Shell onLogout={logout} esAdmin={esAdmin} avisosPend={avisosPend}>
       <Routes>
         <Route path="/inicio" element={<Inicio />} />
         <Route path="/calendario" element={<Calendario />} />

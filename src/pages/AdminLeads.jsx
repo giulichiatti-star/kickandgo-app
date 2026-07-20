@@ -82,7 +82,7 @@ export default function AdminLeads() {
         </button>
         <button className={`btn text-xs ${tab === 'uso' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setTab('uso')}>Uso de la app</button>
       </div>
-      {tab === 'resumen' && <TabResumen />}
+      {tab === 'resumen' && <TabResumen onIrAPagos={() => setTab('pagos')} />}
       {tab === 'leads' && <TabLeads />}
       {tab === 'cuentas' && <TabCuentas />}
       {tab === 'pagos' && <TabPagos />}
