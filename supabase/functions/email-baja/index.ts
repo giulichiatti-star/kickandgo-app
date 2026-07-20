@@ -1,5 +1,7 @@
 // Baja de emails comerciales/reactivación (enlace del pie de los emails).
 // GET ?uid=<userId> → marca profiles.email_baja = true y muestra confirmación.
+// ⚠️ SIEMPRE desplegar como PÚBLICA (se abre desde un email, sin login):
+//    supabase functions deploy email-baja --no-verify-jwt
 import { createClient } from 'npm:@supabase/supabase-js@2'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!

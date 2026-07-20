@@ -1,3 +1,6 @@
+// ⚠️ SIEMPRE desplegar como PÚBLICA (se abre desde un enlace de email, sin login):
+//    supabase functions deploy ya-pague --no-verify-jwt
+// Sin ese flag, el cliente recibe "Missing authorization header" al pulsar "Ya pagué".
 import { createClient } from 'npm:@supabase/supabase-js@2'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
