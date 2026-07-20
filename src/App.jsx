@@ -26,6 +26,7 @@ import Asistente from './pages/Asistente'
 import Rivales from './pages/Rivales'
 import PlanTemporada from './pages/PlanTemporada'
 import Terminos from './pages/Terminos'
+import Formacion from './pages/Formacion'
 import Landing from './pages/Landing'
 import AdminLeads from './pages/AdminLeads'
 import AdminGlobal from './pages/AdminGlobal'
@@ -528,6 +529,7 @@ export default function App() {
   // Páginas públicas — accesibles sin login
   if (pathname === '/privacidad') return <Privacidad />
   if (pathname === '/terminos') return <Terminos />
+  if (pathname === '/formacion') return <Formacion />
 
   const params = new URLSearchParams(search)
   const queryLogin = params.get('login') === '1'

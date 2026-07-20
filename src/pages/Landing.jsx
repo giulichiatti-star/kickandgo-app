@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import '../landing.css'
 import { supabase } from '../lib/supabase'
+import PartnersStrip from '../components/PartnersStrip'
 
 const ICONS = {
   plantilla: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2dd4bf" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
@@ -132,6 +133,7 @@ export default function Landing() {
         <ul className="nav-links">
           <li><a href="#funciones">Funciones</a></li>
           <li><a href="#precios">Precios</a></li>
+          <li><a href="/formacion">Formación</a></li>
         </ul>
         <div className="nav-right">
           <button className="btn-login" onClick={() => navigate('/login')}>Iniciar sesión</button>
@@ -282,6 +284,14 @@ export default function Landing() {
       </section>
 
       {/* FEATURES */}
+      {/* ALIANZAS */}
+      <section style={{ padding: '20px 56px 8px' }}>
+        <PartnersStrip />
+        <div style={{ textAlign: 'center', marginTop: 10 }}>
+          <a href="/formacion" style={{ fontSize: 14, fontWeight: 600, color: '#2dd4bf' }}>Conoce nuestras alianzas de formación →</a>
+        </div>
+      </section>
+
       <section className="section" id="funciones">
         <div className="section-inner">
           <div className="features-header">
