@@ -67,17 +67,82 @@ function FaltanClaves() {
   )
 }
 
-function Pendiente({ onLogout }) {
+// Datos de pago (mismos que los emails de cobro).
+const PAGO = {
+  precio: '20 €/mes',
+  iban: 'ES28 1583 0001 1490 5028 3293',
+  beneficiario: 'Javier Herrero Jiménez',
+  bizum: '+34 628 58 49 85',
+}
+const yaPagueURL = (uid, metodo) =>
+  `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ya-pague?uid=${uid}&metodo=${metodo}`
+
+// Bloque reutilizable con IBAN, Bizum y botones "Ya pagué".
+function DatosPago({ uid }) {
+  return (
+    <div className="rounded-xl border border-[var(--gris-borde)] bg-[var(--gris-medio)] p-4 text-left mb-4">
+      <div className="text-[11px] font-semibold uppercase tracking-wide text-muted mb-2">
+        Opciones de pago — {PAGO.precio}
+      </div>
+      <div className="text-[13px] space-y-1">
+        <div className="flex justify-between gap-3"><span className="text-muted">IBAN</span><span className="font-mono text-[12px]">{PAGO.iban}</span></div>
+        <div className="flex justify-between gap-3"><span className="text-muted">Beneficiario</span><span>{PAGO.beneficiario}</span></div>
+        <div className="flex justify-between gap-3 pt-1 border-t border-[var(--gris-borde)] mt-1"><span className="text-muted">Bizum</span><span className="font-semibold">{PAGO.bizum}</span></div>
+      </div>
+      <div className="grid gap-2 mt-3">
+        <a className="btn btn-primary w-full" href={yaPagueURL(uid, 'transferencia')} target="_blank" rel="noreferrer">Ya pagué con transferencia</a>
+        <a className="btn btn-outline w-full" href={yaPagueURL(uid, 'bizum')} target="_blank" rel="noreferrer">Ya pagué con Bizum</a>
+      </div>
+    </div>
+  )
+}
+
+function Pendiente({ onLogout, planEstado, uid }) {
+  const porImpago = planEstado === 'mora'
   return (
     <Centro>
-      <div className="text-4xl mb-3">⏳</div>
-      <h1 className="font-extrabold mb-2">Suscripción pendiente</h1>
+      <div className="text-4xl mb-3">{porImpago ? '🔒' : '⏳'}</div>
+      <h1 className="font-extrabold mb-2">
+        {porImpago ? 'Cuenta suspendida temporalmente' : 'Suscripción pendiente'}
+      </h1>
       <p className="text-sm text-muted mb-4">
-        Tu cuenta existe pero aún no está activada. En cuanto confirmemos tu suscripción
-        tendrás acceso completo.
+        {porImpago
+          ? 'Tu suscripción está impaga y superó los días de cortesía. En cuanto confirmemos tu pago, tu cuenta se reactiva al instante — sin perder ningún dato.'
+          : 'Tu cuenta existe pero aún no está activada. En cuanto confirmemos tu suscripción tendrás acceso completo.'}
       </p>
+      {porImpago && uid && <DatosPago uid={uid} />}
       <button className="btn btn-outline" onClick={onLogout}>Cerrar sesión</button>
     </Centro>
+  )
+}
+
+// Aviso de mora mostrado UNA vez por sesión mientras la cuenta sigue con acceso.
+function MoraModal({ uid, pagoVence, onClose }) {
+  const diasRestantes = (() => {
+    if (!pagoVence) return null
+    const fin = new Date(pagoVence).getTime() + 2 * 86400000 // vence + 2 días de gracia
+    return Math.max(1, Math.ceil((fin - Date.now()) / 86400000))
+  })()
+  return (
+    <div
+      className="fixed inset-0 z-[10001] flex items-center justify-center px-5"
+      style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(3px)' }}
+      onClick={onClose}
+    >
+      <div className="card p-6 max-w-md w-full text-center" onClick={(e) => e.stopPropagation()}>
+        <div className="text-4xl mb-3">⚠️</div>
+        <h1 className="font-extrabold mb-2">Tu pago está pendiente</h1>
+        <p className="text-sm text-muted mb-4">
+          Tu suscripción venció.{' '}
+          {diasRestantes != null && (
+            <>Te {diasRestantes === 1 ? 'queda' : 'quedan'} <b className="text-[var(--blanco)]">{diasRestantes} {diasRestantes === 1 ? 'día' : 'días'}</b> de cortesía. </>
+          )}
+          Al terminar, la cuenta se <b>suspende temporalmente</b> hasta regularizar el pago (no pierdes ningún dato).
+        </p>
+        <DatosPago uid={uid} />
+        <button className="btn btn-outline" onClick={onClose}>Seguir usando la app por ahora</button>
+      </div>
+    </div>
   )
 }
 
@@ -420,9 +485,12 @@ export default function App() {
   const { pathname, search } = useLocation()
   const [sesion, setSesion] = useState(null)
   const [activo, setActivo] = useState(null) // null = sin saber aún
+  const [planEstado, setPlanEstado] = useState(null)
+  const [pagoVence, setPagoVence] = useState(null)
   const [esAdmin, setEsAdmin] = useState(false)
   const [avisosPend, setAvisosPend] = useState(0)
   const [listo, setListo] = useState(false)
+  const [moraVisto, setMoraVisto] = useState(() => sessionStorage.getItem('kg:mora-visto') === '1')
 
   useAnalyticsTracker(Boolean(sesion))
 
@@ -435,12 +503,14 @@ export default function App() {
 
   // Al haber sesión, comprobar si la cuenta está activa (suscripción) y si es admin
   useEffect(() => {
-    if (!sesion) { setActivo(null); setEsAdmin(false); return }
+    if (!sesion) { setActivo(null); setEsAdmin(false); setPlanEstado(null); setPagoVence(null); return }
     let cancelado = false
-    supabase.from('profiles').select('activo, is_admin').eq('id', sesion.user.id).single()
+    supabase.from('profiles').select('activo, is_admin, plan_estado, pago_vence').eq('id', sesion.user.id).single()
       .then(({ data }) => {
         if (cancelado) return
         setActivo(Boolean(data?.activo))
+        setPlanEstado(data?.plan_estado || null)
+        setPagoVence(data?.pago_vence || null)
         setEsAdmin(Boolean(data?.is_admin))
         if (data?.is_admin) {
           listarAvisosPago()
@@ -470,7 +540,10 @@ export default function App() {
   if (pathname === '/' && !sesion && !queryLogin && !esPWA) return <Landing />
   if (!sesion) return <Login />
   if (activo === null) return <div className="min-h-screen grid place-items-center text-muted">Comprobando acceso…</div>
-  if (!activo) return <Pendiente onLogout={logout} />
+  if (!activo) return <Pendiente onLogout={logout} planEstado={planEstado} uid={sesion.user.id} />
+
+  const mostrarMora = planEstado === 'mora' && !moraVisto
+  const cerrarMora = () => { sessionStorage.setItem('kg:mora-visto', '1'); setMoraVisto(true) }
 
   return (
     <EquipoProvider>
@@ -497,6 +570,7 @@ export default function App() {
         <Route path="/admin/global" element={esAdmin ? <AdminGlobal /> : <Navigate to="/inicio" replace />} />
         <Route path="*" element={<Navigate to="/inicio" replace />} />
       </Routes>
+      {mostrarMora && <MoraModal uid={sesion.user.id} pagoVence={pagoVence} onClose={cerrarMora} />}
     </Shell>
     </WizardRoot>
     </EquipoProvider>
