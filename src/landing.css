@@ -303,12 +303,6 @@
   /* Footer */
   .kg-landing footer { padding: 20px 16px; }
   .kg-landing .footer-links { gap: 14px; }
-
-  .kg-landing .kg-feature { grid-template-columns: 1fr; }
-  .kg-landing .kg-flogo { padding: 28px; }
-  .kg-landing .kg-feats { grid-template-columns: 1fr; }
-  .kg-landing .kg-testi-cards { grid-template-columns: 1fr; }
-  .kg-landing .kg-form-hero h1 { font-size: 40px; }
 }
 
 /* ===== ALIANZAS / PARTNERS (franja dinámica) ===== */
@@ -359,3 +353,32 @@
 .kg-landing .kg-who .kg-r { font-size: 12px; color: #64748b; }
 .kg-landing .kg-back { display: inline-block; margin: 40px auto 0; color: #94a3b8; font-size: 14px; font-weight: 500; }
 .kg-landing .kg-back:hover { color: #f0f0f0; }
+
+/* ===== FORMACIÓN + FRANJA — responsive (al final para ganar en cascada) ===== */
+@media (max-width: 760px) {
+  .kg-landing .kg-form-hero { padding: 48px 20px 18px; }
+  .kg-landing .kg-form-hero h1 { font-size: 34px; letter-spacing: -.4px; }
+  .kg-landing .kg-form-intro { font-size: 15px; }
+
+  .kg-landing .kg-feature { grid-template-columns: 1fr; margin: 24px 16px 0; }
+  .kg-landing .kg-flogo { padding: 30px; }
+  .kg-landing .kg-fbody { padding: 24px 22px; }
+  .kg-landing .kg-fbody h2 { font-size: 22px; }
+  .kg-landing .kg-feats { grid-template-columns: 1fr; gap: 14px; }
+  .kg-landing .kg-cta { width: 100%; justify-content: center; }
+
+  .kg-landing .kg-testi { padding: 0 16px; }
+  .kg-landing .kg-testi h3 { font-size: 24px; }
+  .kg-landing .kg-testi-cards { grid-template-columns: 1fr; }
+}
+@media (max-width: 440px) {
+  .kg-landing .kg-form-hero { padding: 40px 16px 16px; }
+  .kg-landing .kg-form-hero h1 { font-size: 29px; }
+  .kg-landing .kg-partners { padding: 30px 0; }
+  .kg-landing .kg-chip { width: 172px; height: 104px; margin-right: 16px; }
+}
+
+/* Sección de alianzas en la Landing */
+.kg-landing .kg-alianzas-sec { padding: 20px 56px 8px; }
+.kg-landing .kg-alianzas-link { font-size: 14px; font-weight: 600; color: #2dd4bf; }
+@media (max-width: 760px) { .kg-landing .kg-alianzas-sec { padding: 12px 16px 4px; } }

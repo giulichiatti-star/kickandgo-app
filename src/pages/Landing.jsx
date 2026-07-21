@@ -285,10 +285,10 @@ export default function Landing() {
 
       {/* FEATURES */}
       {/* ALIANZAS */}
-      <section style={{ padding: '20px 56px 8px' }}>
+      <section className="kg-alianzas-sec">
         <PartnersStrip />
         <div style={{ textAlign: 'center', marginTop: 10 }}>
-          <a href="/formacion" style={{ fontSize: 14, fontWeight: 600, color: '#2dd4bf' }}>Conoce nuestras alianzas de formación →</a>
+          <a href="/formacion" className="kg-alianzas-link">Conoce nuestras alianzas de formación →</a>
         </div>
       </section>
 
