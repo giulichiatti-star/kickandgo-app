@@ -39,25 +39,35 @@ function FamLogo({ id = 'a' }) {
   )
 }
 
-// Un "set" de tarjetas. Se renderiza dos veces para el bucle sin saltos.
-function Set({ k }) {
+const PARTNERS = [
+  { type: 'cruyff', url: CRUYFF_URL, label: 'Cruyff Football' },
+  { type: 'fam', url: FAM_URL, label: 'FAM Soccer Academy' },
+]
+
+function Chip({ p, uid }) {
   return (
-    <>
-      <a className="kg-chip" href={CRUYFF_URL} target="_blank" rel="noreferrer" aria-label="Cruyff Football"><CruyffLogo /></a>
-      <a className="kg-chip" href={FAM_URL} target="_blank" rel="noreferrer" aria-label="FAM Soccer Academy"><FamLogo id={k} /></a>
-      <div className="kg-chip ghost"><div className="kg-ghost"><span className="kg-plus">+</span><span>Espacio disponible</span></div></div>
-    </>
+    <a className="kg-chip" href={p.url} target="_blank" rel="noreferrer" aria-label={p.label}>
+      {p.type === 'cruyff' ? <CruyffLogo /> : <FamLogo id={uid} />}
+    </a>
   )
 }
 
 export default function PartnersStrip({ label = 'En alianza con' }) {
+  // Repetimos la pareja para llenar la franja, y duplicamos el bloque completo
+  // (mitad A + mitad B idénticas) para que el bucle no tenga saltos.
+  const REPEAT = 3
+  const half = []
+  for (let r = 0; r < REPEAT; r++) PARTNERS.forEach((p, i) => half.push({ p, key: `${r}-${i}` }))
+  const items = [
+    ...half.map((x) => ({ ...x, uid: `a-${x.key}` })),
+    ...half.map((x) => ({ ...x, uid: `b-${x.key}` })),
+  ]
   return (
     <div className="kg-partners">
       <div className="kg-partners-label">{label}</div>
       <div className="kg-marquee">
         <div className="kg-track">
-          <Set k="a" />
-          <Set k="b" />
+          {items.map((x) => <Chip key={x.uid} p={x.p} uid={x.uid} />)}
         </div>
       </div>
     </div>
