@@ -113,7 +113,13 @@ export default function Disciplina() {
       setJugadores(js); setTarjetas(ts); setLesiones(ls)
     } catch (e) { setMsg(e.message) } finally { setCargando(false) }
   }
-  useEffect(() => { refrescar() }, [eid])
+  // Solo cargar cuando el equipo activo está listo. Si se llama sin equipo,
+  // las funciones traen los datos de TODOS los equipos (por eso al refrescar
+  // salían todas las tarjetas/lesiones): evitamos ese estado intermedio.
+  useEffect(() => {
+    if (eid) { refrescar() }
+    else { setJugadores([]); setTarjetas([]); setLesiones([]); setCargando(false) }
+  }, [eid])
 
   /* ── Filtro por campeonato/temporada ── */
   const fechaT = (t) => t.fecha || t.creado

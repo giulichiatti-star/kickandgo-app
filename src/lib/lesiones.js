@@ -3,8 +3,9 @@ import { supabase } from './supabase'
 function hoyISO() { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` }
 
 export async function listarLesiones(equipoId) {
-  let q = supabase.from('lesiones').select('*').order('fecha_inicio', { ascending: false })
-  if (equipoId) q = q.eq('equipo_id', equipoId)
+  // Sin equipo → vacío (evita traer las lesiones de todos los equipos).
+  if (!equipoId) return []
+  const q = supabase.from('lesiones').select('*').order('fecha_inicio', { ascending: false }).eq('equipo_id', equipoId)
   const { data, error } = await q
   if (error) throw error
   return data

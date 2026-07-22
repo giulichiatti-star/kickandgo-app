@@ -2,10 +2,12 @@ import { supabase } from './supabase'
 import { cacheSet, cacheGet } from './cache'
 
 export async function listarJugadores(equipoId) {
-  const key = 'jugadores_' + (equipoId || 'all')
+  // Sin equipo no devolvemos datos: si no, traería los jugadores de TODOS los
+  // equipos del usuario (bug visible al refrescar antes de cargar el equipo).
+  if (!equipoId) return []
+  const key = 'jugadores_' + equipoId
   try {
-    let q = supabase.from('jugadores').select('*').order('dorsal', { ascending: true })
-    if (equipoId) q = q.eq('equipo_id', equipoId)
+    let q = supabase.from('jugadores').select('*').order('dorsal', { ascending: true }).eq('equipo_id', equipoId)
     const { data, error } = await q
     if (error) throw error
     cacheSet(key, data)

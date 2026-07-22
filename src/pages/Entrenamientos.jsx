@@ -105,7 +105,7 @@ export default function Entrenamientos() {
         listarEntrenos(eid),
         listarPartidos(eid).catch(() => []),
         listarJugadores(eid).catch(() => []),
-        listarLesiones().catch(() => []),
+        listarLesiones(eid).catch(() => []),
         listarPizarras(eid).catch(() => []),
       ])
       setPerfil(p)

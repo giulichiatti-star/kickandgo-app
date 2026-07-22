@@ -4,10 +4,11 @@ import { cacheSet, cacheGet } from './cache'
 function hoyISO() { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` }
 
 export async function listarTarjetas(equipoId) {
-  const key = 'tarjetas_' + (equipoId || 'all')
+  // Sin equipo → vacío (evita traer las tarjetas de todos los equipos).
+  if (!equipoId) return []
+  const key = 'tarjetas_' + equipoId
   try {
-    let q = supabase.from('tarjetas').select('*').order('creado', { ascending: false })
-    if (equipoId) q = q.eq('equipo_id', equipoId)
+    let q = supabase.from('tarjetas').select('*').order('creado', { ascending: false }).eq('equipo_id', equipoId)
     const { data, error } = await q
     if (error) throw error
     cacheSet(key, data)
