@@ -35,8 +35,12 @@ function derivar(p) {
   const rojasRival   = ev.filter(e => e.tipo === 'roja-rival')
   const cambios      = ev.filter(e => e.tipo === 'cambio')
   const cambiosRival = ev.filter(e => e.tipo === 'cambio-rival')
-  const tiros        = ev.filter(e => e.tipo === 'tiro')
-  const tirosRival   = ev.filter(e => e.tipo === 'tiro-rival')
+  // En Vivo registra 'tiro-puerta' y 'tiro-fuera' (no 'tiro'). Se mantiene
+  // 'tiro'/'tiro-rival' por compatibilidad con partidos antiguos.
+  const tiros        = ev.filter(e => e.tipo === 'tiro-puerta' || e.tipo === 'tiro-fuera' || e.tipo === 'tiro')
+  const tirosRival   = ev.filter(e => e.tipo === 'tiro-puerta-rival' || e.tipo === 'tiro-fuera-rival' || e.tipo === 'tiro-rival')
+  const tirosPuerta      = ev.filter(e => e.tipo === 'tiro-puerta')
+  const tirosPuertaRival = ev.filter(e => e.tipo === 'tiro-puerta-rival')
   const corners      = ev.filter(e => e.tipo === 'corner')
   const cornersRival = ev.filter(e => e.tipo === 'corner-rival')
   const asistencias  = ev.filter(e => e.tipo === 'asistencia')
@@ -47,7 +51,7 @@ function derivar(p) {
   const cA = {}
   asistencias.forEach(g => { if (g.jugador) cA[g.jugador] = (cA[g.jugador]||0)+1 })
   const asistidores = Object.entries(cA).sort((a,b)=>b[1]-a[1])
-  return { ev, goles, golesRival, amar, amarRival, rojas, rojasRival, cambios, cambiosRival, tiros, tirosRival, corners, cornersRival, asistencias, momentos, goleadores, asistidores }
+  return { ev, goles, golesRival, amar, amarRival, rojas, rojasRival, cambios, cambiosRival, tiros, tirosRival, tirosPuerta, tirosPuertaRival, corners, cornersRival, asistencias, momentos, goleadores, asistidores }
 }
 function evIcon(tipo) {
   const t = (tipo||'').toLowerCase()
@@ -386,6 +390,7 @@ export default function Informes() {
             {[
               [sel.gf,            'Goles',      sel.gc,               true,  false],
               [d.tiros.length,    'Tiros',      d.tirosRival.length,  false, false],
+              [d.tirosPuerta.length, 'Tiros a puerta', d.tirosPuertaRival.length, false, false],
               [d.amar.length,     'Amarillas',  d.amarRival.length,   false, true],
               [d.rojas.length,    'Rojas',      d.rojasRival.length,  false, true],
               [d.cambios.length,  'Cambios',    d.cambiosRival.length,false, false],
