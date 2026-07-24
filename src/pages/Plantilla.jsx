@@ -5,6 +5,7 @@ import {
 import { parseImport } from '../lib/importar'
 import { getPerfil, updatePerfil } from '../lib/perfil'
 import { listarPartidos } from '../lib/partidos'
+import { agregarMinutos, fmtMin } from '../lib/minutos'
 import { listarTarjetas } from '../lib/tarjetas'
 import { listarEntrenos } from '../lib/entrenamientos'
 import { useEquipo } from '../contexts/EquipoContext'
@@ -73,7 +74,7 @@ export default function Plantilla() {
   // Stats reales por jugador
   const stats = useMemo(() => {
     const m = {}
-    jugadores.forEach((j) => { m[j.id] = { goles: 0, asist: 0, amar: 0, rojas: 0, asis: 0, totEnt: 0, pjs: 0 } })
+    jugadores.forEach((j) => { m[j.id] = { goles: 0, asist: 0, amar: 0, rojas: 0, asis: 0, totEnt: 0, pjs: 0, minutos: 0, partMin: 0 } })
     const porDorsal = {}; jugadores.forEach((j) => { porDorsal[j.dorsal] = j.id })
     const porNombre = {}; jugadores.forEach((j) => { porNombre[j.nombre?.toLowerCase()] = j.id })
     partidos.forEach((p) => {
@@ -103,6 +104,9 @@ export default function Plantilla() {
       })
       jugados.forEach((id) => { m[id].pjs++ })
     })
+    // Minutos jugados reales (alineación de En Vivo)
+    const aggMin = agregarMinutos(partidos)
+    Object.entries(aggMin).forEach(([id, v]) => { if (m[id]) { m[id].minutos = v.minutos; m[id].partMin = v.partidos } })
     tarjetas.forEach((t) => { if (m[t.jugador_id]) { if (t.tipo === 'roja') m[t.jugador_id].rojas++; else m[t.jugador_id].amar++ } })
     entrenos.forEach((e) => {
       const a = e.asistencia || {}
@@ -400,13 +404,14 @@ export default function Plantilla() {
                     </div>
                   </div>
                   {/* Stats grid */}
-                  <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-8">
+                  <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-9">
                     {[
                       ['⚽', 'Goles', s.goles || 0, '#2dd4bf'],
                       ['🅰️', 'Asist.', s.asist || 0, '#94a3b8'],
                       ['🟨', 'Amaril.', s.amar || 0, s.amar >= 4 ? '#f59e0b' : '#94a3b8'],
                       ['🟥', 'Rojas', s.rojas || 0, s.rojas ? '#ef4444' : '#94a3b8'],
                       ['🏟️', 'Partidos', s.pjs || 0, '#94a3b8'],
+                      ['⏱️', 'Minutos', s.minutos ? fmtMin(s.minutos) : '—', s.minutos ? '#2dd4bf' : '#94a3b8'],
                       ['%', 'Part.%', s.pjsPct !== null ? `${s.pjsPct}%` : '—', s.pjsPct >= 80 ? '#10b981' : s.pjsPct >= 60 ? '#f59e0b' : '#94a3b8'],
                       ['🏃', 'Entrenos', totEnt ? `${s.asis}/${totEnt}` : '—', '#94a3b8'],
                       ['📊', 'Asist.%', s.pctEnt !== null ? `${s.pctEnt}%` : '—', s.pctEnt >= 80 ? '#10b981' : s.pctEnt >= 60 ? '#f59e0b' : '#94a3b8'],
