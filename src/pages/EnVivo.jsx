@@ -890,6 +890,7 @@ export default function EnVivo() {
       formacionRival={formacionRival} setFormacionRival={setFormacionRival}
       formsDe={formsDe}
       titulares={titulares} suplentes={suplentes}
+      setTitulares={setTitulares} setSuplentes={setSuplentes}
       puntosLocal={puntosLocal} puntosRival={puntosRival}
       canchaRef={canchaRef} vista={vista} setVista={setVista}
       escuchando={escuchando} oido={oido}
@@ -924,7 +925,7 @@ function MobileEnVivo({
   corriendo, descanso, tiempo, textoperiodo,
   localVisitante, setLocalVisitante,
   tipo, formacion, setFormacion, formacionRival, setFormacionRival, formsDe,
-  titulares, suplentes, puntosLocal, puntosRival, canchaRef, vista, setVista,
+  titulares, suplentes, setTitulares, setSuplentes, puntosLocal, puntosRival, canchaRef, vista, setVista,
   escuchando, oido, eventos, setEventos, marks, setMarks, setStats,
   registrar, mobileSheet, setMobileSheet,
   mSaleId, setMSaleId, mEntraId, setMEntraId,
@@ -963,10 +964,11 @@ function MobileEnVivo({
     const sale = titulares.find(j => j.id === mSaleId)
     const entra = suplentes.find(j => j.id === mEntraId)
     if (!sale || !entra) return
+    // Swap real: el que entra ocupa el sitio del que sale en el campo.
+    setTitulares(t => t.map(j => (j.id === mSaleId ? entra : j)))
+    setSuplentes(s => s.map(j => (j.id === mEntraId ? sale : j)))
     setEventos(e => [{ min, tipo: 'cambio', icon: '🔄', label: 'Cambio', jugador: `Sale ${sale.nombre} · Entra ${entra.nombre}`, saleId: sale.id, entraId: entra.id }, ...e])
     setMarks(m => ({ ...m, [entra.id]: [...(m[entra.id] || []), '🔄'] }))
-    // swap en titulares/suplentes via registrar indirecto
-    registrar('cambio', null)
     setMSaleId(''); setMEntraId('')
     setMobileSheet(null)
   }
