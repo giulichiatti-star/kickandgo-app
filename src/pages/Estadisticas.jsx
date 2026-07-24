@@ -8,6 +8,7 @@ import {
 } from 'recharts'
 import { listarPartidos } from '../lib/partidos'
 import { listarJugadores } from '../lib/jugadores'
+import { agregarMinutos, hayDatosMinutos, fmtMin } from '../lib/minutos'
 
 // ── Colores ──────────────────────────────────────────────────────
 const C = { cyan: '#2dd4bf', gold: '#f59e0b', red: '#ef4444', blue: '#3b82f6', purple: '#8b5cf6', green: '#10b981' }
@@ -76,7 +77,7 @@ function Badge({ r }) {
 }
 
 // ── Tab bar ──────────────────────────────────────────────────────
-const TABS = [['global', 'Global'], ['jornadas', 'Jornada a Jornada'], ['goleadores', 'Goleadores']]
+const TABS = [['global', 'Global'], ['jornadas', 'Jornada a Jornada'], ['goleadores', 'Goleadores'], ['minutos', 'Minutos']]
 
 export default function Estadisticas() {
   const [partidos, setPartidos] = useState([])
@@ -199,6 +200,34 @@ export default function Estadisticas() {
       pctV: clamp(v / pj * 100),
     }
   }, [partidos])
+
+  // Minutos jugados (derivados de la alineación guardada en cada partido).
+  const minutos = useMemo(() => {
+    const agg = agregarMinutos(partidos)
+    // Nombre/dorsal: primero de la plantilla actual; si el jugador ya no está,
+    // se recupera del nombre guardado en la alineación del partido.
+    const byId = Object.fromEntries((jugadores || []).map((j) => [j.id, j]))
+    const nomAlin = {}
+    for (const p of partidos) {
+      const al = p.alineacion
+      if (!al) continue
+      for (const t of [...(al.titulares || []), ...(al.suplentes || [])]) {
+        if (t?.id && !nomAlin[t.id]) nomAlin[t.id] = { nombre: t.nombre, dorsal: t.dorsal }
+      }
+    }
+    const rank = Object.entries(agg).map(([id, val]) => {
+      const j = byId[id] || nomAlin[id] || {}
+      return {
+        id,
+        nom: j.nombre || 'Jugador',
+        dorsal: j.dorsal,
+        minutos: val.minutos,
+        partidos: val.partidos,
+        media: val.partidos ? Math.round(val.minutos / val.partidos) : 0,
+      }
+    }).sort((a, b) => b.minutos - a.minutos)
+    return { rank, hay: hayDatosMinutos(partidos) }
+  }, [partidos, jugadores])
 
   if (cargando) return <div style={{ color: TEXT, padding: '40px', textAlign: 'center' }}>Cargando…</div>
   if (!stats) return (
@@ -471,6 +500,47 @@ export default function Estadisticas() {
             </Panel>
           )}
         </>}
+      </>}
+
+      {tab === 'minutos' && <>
+        {!minutos.hay ? (
+          <Panel>
+            <div style={{ padding: '32px 0', textAlign: 'center', color: TEXT, fontSize: 13, lineHeight: 1.6 }}>
+              Aún no hay minutos registrados.<br />
+              Dirige un partido en <b style={{ color: C.cyan }}>En Vivo</b> (pulsa <b>INICIAR</b> y registra los cambios) y aquí verás los minutos de cada jugador.
+            </div>
+          </Panel>
+        ) : (
+          <Panel title="Minutos jugados" badge={`${minutos.rank.length} jugadores`}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {minutos.rank.map((m, i) => {
+                const max = minutos.rank[0].minutos || 1
+                return (
+                  <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span style={{ width: 22, fontSize: 11, fontWeight: 800, color: i < 3 ? [C.gold, '#c0c0c0', '#cd7f32'][i] : MUTED, textAlign: 'right', flexShrink: 0 }}>
+                      {i + 1}
+                    </span>
+                    <div style={{ width: 30, height: 30, borderRadius: '50%', background: '#253045', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, color: '#fafafa', flexShrink: 0 }}>
+                      {m.dorsal != null ? m.dorsal : m.nom.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: '#fafafa', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.nom}</span>
+                        <div style={{ display: 'flex', gap: 10, flexShrink: 0, alignItems: 'baseline' }}>
+                          <span style={{ fontSize: 13, fontWeight: 900, color: C.cyan }}>{fmtMin(m.minutos)}</span>
+                          <span style={{ fontSize: 11, color: TEXT }}>{m.partidos} {m.partidos === 1 ? 'part.' : 'parts.'} · {m.media}′/p</span>
+                        </div>
+                      </div>
+                      <div style={{ height: 5, background: '#27272a', borderRadius: 99, overflow: 'hidden' }}>
+                        <div style={{ width: `${m.minutos / max * 100}%`, height: '100%', background: i === 0 ? C.cyan : i === 1 ? '#94a3b8' : i === 2 ? C.gold : C.blue, borderRadius: 99, transition: 'width .6s ease' }} />
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </Panel>
+        )}
       </>}
     </div>
   )

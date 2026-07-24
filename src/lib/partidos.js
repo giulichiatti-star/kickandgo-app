@@ -18,6 +18,7 @@ export async function guardarPartido(p, equipoId) {
     notas: p.eventos || [],
     analisis_ia: p.notas_entrenador || p.analisis_ia || '',
     valoraciones: p.valoraciones || {},
+    alineacion: p.alineacion || null,
   }
   const { data, error } = await supabase.from('partidos').insert(payload).select().single()
   if (error) throw error

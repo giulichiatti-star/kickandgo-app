@@ -105,6 +105,7 @@ export default function EnVivo() {
   const navigate = useNavigate()
   const [titulares, setTitulares] = useState([])
   const [suplentes, setSuplentes] = useState([])
+  const [xiInicial, setXiInicial] = useState([]) // 11/7 inicial (snapshot al primer pitido, para minutos jugados)
   const [rival, setRival] = useState('Rival')
   const [club, setClub] = useState('Nuestro equipo')
   const [escudo, setEscudo] = useState('')
@@ -171,6 +172,7 @@ export default function EnVivo() {
           setRival(s.rival || 'Rival'); setClub(s.club || 'Nuestro equipo')
           if (s.titulares?.length) setTitulares(s.titulares)
           if (s.suplentes?.length) setSuplentes(s.suplentes)
+          if (s.xiInicial?.length) setXiInicial(s.xiInicial)
           if (s.formacion) setFormacion(s.formacion)
           if (s.tipo) setTipo(s.tipo)
           setPartidoRestaurado(true)
@@ -206,13 +208,13 @@ export default function EnVivo() {
       try {
         localStorage.setItem('kg_envivo', JSON.stringify({
           gf, gc, seg, tiempo, descanso, eventos, marks, notas, stats,
-          rival, club, titulares, suplentes, formacion, tipo, coordsManual,
+          rival, club, titulares, suplentes, xiInicial, formacion, tipo, coordsManual,
           equipo_id: eid, ts: Date.now(),
         }))
       } catch (err) { console.error("[EnVivo] localStorage save", err) }
     }, 30000)
     return () => clearInterval(id)
-  }, [gf, gc, seg, tiempo, descanso, eventos, marks, notas, stats, rival, club, titulares, suplentes, formacion, tipo, coordsManual, eid])
+  }, [gf, gc, seg, tiempo, descanso, eventos, marks, notas, stats, rival, club, titulares, suplentes, xiInicial, formacion, tipo, coordsManual, eid])
 
   // Duración del primer tiempo según tipo de equipo (en segundos)
   const durT1 = tipo === '7' ? 35 * 60 : tipo === '9' ? 40 * 60 : 45 * 60
@@ -225,6 +227,13 @@ export default function EnVivo() {
     }
     return () => clearInterval(timer.current)
   }, [corriendo, tiempo, durT1])
+  // Snapshot del 11/7 inicial en el primer pitido (antes de cualquier cambio).
+  // Sirve para calcular minutos jugados. Una sola vez por partido.
+  useEffect(() => {
+    if (corriendo && xiInicial.length === 0 && titulares.length > 0) {
+      setXiInicial(titulares.map((t) => ({ id: t.id, nombre: t.nombre, dorsal: t.dorsal })))
+    }
+  }, [corriendo])
   useEffect(() => () => { try { recRef.current?.stop() } catch {} }, [])
 
   useEffect(() => {
@@ -373,7 +382,7 @@ export default function EnVivo() {
     if (!sale || !entra) return
     setTitulares((t) => t.map((j) => (j.id === saleId ? entra : j)))
     setSuplentes((s) => s.map((j) => (j.id === entraId ? sale : j)))
-    setEventos((e) => [{ min, tipo: 'cambio', icon: '🔄', label: 'Cambio', jugador: `Sale ${sale.nombre} · Entra ${entra.nombre}` }, ...e])
+    setEventos((e) => [{ min, tipo: 'cambio', icon: '🔄', label: 'Cambio', jugador: `Sale ${sale.nombre} · Entra ${entra.nombre}`, saleId: sale.id, entraId: entra.id }, ...e])
     setMarks((m) => ({ ...m, [entra.id]: [...(m[entra.id] || []), '🔄'] }))
     setSaleId(''); setEntraId('')
   }
@@ -407,11 +416,24 @@ export default function EnVivo() {
   }
 
   async function guardarFinal(vals) {
+    // 11/7 inicial: snapshot del primer pitido; si no se registró, usa la
+    // alineación actual (caso raro: partido sin haber pulsado INICIAR).
+    const xi = (xiInicial.length ? xiInicial : titulares).map((t) => ({ id: t.id, nombre: t.nombre, dorsal: t.dorsal }))
+    // Cambios con IDs (derivados de los eventos de cambio del equipo local).
+    const cambios = eventos
+      .filter((e) => e.tipo === 'cambio' && (e.saleId || e.entraId))
+      .map((e) => ({ min: Number(e.min) || 0, saleId: e.saleId || null, entraId: e.entraId || null }))
+    const duracion = minMostrado > 0 ? minMostrado : (tipo === '7' ? 70 : tipo === '9' ? 80 : 90)
+    const alineacion = xi.length
+      ? { titulares: xi, suplentes: suplentes.map((t) => ({ id: t.id, nombre: t.nombre, dorsal: t.dorsal })), cambios, duracion }
+      : null
+
     const payload = {
       rival, gf, gc, formacion,
       local_visitante: localVisitante,
       notas_entrenador: notas,
-      eventos: eventos.map((e) => ({ min: e.min, tipo: e.tipo, label: e.label, jugador: e.jugador })),
+      eventos: eventos.map((e) => ({ min: e.min, tipo: e.tipo, label: e.label, jugador: e.jugador, saleId: e.saleId, entraId: e.entraId })),
+      alineacion,
       valoraciones: vals,
       _eid: eid,
       _ts: Date.now(),
@@ -941,7 +963,7 @@ function MobileEnVivo({
     const sale = titulares.find(j => j.id === mSaleId)
     const entra = suplentes.find(j => j.id === mEntraId)
     if (!sale || !entra) return
-    setEventos(e => [{ min, tipo: 'cambio', icon: '🔄', label: 'Cambio', jugador: `Sale ${sale.nombre} · Entra ${entra.nombre}` }, ...e])
+    setEventos(e => [{ min, tipo: 'cambio', icon: '🔄', label: 'Cambio', jugador: `Sale ${sale.nombre} · Entra ${entra.nombre}`, saleId: sale.id, entraId: entra.id }, ...e])
     setMarks(m => ({ ...m, [entra.id]: [...(m[entra.id] || []), '🔄'] }))
     // swap en titulares/suplentes via registrar indirecto
     registrar('cambio', null)
