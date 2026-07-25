@@ -883,7 +883,7 @@ export default function EnVivo() {
     <MobileEnVivo
       club={club} rival={rival} escudo={escudo}
       gf={gf} gc={gc} minMostrado={minMostrado}
-      corriendo={corriendo} descanso={descanso} tiempo={tiempo}
+      corriendo={corriendo} descanso={descanso} setDescanso={setDescanso} tiempo={tiempo}
       textoperiodo={textoperiodo}
       localVisitante={localVisitante} setLocalVisitante={setLocalVisitante}
       tipo={tipo} formacion={formacion} setFormacion={setFormacion}
@@ -922,7 +922,7 @@ export default function EnVivo() {
 // ── Mobile layout component ──────────────────────────────────────────────────
 function MobileEnVivo({
   club, rival, escudo, gf, gc, minMostrado,
-  corriendo, descanso, tiempo, textoperiodo,
+  corriendo, descanso, setDescanso, tiempo, textoperiodo,
   localVisitante, setLocalVisitante,
   tipo, formacion, setFormacion, formacionRival, setFormacionRival, formsDe,
   titulares, suplentes, setTitulares, setSuplentes, puntosLocal, puntosRival, canchaRef, vista, setVista,
@@ -1049,7 +1049,7 @@ function MobileEnVivo({
             </button>
           )}
           {!descanso && tiempo===1 && seg>=durT1 && (
-            <button onClick={() => { setCorriendo(false); /* setDescanso */ }} style={{ display:'flex',alignItems:'center',gap:5,padding:'6px 14px',borderRadius:9,border:'1px solid #f59e0b',background:'rgba(245,158,11,.1)',color:'#f59e0b',fontSize:11,fontWeight:800,cursor:'pointer' }}>
+            <button onClick={() => { setCorriendo(false); setDescanso(true) }} style={{ display:'flex',alignItems:'center',gap:5,padding:'6px 14px',borderRadius:9,border:'1px solid #f59e0b',background:'rgba(245,158,11,.1)',color:'#f59e0b',fontSize:11,fontWeight:800,cursor:'pointer' }}>
               ☕ Descanso
             </button>
           )}
