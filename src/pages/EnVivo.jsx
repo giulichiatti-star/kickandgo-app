@@ -342,7 +342,7 @@ export default function EnVivo() {
   function bump(s) { setStats((p) => ({ ...p, [s]: (p[s] || 0) + 1 })) }
 
   function registrar(tipoEv, jug) {
-    const ev = { min, tipo: tipoEv, icon: ICONO_MARCA[tipoEv] || '•', label: (META[tipoEv]?.label || tipoEv), jugador: jug ? `#${jug.dorsal} ${jug.nombre}` : null, jugador_id: jug?.id || null }
+    const ev = { min: minMostrado, tipo: tipoEv, icon: ICONO_MARCA[tipoEv] || '•', label: (META[tipoEv]?.label || tipoEv), jugador: jug ? `#${jug.dorsal} ${jug.nombre}` : null, jugador_id: jug?.id || null }
     if (tipoEv === 'gol') { setGf((g) => g + 1); bump('tiros'); bump('tirosPuerta') }
     if (tipoEv === 'gol-rival') { setGc((g) => g + 1); bump('tirosPuertaRival') }
     if (tipoEv === 'tiro') bump('tiros')
@@ -368,7 +368,7 @@ export default function EnVivo() {
         const ya = prev.filter((x) => x.tipo === 'amarilla' && x.jugador === ev.jugador).length
         if (ya >= 1) {
           setMarks((m) => ({ ...m, [jug.id]: [...(m[jug.id] || []), '🟥'] }))
-          return [{ min, tipo: 'roja', icon: '🟥', label: 'Roja (doble amarilla)', jugador: ev.jugador }, ...lista]
+          return [{ min: minMostrado, tipo: 'roja', icon: '🟥', label: 'Roja (doble amarilla)', jugador: ev.jugador }, ...lista]
         }
       }
       return lista
@@ -382,7 +382,7 @@ export default function EnVivo() {
     if (!sale || !entra) return
     setTitulares((t) => t.map((j) => (j.id === saleId ? entra : j)))
     setSuplentes((s) => s.map((j) => (j.id === entraId ? sale : j)))
-    setEventos((e) => [{ min, tipo: 'cambio', icon: '🔄', label: 'Cambio', jugador: `Sale ${sale.nombre} · Entra ${entra.nombre}`, saleId: sale.id, entraId: entra.id }, ...e])
+    setEventos((e) => [{ min: minMostrado, tipo: 'cambio', icon: '🔄', label: 'Cambio', jugador: `Sale ${sale.nombre} · Entra ${entra.nombre}`, saleId: sale.id, entraId: entra.id }, ...e])
     setMarks((m) => ({ ...m, [entra.id]: [...(m[entra.id] || []), '🔄'] }))
     setSaleId(''); setEntraId('')
   }
@@ -395,7 +395,7 @@ export default function EnVivo() {
       setRivalDorsales(rd => rd.map(d => d === saleN ? entraN : d))
       setMarks(m => ({ ...m, [`r-${entraN}`]: [...(m[`r-${entraN}`] || []), '🔄'] }))
     }
-    setEventos((e) => [{ min, tipo: 'cambio-rival', icon: '🔄', label: `Cambio ${rival}`, jugador: `Sale #${saleRival} · Entra #${entraRival}` }, ...e])
+    setEventos((e) => [{ min: minMostrado, tipo: 'cambio-rival', icon: '🔄', label: `Cambio ${rival}`, jugador: `Sale #${saleRival} · Entra #${entraRival}` }, ...e])
     setSaleRival(''); setEntraRival('')
   }
 
@@ -472,6 +472,7 @@ export default function EnVivo() {
   }
 
   async function finalizar() {
+    if (!window.confirm('¿Seguro que quieres finalizar el partido?\n\nSe guardará y no podrás seguir grabando.')) return
     setCorriendo(false)
     setValorModal(true)
   }
@@ -538,7 +539,7 @@ export default function EnVivo() {
           ) : (
             <button className="ev2-abtn" onClick={() => setCorriendo((c) => !c)}>{corriendo ? '⏸' : '▶'}<small>{corriendo ? 'PAUSA' : tiempo === 2 ? 'REANUDAR' : 'INICIAR'}</small></button>
           )}
-          {!descanso && tiempo === 1 && seg >= durT1 && (
+          {!descanso && tiempo === 1 && seg > 0 && (
             <button className="ev2-abtn" onClick={() => { setCorriendo(false); setDescanso(true) }} style={{ borderColor: '#f59e0b', color: '#f59e0b' }}>☕<small>DESCANSO</small></button>
           )}
           <button className={`ev2-rec-btn${escuchando ? ' on' : ''}`} onClick={toggleVoz}>
@@ -573,12 +574,13 @@ export default function EnVivo() {
       {descanso && (
         <div className="flex items-center justify-between px-4 py-2.5 text-sm font-bold"
           style={{ background: 'rgba(245,158,11,0.15)', borderBottom: '1px solid rgba(245,158,11,0.3)', color: '#fcd34d' }}>
-          <span>☕ Descanso — {Math.floor(durT1 / 60)} min completados</span>
+          <span>☕ Descanso</span>
           <button className="px-3 py-1 rounded-lg text-xs font-bold"
             style={{ background: 'rgba(245,158,11,0.25)', border: '1px solid #f59e0b' }}
             onClick={iniciarSegundoTiempo}>▶ Iniciar 2º Tiempo</button>
         </div>
       )}
+      {descanso && <ResumenDescanso eventos={eventos} gf={gf} gc={gc} />}
 
       {/* Aviso grabar partido */}
       {corriendo && !escuchando && (
@@ -617,7 +619,7 @@ export default function EnVivo() {
                       setFormacion(f)
                       setCoordsManual(null)
                       setModoManual(false)
-                      setEventos((ev) => [{ min, tipo: 'formacion', icon: '🔀', label: `Cambio de formación → ${f}`, jugador: null }, ...ev])
+                      setEventos((ev) => [{ min: minMostrado, tipo: 'formacion', icon: '🔀', label: `Cambio de formación → ${f}`, jugador: null }, ...ev])
                     }
                   }}
                     className={`text-xs px-3 py-1.5 rounded-lg border whitespace-nowrap ${formacion === f && !modoManual ? 'border-cyan bg-cyan/10 text-cyan' : 'border-borde text-muted'}`}>{f}</button>
@@ -640,7 +642,7 @@ export default function EnVivo() {
                   <button key={f} onClick={() => {
                     if (f !== formacionRival) {
                       setFormacionRival(f)
-                      setEventos((ev) => [{ min, tipo: 'formacion-rival', icon: '🔀', label: `${rival} cambia a ${f}`, jugador: null }, ...ev])
+                      setEventos((ev) => [{ min: minMostrado, tipo: 'formacion-rival', icon: '🔀', label: `${rival} cambia a ${f}`, jugador: null }, ...ev])
                     }
                   }}
                     className={`text-xs px-3 py-1.5 rounded-lg border whitespace-nowrap ${formacionRival === f ? 'border-rojo bg-rojo/10 text-rojo' : 'border-borde text-muted'}`}>{f}</button>
@@ -919,6 +921,45 @@ export default function EnVivo() {
   )
 }
 
+// ── Resumen del 1er tiempo (charla del descanso) ─────────────────────────────
+function ResumenDescanso({ eventos, gf, gc }) {
+  const c = (t) => eventos.filter((e) => e.tipo === t)
+  const goleadores = c('gol').map((e) => e.jugador).filter(Boolean)
+  const amarillas = c('amarilla').map((e) => e.jugador).filter(Boolean)
+  const rojas = c('roja').map((e) => e.jugador).filter(Boolean)
+  const stat = (a, b) => `${a} · ${b}`
+  const filas = [
+    ['Tiros a puerta', stat(c('tiro-puerta').length, c('tiro-puerta-rival').length)],
+    ['Tiros fuera', stat(c('tiro-fuera').length, c('tiro-fuera-rival').length)],
+    ['Faltas', stat(c('falta').length, c('falta-rival').length)],
+    ['Córners', stat(c('corner').length, c('corner-rival').length)],
+  ]
+  return (
+    <div style={{ padding: '10px 14px 14px', background: 'rgba(245,158,11,0.06)', borderBottom: '1px solid rgba(245,158,11,0.2)' }}>
+      <div style={{ fontSize: 11, fontWeight: 800, color: '#fcd34d', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>
+        📋 Resumen 1er tiempo · {gf}–{gc}
+      </div>
+      {goleadores.length > 0 && (
+        <div style={{ fontSize: 12, color: '#fafafa', marginBottom: 4 }}>⚽ <b>Goles:</b> {goleadores.join(', ')}</div>
+      )}
+      {amarillas.length > 0 && (
+        <div style={{ fontSize: 12, color: '#fafafa', marginBottom: 4 }}>🟨 {amarillas.join(', ')}</div>
+      )}
+      {rojas.length > 0 && (
+        <div style={{ fontSize: 12, color: '#fafafa', marginBottom: 4 }}>🟥 {rojas.join(', ')}</div>
+      )}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 12px', marginTop: 6 }}>
+        {filas.map(([l, v]) => (
+          <div key={l} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#a1a1aa' }}>
+            <span>{l}</span><span style={{ color: '#fafafa', fontWeight: 700 }}>{v}</span>
+          </div>
+        ))}
+      </div>
+      <div style={{ fontSize: 9, color: '#71717a', marginTop: 6 }}>Nosotros · Ellos</div>
+    </div>
+  )
+}
+
 // ── Mobile layout component ──────────────────────────────────────────────────
 function MobileEnVivo({
   club, rival, escudo, gf, gc, minMostrado,
@@ -967,7 +1008,7 @@ function MobileEnVivo({
     // Swap real: el que entra ocupa el sitio del que sale en el campo.
     setTitulares(t => t.map(j => (j.id === mSaleId ? entra : j)))
     setSuplentes(s => s.map(j => (j.id === mEntraId ? sale : j)))
-    setEventos(e => [{ min, tipo: 'cambio', icon: '🔄', label: 'Cambio', jugador: `Sale ${sale.nombre} · Entra ${entra.nombre}`, saleId: sale.id, entraId: entra.id }, ...e])
+    setEventos(e => [{ min: minMostrado, tipo: 'cambio', icon: '🔄', label: 'Cambio', jugador: `Sale ${sale.nombre} · Entra ${entra.nombre}`, saleId: sale.id, entraId: entra.id }, ...e])
     setMarks(m => ({ ...m, [entra.id]: [...(m[entra.id] || []), '🔄'] }))
     setMSaleId(''); setMEntraId('')
     setMobileSheet(null)
@@ -981,7 +1022,7 @@ function MobileEnVivo({
       setRivalDorsales(rd => rd.map(d => d === saleN ? entraN : d))
       setMarks(m => ({ ...m, [`r-${entraN}`]: [...(m[`r-${entraN}`] || []), '🔄'] }))
     }
-    setEventos(e => [{ min, tipo: 'cambio-rival', icon: '🔄', label: `Cambio ${rival}`, jugador: `Sale #${mSaleRival} · Entra #${mEntraRival}` }, ...e])
+    setEventos(e => [{ min: minMostrado, tipo: 'cambio-rival', icon: '🔄', label: `Cambio ${rival}`, jugador: `Sale #${mSaleRival} · Entra #${mEntraRival}` }, ...e])
     setMSaleRival(''); setMEntraRival('')
     setMobileSheet(null)
   }
@@ -1048,7 +1089,7 @@ function MobileEnVivo({
               {corriendo ? '⏸ Pausa' : '▶ Reanudar'}
             </button>
           )}
-          {!descanso && tiempo===1 && seg>=durT1 && (
+          {!descanso && tiempo===1 && seg>0 && (
             <button onClick={() => { setCorriendo(false); setDescanso(true) }} style={{ display:'flex',alignItems:'center',gap:5,padding:'6px 14px',borderRadius:9,border:'1px solid #f59e0b',background:'rgba(245,158,11,.1)',color:'#f59e0b',fontSize:11,fontWeight:800,cursor:'pointer' }}>
               ☕ Descanso
             </button>
@@ -1061,6 +1102,8 @@ function MobileEnVivo({
           </button>
         </div>
       </div>
+
+      {descanso && <ResumenDescanso eventos={eventos} gf={gf} gc={gc} />}
 
       {/* FORMACIONES */}
       <div style={{ display:'flex', gap:8, padding:'8px 12px', background:'#121214', borderBottom:'1px solid #27272a' }}>

@@ -43,6 +43,10 @@ function derivar(p) {
   const tirosPuertaRival = ev.filter(e => e.tipo === 'tiro-puerta-rival')
   const corners      = ev.filter(e => e.tipo === 'corner')
   const cornersRival = ev.filter(e => e.tipo === 'corner-rival')
+  const faltas       = ev.filter(e => e.tipo === 'falta' || e.tipo === 'falta-favor')
+  const faltasRival  = ev.filter(e => e.tipo === 'falta-rival')
+  const offside      = ev.filter(e => e.tipo === 'offside')
+  const offsideRival = ev.filter(e => e.tipo === 'offside-rival')
   const asistencias  = ev.filter(e => e.tipo === 'asistencia')
   const momentos     = ev.filter(e => /gol|roja|amarilla|cambio/i.test(e.tipo||'')).slice(0,6)
   const cG = {}
@@ -51,7 +55,7 @@ function derivar(p) {
   const cA = {}
   asistencias.forEach(g => { if (g.jugador) cA[g.jugador] = (cA[g.jugador]||0)+1 })
   const asistidores = Object.entries(cA).sort((a,b)=>b[1]-a[1])
-  return { ev, goles, golesRival, amar, amarRival, rojas, rojasRival, cambios, cambiosRival, tiros, tirosRival, tirosPuerta, tirosPuertaRival, corners, cornersRival, asistencias, momentos, goleadores, asistidores }
+  return { ev, goles, golesRival, amar, amarRival, rojas, rojasRival, cambios, cambiosRival, tiros, tirosRival, tirosPuerta, tirosPuertaRival, corners, cornersRival, faltas, faltasRival, offside, offsideRival, asistencias, momentos, goleadores, asistidores }
 }
 function evIcon(tipo) {
   const t = (tipo||'').toLowerCase()
@@ -395,6 +399,8 @@ export default function Informes() {
               [d.rojas.length,    'Rojas',      d.rojasRival.length,  false, true],
               [d.cambios.length,  'Cambios',    d.cambiosRival.length,false, false],
               [d.corners.length,  'Córners',    d.cornersRival.length,false, false],
+              [d.faltas.length,   'Faltas',     d.faltasRival.length, false, false],
+              [d.offside.length,  'Fueras de juego', d.offsideRival.length, false, false],
             ].map(([l,c,r,isG,isW],i)=>(
               <StatRow key={i} label={c} left={l} right={r} isGoal={isG} isWarn={isW}
                 maxVal={Math.max(typeof l==='number'?l:0,typeof r==='number'?r:0,1)}/>
