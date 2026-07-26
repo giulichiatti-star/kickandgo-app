@@ -854,6 +854,15 @@ export default function EnVivo() {
                           return { ...m, [e.jugador_id]: arr }
                         })
                       }
+                      // Deshacer cambio: devolver jugadores a su sitio
+                      if (e.tipo === 'cambio' && e.saleId && e.entraId) {
+                        const entra = titulares.find((j) => j.id === e.entraId)
+                        const sale = suplentes.find((j) => j.id === e.saleId)
+                        if (entra && sale) {
+                          setTitulares((t) => t.map((j) => (j.id === e.entraId ? sale : j)))
+                          setSuplentes((s) => s.map((j) => (j.id === e.saleId ? entra : j)))
+                        }
+                      }
                       setEventos((ev) => ev.filter((_, k) => k !== i))
                     }}>✕</button>
                   </div>
@@ -1265,6 +1274,15 @@ function MobileEnVivo({
                       if (idx !== -1) arr.splice(idx, 1)
                       return { ...m, [e.jugador_id]: arr }
                     })
+                  }
+                  // Deshacer cambio: devolver jugadores a su sitio
+                  if (e.tipo === 'cambio' && e.saleId && e.entraId) {
+                    const entra = titulares.find((j) => j.id === e.entraId)
+                    const sale = suplentes.find((j) => j.id === e.saleId)
+                    if (entra && sale) {
+                      setTitulares((t) => t.map((j) => (j.id === e.entraId ? sale : j)))
+                      setSuplentes((s) => s.map((j) => (j.id === e.saleId ? entra : j)))
+                    }
                   }
                   setEventos((ev) => ev.filter((_, k) => k !== i))
                 }} style={{ background:'none', border:'none', color:'#71717a', fontSize:14, padding:'4px 6px', cursor:'pointer', flexShrink:0, lineHeight:1 }}>✕</button>
