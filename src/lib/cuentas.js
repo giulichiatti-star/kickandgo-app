@@ -105,7 +105,7 @@ export async function listarAvisosPago() {
   // Join manual (sin depender del nombre de la FK en Supabase, que puede no estar declarada)
   const { data: notif, error } = await supabase
     .from('payment_notifications')
-    .select('id, metodo, estado, creado_en, user_id')
+    .select('id, metodo, estado, creado_en, user_id, justificante_pedido_en')
     .order('creado_en', { ascending: false })
   if (error) throw error
   if (!notif?.length) return []
@@ -123,6 +123,11 @@ export async function pedirJustificante(aviso) {
   const { data, error } = await supabase.functions.invoke('pago-no-recibido', { body: { userId: aviso.user_id } })
   if (error) throw error
   if (data && data.ok === false) throw new Error(data.error || 'No se pudo enviar el email')
+  // Marcar en el aviso que ya se pidió el justificante (sigue pendiente de verificar).
+  await supabase
+    .from('payment_notifications')
+    .update({ justificante_pedido_en: new Date().toISOString() })
+    .eq('id', aviso.id)
   return data
 }
 

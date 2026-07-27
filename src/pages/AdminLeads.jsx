@@ -750,7 +750,7 @@ function TabPagos() {
       `¿Enviar email a ${aviso.profiles?.club_nombre || aviso.user_id} diciendo que aún no recibimos el pago y pidiéndole el justificante? La cuenta NO se marca como pagada.`,
       async () => {
         setProcesando(aviso.id)
-        try { await pedirJustificante(aviso); setError(''); alert('📧 Email enviado. El cliente puede responder adjuntando el justificante.') }
+        try { await pedirJustificante(aviso); setError(''); alert('📧 Email enviado. El cliente puede responder adjuntando el justificante.'); recargar() }
         catch (e) { setError(e.message) }
         finally { setProcesando(null) }
       }
@@ -814,6 +814,11 @@ function TabPagos() {
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: 'rgba(59,130,246,.12)', color: '#60a5fa' }}>
                       {a.profiles?.plan_estado}
                     </span>
+                    {a.justificante_pedido_en && (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: 'rgba(245,158,11,.15)', color: '#fbbf24' }}>
+                        📄 Justificante pedido · {new Date(a.justificante_pedido_en).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}
+                      </span>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
@@ -830,7 +835,7 @@ function TabPagos() {
                     disabled={procesando === a.id}
                     onClick={() => accionPedirJustificante(a)}
                     title="Enviar email: aún no recibimos el pago, pide el justificante">
-                    {procesando === a.id ? '…' : '📄 No recibido'}
+                    {procesando === a.id ? '…' : a.justificante_pedido_en ? '📄 Reenviar' : '📄 No recibido'}
                   </button>
                   <button
                     className="btn btn-primary text-xs"
