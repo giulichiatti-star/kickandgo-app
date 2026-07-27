@@ -759,6 +759,57 @@ function TabPagos() {
 
   const pendientes = avisos.filter(a => a.estado === 'pendiente')
   const confirmados = avisos.filter(a => a.estado === 'confirmado')
+  // Paneo rápido: separar los que necesitan tu acción de los que esperan al cliente.
+  const porRevisar = pendientes.filter(a => !a.justificante_pedido_en)
+  const esperando = pendientes.filter(a => a.justificante_pedido_en)
+
+  const renderAviso = (a) => (
+    <div key={a.id} className="flex items-center justify-between flex-wrap gap-3 p-3 rounded-lg" style={{ background: 'rgba(245,158,11,.06)', border: '1px solid rgba(245,158,11,.2)' }}>
+      <div>
+        <div className="text-sm font-bold">{a.profiles?.club_nombre || '—'}</div>
+        <div className="text-xs text-muted">{a.profiles?.entrenador} · {a.profiles?.email}</div>
+        <div className="flex items-center gap-2 mt-1 flex-wrap">
+          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: 'rgba(59,130,246,.12)', color: '#60a5fa' }}>
+            {a.metodo === 'transferencia' ? '🏦 Transferencia' : '📱 Bizum'}
+          </span>
+          <span className="text-[10px] text-muted">
+            {new Date(a.creado_en).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' })}
+          </span>
+          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: 'rgba(59,130,246,.12)', color: '#60a5fa' }}>
+            {a.profiles?.plan_estado}
+          </span>
+          {a.justificante_pedido_en && (
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: 'rgba(245,158,11,.15)', color: '#fbbf24' }}>
+              📄 Justificante pedido · {new Date(a.justificante_pedido_en).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}
+            </span>
+          )}
+        </div>
+      </div>
+      <div className="flex items-center gap-3">
+        <label className="flex items-center gap-1.5 text-[11px] text-muted cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={!!enviarEmail[a.id]}
+            onChange={(e) => setEnviarEmail(s => ({ ...s, [a.id]: e.target.checked }))}
+          />
+          Enviar email
+        </label>
+        <button
+          className="btn btn-outline text-xs"
+          disabled={procesando === a.id}
+          onClick={() => accionPedirJustificante(a)}
+          title="Enviar email: aún no recibimos el pago, pide el justificante">
+          {procesando === a.id ? '…' : a.justificante_pedido_en ? '📄 Reenviar' : '📄 No recibido'}
+        </button>
+        <button
+          className="btn btn-primary text-xs"
+          disabled={procesando === a.id}
+          onClick={() => accionConfirmar(a)}>
+          {procesando === a.id ? '…' : '✅ Confirmar pago'}
+        </button>
+      </div>
+    </div>
+  )
 
   const kpi = (label, val, color) => (
     <div className="card p-3" style={{ minWidth: 0 }}>
@@ -792,60 +843,33 @@ function TabPagos() {
       </div>
 
       <div className="card p-4" style={{ border: '1px solid rgba(245,158,11,.3)' }}>
-        <div className="font-bold text-sm mb-3" style={{ color: '#fbbf24' }}>💳 Avisos pendientes de verificar ({pendientes.length})</div>
+        <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
+          <div className="font-bold text-sm" style={{ color: '#fbbf24' }}>💳 Avisos pendientes de verificar ({pendientes.length})</div>
+          {pendientes.length > 0 && (
+            <div className="flex gap-2 text-[11px] font-bold">
+              <span className="px-2 py-0.5 rounded-full" style={{ background: 'rgba(59,130,246,.12)', color: '#60a5fa' }}>🔵 Por revisar: {porRevisar.length}</span>
+              <span className="px-2 py-0.5 rounded-full" style={{ background: 'rgba(245,158,11,.15)', color: '#fbbf24' }}>🟡 Esperando justificante: {esperando.length}</span>
+            </div>
+          )}
+        </div>
         {cargando ? (
           <div className="text-xs text-muted">Cargando…</div>
         ) : pendientes.length === 0 ? (
           <div className="text-xs text-muted">No hay avisos pendientes. Cuando un cliente pulse "Ya pagué" en el email, aparecerá aquí.</div>
         ) : (
-          <div className="space-y-2">
-            {pendientes.map(a => (
-              <div key={a.id} className="flex items-center justify-between flex-wrap gap-3 p-3 rounded-lg" style={{ background: 'rgba(245,158,11,.06)', border: '1px solid rgba(245,158,11,.2)' }}>
-                <div>
-                  <div className="text-sm font-bold">{a.profiles?.club_nombre || '—'}</div>
-                  <div className="text-xs text-muted">{a.profiles?.entrenador} · {a.profiles?.email}</div>
-                  <div className="flex items-center gap-2 mt-1 flex-wrap">
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: 'rgba(59,130,246,.12)', color: '#60a5fa' }}>
-                      {a.metodo === 'transferencia' ? '🏦 Transferencia' : '📱 Bizum'}
-                    </span>
-                    <span className="text-[10px] text-muted">
-                      {new Date(a.creado_en).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' })}
-                    </span>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: 'rgba(59,130,246,.12)', color: '#60a5fa' }}>
-                      {a.profiles?.plan_estado}
-                    </span>
-                    {a.justificante_pedido_en && (
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: 'rgba(245,158,11,.15)', color: '#fbbf24' }}>
-                        📄 Justificante pedido · {new Date(a.justificante_pedido_en).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <label className="flex items-center gap-1.5 text-[11px] text-muted cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={!!enviarEmail[a.id]}
-                      onChange={(e) => setEnviarEmail(s => ({ ...s, [a.id]: e.target.checked }))}
-                    />
-                    Enviar email
-                  </label>
-                  <button
-                    className="btn btn-outline text-xs"
-                    disabled={procesando === a.id}
-                    onClick={() => accionPedirJustificante(a)}
-                    title="Enviar email: aún no recibimos el pago, pide el justificante">
-                    {procesando === a.id ? '…' : a.justificante_pedido_en ? '📄 Reenviar' : '📄 No recibido'}
-                  </button>
-                  <button
-                    className="btn btn-primary text-xs"
-                    disabled={procesando === a.id}
-                    onClick={() => accionConfirmar(a)}>
-                    {procesando === a.id ? '…' : '✅ Confirmar pago'}
-                  </button>
-                </div>
+          <div className="space-y-4">
+            {porRevisar.length > 0 && (
+              <div>
+                <div className="text-[11px] font-bold uppercase tracking-wider mb-2" style={{ color: '#60a5fa' }}>🔵 Por revisar — tu acción ({porRevisar.length})</div>
+                <div className="space-y-2">{porRevisar.map(renderAviso)}</div>
               </div>
-            ))}
+            )}
+            {esperando.length > 0 && (
+              <div>
+                <div className="text-[11px] font-bold uppercase tracking-wider mb-2" style={{ color: '#fbbf24' }}>🟡 Esperando justificante del cliente ({esperando.length})</div>
+                <div className="space-y-2">{esperando.map(renderAviso)}</div>
+              </div>
+            )}
           </div>
         )}
       </div>
