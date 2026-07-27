@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { listarLeads, actualizarLead, activarLeads, contactarLeads, linkWhatsapp } from '../lib/leads'
-import { listarCuentas, marcarPagado, marcarMora, darDeBaja, reactivar, resetearPassword, proximoVencimiento, eliminarCuenta, marcarFundador, listarAvisosPago, confirmarAviso, actualizarCuenta, listarCategoriasCuentas } from '../lib/cuentas'
+import { listarCuentas, marcarPagado, marcarMora, darDeBaja, reactivar, resetearPassword, proximoVencimiento, eliminarCuenta, marcarFundador, listarAvisosPago, confirmarAviso, pedirJustificante, actualizarCuenta, listarCategoriasCuentas } from '../lib/cuentas'
 import { listarUsoApp, nombreRuta } from '../lib/analytics'
 import TabResumen from '../components/admin/TabResumen'
 import { generarAccesoCliente, listarAccesos } from '../lib/adminAcceso'
@@ -745,6 +745,18 @@ function TabPagos() {
     )
   }
 
+  async function accionPedirJustificante(aviso) {
+    confirmar(
+      `¿Enviar email a ${aviso.profiles?.club_nombre || aviso.user_id} diciendo que aún no recibimos el pago y pidiéndole el justificante? La cuenta NO se marca como pagada.`,
+      async () => {
+        setProcesando(aviso.id)
+        try { await pedirJustificante(aviso); setError(''); alert('📧 Email enviado. El cliente puede responder adjuntando el justificante.') }
+        catch (e) { setError(e.message) }
+        finally { setProcesando(null) }
+      }
+    )
+  }
+
   const pendientes = avisos.filter(a => a.estado === 'pendiente')
   const confirmados = avisos.filter(a => a.estado === 'confirmado')
 
@@ -813,6 +825,13 @@ function TabPagos() {
                     />
                     Enviar email
                   </label>
+                  <button
+                    className="btn btn-outline text-xs"
+                    disabled={procesando === a.id}
+                    onClick={() => accionPedirJustificante(a)}
+                    title="Enviar email: aún no recibimos el pago, pide el justificante">
+                    {procesando === a.id ? '…' : '📄 No recibido'}
+                  </button>
                   <button
                     className="btn btn-primary text-xs"
                     disabled={procesando === a.id}

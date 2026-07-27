@@ -118,6 +118,14 @@ export async function listarAvisosPago() {
   return notif.map(n => ({ ...n, profiles: map[n.user_id] || null }))
 }
 
+export async function pedirJustificante(aviso) {
+  // Email al cliente: aún no recibimos el pago, que responda con el justificante.
+  const { data, error } = await supabase.functions.invoke('pago-no-recibido', { body: { userId: aviso.user_id } })
+  if (error) throw error
+  if (data && data.ok === false) throw new Error(data.error || 'No se pudo enviar el email')
+  return data
+}
+
 export async function confirmarAviso(aviso, { enviarEmail = false } = {}) {
   // 1. Marcar notificación como confirmada
   const { error: errNotif } = await supabase
