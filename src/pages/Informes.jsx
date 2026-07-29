@@ -322,7 +322,9 @@ export default function Informes() {
           </div>
           {/* Rival */}
           <div className="flex items-center gap-3 flex-1 min-w-0 justify-end flex-row-reverse">
-            <div className="rounded-xl flex-shrink-0 flex items-center justify-center text-xl" style={{width:44,height:44,background:'rgba(239,68,68,0.1)',border:'1px solid rgba(239,68,68,0.15)'}}>⚫</div>
+            {sel.rival_escudo_url
+              ? <img src={sel.rival_escudo_url} alt="" className="rounded-xl flex-shrink-0" style={{width:44,height:44,objectFit:'cover'}}/>
+              : <div className="rounded-xl flex-shrink-0 flex items-center justify-center text-xl" style={{width:44,height:44,background:'rgba(239,68,68,0.1)',border:'1px solid rgba(239,68,68,0.15)'}}>⚫</div>}
             <div className="text-right">
               <div style={{fontSize:16,fontWeight:800,color:'#fff',letterSpacing:'-.2px'}}>{sel.rival||'Rival'}</div>
               <div style={{fontSize:10,color:'#52525b'}}>{sel.local_visitante==='local'?'visitante':'local'}</div>
