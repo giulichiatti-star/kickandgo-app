@@ -215,9 +215,11 @@ export default function Informes() {
       : d.goleadores[0]
         ? {tipo:'MEJOR RENDIMIENTO',col:'#34d399',nom:d.goleadores[0][0],rate:Math.min(9.9,7.5+d.goleadores[0][1]*0.5),stat:d.goleadores[0][1],sub:'goles',foto_url:fotoDeNom(d.goleadores[0][0])}
         : {tipo:'MEJOR RENDIMIENTO',col:'#34d399',nom:null,rate:0,stat:'—',sub:'sin datos'},
-    d.asistidores[0]
-      ? {tipo:'A DESTACAR',col:'#60a5fa',nom:d.asistidores[0][0],rate:7.6,stat:d.asistidores[0][1],sub:'asist.',foto_url:fotoDeNom(d.asistidores[0][0])}
-      : {tipo:'A DESTACAR',col:'#60a5fa',nom:null,rate:0,stat:'—',sub:'sin datos'},
+    sel?.destacado
+      ? {tipo:'A DESTACAR',col:'#60a5fa',nom:sel.destacado.nom,rate:sel.destacado.rate,stat:sel.destacado.stat,sub:sel.destacado.sub,foto_url:jugPorId[sel.destacado.jugador_id]?.foto_url||fotoDeNom(sel.destacado.nom)}
+      : d.asistidores[0]
+        ? {tipo:'A DESTACAR',col:'#60a5fa',nom:d.asistidores[0][0],rate:7.6,stat:d.asistidores[0][1],sub:'asist.',foto_url:fotoDeNom(d.asistidores[0][0])}
+        : {tipo:'A DESTACAR',col:'#60a5fa',nom:null,rate:0,stat:'—',sub:'sin datos'},
     peorVal && peorVal[1] <= 5
       ? {tipo:'A MEJORAR',col:'#f87171',nom:jugPorId[peorVal[0]]?.nombre||'—',rate:peorVal[1],stat:peorVal[1],sub:'nota entrenador',foto_url:jugPorId[peorVal[0]]?.foto_url}
       : d.rojas[0]
