@@ -825,7 +825,27 @@ function AsistenciaPanel({ jugadores, lesionesActivas, asistencia, onChange }) {
 }
 
 /* ══ Modal gestión de biblioteca ══════════════════════════ */
-const EJ_VACIO = { nombre:'', categoria:'General', descripcion:'', duracion_min:15, intensidad:'Media', zona_muscular:'' }
+const EJ_VACIO = { nombre:'', categoria:'General', descripcion:'', duracion_min:15, intensidad:'Media', zona_muscular:'', imagen_url:'' }
+
+// Lee una imagen y la reduce (máx 1200px, JPEG) para no guardar base64 enormes.
+function leerImagenReducida(file, cb) {
+  const reader = new FileReader()
+  reader.onload = (ev) => {
+    const img = new Image()
+    img.onload = () => {
+      const maxW = 1200
+      const scale = Math.min(1, maxW / img.width)
+      const w = Math.round(img.width * scale), h = Math.round(img.height * scale)
+      const canvas = document.createElement('canvas')
+      canvas.width = w; canvas.height = h
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h)
+      cb(canvas.toDataURL('image/jpeg', 0.82))
+    }
+    img.onerror = () => cb(ev.target.result) // si no es rasterizable, usa el original
+    img.src = ev.target.result
+  }
+  reader.readAsDataURL(file)
+}
 const CATS_DEF = ['Calentamiento','Posesión','Transiciones','Presión','Finalización','Balón parado','Porteros','Partido','General']
 
 function GestionBiblioteca({ biblioteca, onClose, onRefrescar, crearEjercicio, actualizarEjercicio, borrarEjercicio }) {
@@ -838,6 +858,19 @@ function GestionBiblioteca({ biblioteca, onClose, onRefrescar, crearEjercicio, a
     setForm(ej ? { ...ej } : { ...EJ_VACIO })
     setEditando(ej ? ej.id : 'nuevo')
     setMsg('')
+  }
+  // Duplicar: copia todos los datos como ejercicio NUEVO y editable (título,
+  // imagen, descripción, duración… todo se puede cambiar antes de guardar).
+  function duplicar(ej) {
+    const { id, user_id, es_base, activo, orden, creado, created_at, updated_at, ...resto } = ej
+    setForm({ ...EJ_VACIO, ...resto, nombre: (ej.nombre || 'Ejercicio') + ' (copia)' })
+    setEditando('nuevo')
+    setMsg('')
+  }
+  function subirImagen(e) {
+    const file = e.target.files?.[0]; if (!file) return
+    if (file.size > 5 * 1024 * 1024) { setMsg('Imagen muy grande (máx 5MB).'); return }
+    leerImagenReducida(file, (dataUrl) => setForm((f) => ({ ...f, imagen_url: dataUrl })))
   }
   async function guardar() {
     if (!form.nombre.trim()) { setMsg('El nombre es obligatorio.'); return }
@@ -898,6 +931,26 @@ function GestionBiblioteca({ biblioteca, onClose, onRefrescar, crearEjercicio, a
                 <label className="text-[11px] text-muted">Descripción / instrucciones</label>
                 <textarea className="field mt-1" rows={4} value={form.descripcion} onChange={(e) => setForm({ ...form, descripcion: e.target.value })} placeholder="Explica el ejercicio: materiales, reglas, series, variantes…" />
               </div>
+              <div className="col-span-2">
+                <label className="text-[11px] text-muted">Imagen del ejercicio</label>
+                {form.imagen_url ? (
+                  <div className="mt-1" style={{ position:'relative', borderRadius:8, overflow:'hidden', border:'1px solid #27272a' }}>
+                    <img src={form.imagen_url} alt="" style={{ width:'100%', maxHeight:200, objectFit:'contain', display:'block', background:'#0f0f11' }} />
+                    <div className="flex gap-2 p-2" style={{ background:'#141416' }}>
+                      <label className="btn btn-outline text-xs flex-1 cursor-pointer text-center">
+                        Cambiar imagen
+                        <input type="file" accept="image/*" hidden onChange={subirImagen} />
+                      </label>
+                      <button type="button" className="btn btn-outline text-xs" onClick={() => setForm({ ...form, imagen_url: '' })}>Quitar</button>
+                    </div>
+                  </div>
+                ) : (
+                  <label className="field mt-1 flex items-center justify-center cursor-pointer text-xs text-muted" style={{ height:64, borderStyle:'dashed' }}>
+                    📷 Subir imagen (opcional)
+                    <input type="file" accept="image/*" hidden onChange={subirImagen} />
+                  </label>
+                )}
+              </div>
             </div>
             <div className="flex gap-2 mt-3">
               <button className="btn btn-outline flex-1 text-xs" onClick={() => setEditando(null)}>Cancelar</button>
@@ -924,8 +977,9 @@ function GestionBiblioteca({ biblioteca, onClose, onRefrescar, crearEjercicio, a
                   </div>
                 </div>
                 <div className="flex gap-1.5 flex-shrink-0">
-                  <button className="ent2-btn-edit" onClick={() => abrir(e)}>✏</button>
-                  {!e.es_base && <button className="ent2-btn-del2" onClick={() => eliminar(e.id)}>🗑</button>}
+                  <button className="ent2-btn-edit" title="Duplicar" onClick={() => duplicar(e)}>⧉</button>
+                  <button className="ent2-btn-edit" title="Editar" onClick={() => abrir(e)}>✏</button>
+                  {!e.es_base && <button className="ent2-btn-del2" title="Eliminar" onClick={() => eliminar(e.id)}>🗑</button>}
                 </div>
               </div>
             )
