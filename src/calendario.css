@@ -18,6 +18,7 @@
 .cal-leg .d{width:9px;height:9px;border-radius:50%;display:inline-block}
 .cal-leg .d.ent{background:#34d399;outline:3px solid rgba(52,211,153,.15)}
 .cal-leg .d.conv{background:#60a5fa;outline:3px solid rgba(96,165,250,.15)}
+.cal-leg .d.liga{background:#8b5cf6;outline:3px solid rgba(139,92,246,.15)}
 .cal-leg .d.nota{background:#f59e0b;outline:3px solid rgba(245,158,11,.15)}
 
 /* ===== MES ===== */
@@ -39,6 +40,7 @@
 .pill{font-size:10.5px;font-weight:700;padding:3px 7px;border-radius:6px;display:flex;align-items:center;gap:4px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;min-width:0;border:1px solid transparent}
 .pill.ent{background:rgba(52,211,153,.13);color:#34d399;border-color:rgba(52,211,153,.2)}
 .pill.conv{background:rgba(96,165,250,.13);color:#93c5fd;border-color:rgba(96,165,250,.2)}
+.pill.liga{background:rgba(139,92,246,.13);color:#c4b5fd;border-color:rgba(139,92,246,.2)}
 .pill.nota::after{content:'📝';margin-left:auto;font-size:9.5px}
 .more{font-size:10px;color:#71717a;padding-left:2px;font-weight:600}
 
@@ -55,6 +57,7 @@
 .sem-item:hover{background:#1c1c21}
 .sem-item.ent{border-left:2.5px solid #34d399}
 .sem-item.conv{border-left:2.5px solid #60a5fa}
+.sem-item.liga{border-left:2.5px solid #8b5cf6;cursor:default}
 .sem-item.nota{border-left:2.5px solid #f59e0b}
 .sem-item .t{font-weight:700;margin-bottom:2px}
 .sem-item .m{color:#71717a;font-size:10.5px;font-weight:600}
@@ -72,6 +75,7 @@
 .dia-item:hover{background:#1c1c21;border-color:#3f3f46}
 .dia-item.ent{border-left:3px solid #34d399}
 .dia-item.conv{border-left:3px solid #60a5fa}
+.dia-item.liga{border-left:3px solid #8b5cf6;cursor:default}
 .dia-item .body{flex:1}
 .dia-item .head{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .dia-item .title{font-size:15px;font-weight:700}

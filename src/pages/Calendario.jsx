@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { useEquipo } from '../contexts/EquipoContext'
 import { listarEntrenos, borrarEntreno } from '../lib/entrenamientos'
 import { listarConvocatorias, borrarConvocatoria } from '../lib/convocatorias'
 import { listarNotasCalendario, guardarNotaCalendario, borrarNotaCalendario } from '../lib/calendarioNotas'
+import { getCompeticion } from '../lib/competicion'
 import '../calendario.css'
 
 const DOWS = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom']
@@ -10,11 +12,25 @@ const fmtISO = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')
 const startOfWeek = d => { const x=new Date(d); const dw=(x.getDay()+6)%7; x.setDate(x.getDate()-dw); x.setHours(0,0,0,0); return x }
 const horaFmt = h => h ? h.slice(0,5) : null
 
+// Convierte "dd/mm" o "dd/mm/aa" (formato usado en la carga masiva de calendario
+// de liga en Rivales) a fecha ISO 'YYYY-MM-DD'. Sin año → asume el año en curso.
+function fechaLigaAISO(str) {
+  if (!str) return null
+  const m = String(str).match(/^(\d{1,2})[\/\-.](\d{1,2})(?:[\/\-.](\d{2,4}))?$/)
+  if (!m) return null
+  const day = parseInt(m[1], 10), mon = parseInt(m[2], 10) - 1
+  const yr = m[3] ? (m[3].length === 2 ? 2000 + parseInt(m[3], 10) : parseInt(m[3], 10)) : new Date().getFullYear()
+  const d = new Date(yr, mon, day)
+  return isNaN(d.getTime()) ? null : fmtISO(d)
+}
+
 export default function Calendario() {
-  const [equipoId, setEquipoId] = useState(null)
+  const { equipoActivo } = useEquipo()
+  const equipoId = equipoActivo?.id || null
   const [entrenos, setEntrenos] = useState([])
   const [convocatorias, setConvocatorias] = useState([])
   const [notasDia, setNotasDia] = useState({}) // { iso: texto }
+  const [partidosLiga, setPartidosLiga] = useState([]) // fixtures de liga (carga masiva en Rivales)
   const [vista, setVista] = useState('mes')
   const HOY = useMemo(() => { const d = new Date(); d.setHours(0,0,0,0); return d }, [])
   const [cursor, setCursor] = useState(() => { const d = new Date(); d.setDate(1); d.setHours(0,0,0,0); return d })
@@ -25,39 +41,45 @@ export default function Calendario() {
     (async () => {
       const { data: u } = await supabase.auth.getUser()
       if (!u?.user) return
-      const eqId = localStorage.getItem('equipo_activo') || null
-      setEquipoId(eqId)
       try {
-        const [e, c, n] = await Promise.all([
-          listarEntrenos(eqId).catch(() => []),
-          listarConvocatorias(eqId).catch(() => []),
-          listarNotasCalendario(eqId).catch(() => []),
+        const [e, c, n, comp] = await Promise.all([
+          listarEntrenos(equipoId).catch(() => []),
+          listarConvocatorias(equipoId).catch(() => []),
+          listarNotasCalendario(equipoId).catch(() => []),
+          getCompeticion(equipoId).catch(() => null),
         ])
         setEntrenos(e || [])
         setConvocatorias(c || [])
         const map = {}
         ;(n || []).forEach(x => { map[x.fecha] = x.texto })
         setNotasDia(map)
+        setPartidosLiga(comp?.proximas_fechas || [])
       } catch {}
     })()
-  }, [])
+  }, [equipoId])
 
   const eventosPorDia = useMemo(() => {
     const m = {}
+    const get = k => (m[k] = m[k] || { entrenos: [], convocatorias: [], liga: [] })
     entrenos.forEach(e => {
       if (!e.fecha) return
-      const k = String(e.fecha).slice(0,10)
-      m[k] = m[k] || { entrenos: [], convocatorias: [] }
-      m[k].entrenos.push(e)
+      get(String(e.fecha).slice(0,10)).entrenos.push(e)
     })
     convocatorias.forEach(c => {
       if (!c.fecha) return
-      const k = String(c.fecha).slice(0,10)
-      m[k] = m[k] || { entrenos: [], convocatorias: [] }
-      m[k].convocatorias.push(c)
+      get(String(c.fecha).slice(0,10)).convocatorias.push(c)
+    })
+    // Fixtures de liga cargados en bloque (Rivales → importar CSV). Se omiten
+    // los días que ya tienen una convocatoria propia (sería el mismo partido).
+    partidosLiga.forEach(p => {
+      const iso = fechaLigaAISO(p.fecha)
+      if (!iso) return
+      const dia = get(iso)
+      if (dia.convocatorias.length) return
+      dia.liga.push(p)
     })
     return m
-  }, [entrenos, convocatorias])
+  }, [entrenos, convocatorias, partidosLiga])
 
   const nav = dir => {
     if (vista === 'mes') setCursor(c => new Date(c.getFullYear(), c.getMonth()+dir, 1))
@@ -127,6 +149,7 @@ export default function Calendario() {
       <div className="cal-leg">
         <span><span className="d ent"/>Entreno</span>
         <span><span className="d conv"/>Convocatoria</span>
+        <span><span className="d liga"/>Partido de liga</span>
         <span><span className="d nota"/>Con nota</span>
       </div>
 
@@ -176,6 +199,7 @@ function VistaMes({ cursor, hoy, sel, eventos, notasDia, onDia }) {
           const items = [
             ...(ev.entrenos||[]).map(e=>({tipo:'ent', t:e.objetivo || 'Entreno', nota:!!e.notas})),
             ...(ev.convocatorias||[]).map(c=>({tipo:'conv', t:'vs '+(c.rival||'—'), nota:!!c.notas})),
+            ...(ev.liga||[]).map(p=>({tipo:'liga', t:`${p.local||'—'} vs ${p.visitante||'—'}`, nota:false})),
           ]
           return (
             <div key={i} className={`day-cell ${otro?'otro':''} ${esHoy?'hoy':''} ${esSel?'sel':''} ${esFinde?'finde':''}`} onClick={()=>onDia(iso)}>
@@ -223,12 +247,18 @@ function VistaSemana({ cursor, hoy, eventos, notasDia, onNota, onDia }) {
                 <div className="m">{horaFmt(c.hora_partido) ? `🕐 ${horaFmt(c.hora_partido)}` : c.formacion || ''}{c.lugar ? ` · 📍 ${c.lugar}` : ''}</div>
               </div>
             ))}
+            {(ev.liga||[]).map((p,k) => (
+              <div key={'l'+k} className="sem-item liga">
+                <div className="t">{p.local || '—'} vs {p.visitante || '—'}</div>
+                <div className="m">{p.jornada ? `J${p.jornada}` : 'Liga'}{p.hora ? ` · 🕐 ${p.hora}` : ''}</div>
+              </div>
+            ))}
             {notaSuelta && (
               <div className="sem-item nota" onClick={()=>onNota({titulo:`Nota · ${iso}`, texto:notaSuelta})}>
                 <div className="t">📝 Nota del día</div>
               </div>
             )}
-            {(!ev.entrenos?.length && !ev.convocatorias?.length && !notaSuelta) && <div className="sem-empty">Sin eventos</div>}
+            {(!ev.entrenos?.length && !ev.convocatorias?.length && !ev.liga?.length && !notaSuelta) && <div className="sem-empty">Sin eventos</div>}
           </div>
         )
       })}
@@ -292,6 +322,25 @@ function VistaDia({ dia, eventos, notasDia, onNota, onBorrarEntreno, onBorrarCon
           </div>
         ))}
       </div>
+
+      {(ev.liga||[]).length > 0 && (
+        <div className="dia-sec">
+          <h4><span className="dot" style={{background:'#8b5cf6'}}/>Partidos de liga</h4>
+          {ev.liga.map((p,k) => (
+            <div key={k} className="dia-item liga">
+              <div className="body">
+                <div className="head">
+                  <div className="title">{p.local || '—'} vs {p.visitante || '—'}</div>
+                </div>
+                <div className="meta">
+                  {p.jornada && <span>🏆 Jornada {p.jornada}</span>}
+                  {p.hora && <span>🕐 {p.hora}</span>}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="dia-sec">
         <h4><span className="dot" style={{background:'#f59e0b'}}/>Nota del día</h4>

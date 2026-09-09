@@ -90,8 +90,19 @@ export function calcularTabla(jugados = [], nuestrosPartidos = [], clubNombre = 
   const tabla = Object.values(eq)
     .map(t => ({ ...t, forma: t.forma.slice(-5), pos: 0 }))
     .sort((a, b) => b.pts - a.pts || (b.gf - b.gc) - (a.gf - a.gc) || b.gf - a.gf)
-  tabla.forEach((t, i) => { t.pos = i + 1 })
-  return tabla
+
+  // La liga solo tiene 12 equipos. Si el CSV importado genera más (variantes
+  // de nombre, filas mal parseadas…), nos quedamos con los 12 mejor
+  // clasificados — pero siempre incluyendo nuestro propio equipo, aunque
+  // quedara fuera del corte por datos sucios.
+  const MAX_EQUIPOS = 12
+  let limitada = tabla.slice(0, MAX_EQUIPOS)
+  const miEquipo = tabla.find(t => t.miEquipo)
+  if (miEquipo && !limitada.includes(miEquipo)) {
+    limitada = [...limitada.slice(0, MAX_EQUIPOS - 1), miEquipo]
+  }
+  limitada.forEach((t, i) => { t.pos = i + 1 })
+  return limitada
 }
 
 // Devuelve tabla/goleadores/calendario del usuario (vacío si no tiene datos)
