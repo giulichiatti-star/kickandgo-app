@@ -11,12 +11,13 @@ const ACCIONES_RIVAL = [
   { tipo: 'cambio-rival',   ico: '🔄', lbl: 'Cambio',         color: '#60a5fa' },
 ]
 
-export default function ManualControls({ rival, onRegistrar }) {
+export default function ManualControls({ rival, onRegistrar, rivalJugadores }) {
   const [jugRivalDorsal, setJugRivalDorsal] = useState('')
 
   function handleRival(a) {
+    const conocido = rivalJugadores?.find((j) => j.dorsal == jugRivalDorsal && j.nombre)
     const jug = a.needsDorsal && jugRivalDorsal
-      ? { id: 'r-' + jugRivalDorsal, dorsal: jugRivalDorsal, nombre: `Rival #${jugRivalDorsal}` }
+      ? { id: 'r-' + jugRivalDorsal, dorsal: jugRivalDorsal, nombre: conocido?.nombre || `#${jugRivalDorsal}` }
       : null
     onRegistrar(a.tipo, jug)
   }

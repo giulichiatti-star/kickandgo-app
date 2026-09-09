@@ -126,7 +126,12 @@ export default function EnVivo() {
   const [partidoRestaurado, setPartidoRestaurado] = useState(false)
   const [eventos, setEventos] = useState([])
   const [marks, setMarks] = useState({})
-  const [rivalDorsales, setRivalDorsales] = useState(() => RIVAL_DEMO.map(r => r.dorsal))
+  // Alineación rival: dorsal + nombre (opcional) por posición, editable antes
+  // del partido para ser más precisos que el "Rival N" genérico de antes.
+  const [rivalJugadores, setRivalJugadores] = useState(() => RIVAL_DEMO.map(r => ({ dorsal: r.dorsal, nombre: '' })))
+  const [modoManualRival, setModoManualRival] = useState(false)
+  const [coordsManualRival, setCoordsManualRival] = useState(null)
+  const [editandoRival, setEditandoRival] = useState(false)
   const [sel, setSel] = useState(null) // {id,dorsal,nombre}
   const [escuchando, setEscuchando] = useState(false)
   const [oido, setOido] = useState('')
@@ -149,7 +154,9 @@ export default function EnVivo() {
   const { mostrar: mostrarPWA, instalar, descartar } = usePWAInstall('envivo')
   const timer = useRef(null), recRef = useRef(null), escRef = useRef(false), titRef = useRef([])
   const clubRef = useRef(club), rivalRef = useRef(rival), lastVozRef = useRef({ txt: '', ts: 0 })
+  const rivalJugadoresRef = useRef(rivalJugadores)
   titRef.current = titulares
+  rivalJugadoresRef.current = rivalJugadores
   clubRef.current = club
   rivalRef.current = rival
 
@@ -167,6 +174,9 @@ export default function EnVivo() {
           if (s.tiempo) setTiempo(s.tiempo)
           if (s.descanso) setDescanso(s.descanso)
           if (s.coordsManual) { setCoordsManual(s.coordsManual); setModoManual(true) }
+          if (s.coordsManualRival) { setCoordsManualRival(s.coordsManualRival); setModoManualRival(true) }
+          if (s.rivalJugadores?.length) setRivalJugadores(s.rivalJugadores)
+          if (s.formacionRival) setFormacionRival(s.formacionRival)
           setEventos(s.eventos || []); setMarks(s.marks || {})
           setNotas(s.notas || ''); setStats(s.stats || { tiros:0, corners:0, faltas:0, amarillas:0 })
           setRival(s.rival || 'Rival'); setClub(s.club || 'Nuestro equipo')
@@ -209,12 +219,13 @@ export default function EnVivo() {
         localStorage.setItem('kg_envivo', JSON.stringify({
           gf, gc, seg, tiempo, descanso, eventos, marks, notas, stats,
           rival, club, titulares, suplentes, xiInicial, formacion, tipo, coordsManual,
+          formacionRival, rivalJugadores, coordsManualRival,
           equipo_id: eid, ts: Date.now(),
         }))
       } catch (err) { console.error("[EnVivo] localStorage save", err) }
     }, 30000)
     return () => clearInterval(id)
-  }, [gf, gc, seg, tiempo, descanso, eventos, marks, notas, stats, rival, club, titulares, suplentes, xiInicial, formacion, tipo, coordsManual, eid])
+  }, [gf, gc, seg, tiempo, descanso, eventos, marks, notas, stats, rival, club, titulares, suplentes, xiInicial, formacion, tipo, coordsManual, formacionRival, rivalJugadores, coordsManualRival, eid])
 
   // Duración del primer tiempo según tipo de equipo (en segundos)
   const durT1 = tipo === '7' ? 35 * 60 : tipo === '9' ? 40 * 60 : 45 * 60
@@ -276,6 +287,11 @@ export default function EnVivo() {
   // Minuto real mostrado (2T arranca desde durT1)
   const minMostrado = tiempo === 2 ? Math.floor(durT1 / 60) + Math.floor(seg / 60) : min
 
+  // El partido ya ha arrancado (se pulsó INICIAR alguna vez). Antes de esto,
+  // configurar la alineación rival, moverla o cambiar de formación es solo
+  // preparación — no debe quedar registrado como evento del partido.
+  const partidoIniciado = corriendo || seg > 0 || tiempo === 2 || descanso
+
   function iniciarSegundoTiempo() {
     setDescanso(false)
     setTiempo(2)
@@ -333,11 +349,46 @@ export default function EnVivo() {
     window.addEventListener('touchend', onUp)
   }
   const rivalForm = formsDe(tipo)[formacionRival] || Object.values(formsDe(tipo))[0]
-  const puntosRival = rivalDorsales.slice(0, rivalForm.length).map((dorsal, i) => ({
-    id: `r-${dorsal}`, dorsal, nombre: 'Rival ' + dorsal, cat: i === 0 ? 'POR' : 'MED',
-    x: i === 0 ? 100 - insetGK(rivalForm[i][0]) : inset(100 - rivalForm[i][0]),
-    y: inset(rivalForm[i][1]), gk: i === 0, side: 'rival',
+  // Con formación (coordsManualRival=null): posiciones espejadas del patrón.
+  // Con arrastre manual: coordsManualRival ya son coordenadas reales de
+  // pantalla (igual que en el equipo propio), no se vuelven a espejar.
+  const rivalBase = coordsManualRival || rivalForm
+  const puntosRival = rivalJugadores.slice(0, rivalForm.length).map((j, i) => ({
+    id: `r-${j.dorsal}`, dorsal: j.dorsal, nombre: j.nombre || ('Rival ' + j.dorsal), cat: i === 0 ? 'POR' : 'MED',
+    x: coordsManualRival
+      ? (i === 0 ? insetGK(rivalBase[i][0]) : inset(rivalBase[i][0]))
+      : (i === 0 ? 100 - insetGK(rivalForm[i][0]) : inset(100 - rivalForm[i][0])),
+    y: inset(rivalBase[i][1]), gk: i === 0, side: 'rival',
   }))
+
+  function handleDragRival(e, idx) {
+    if (!modoManualRival) return
+    e.preventDefault()
+    const cancha = canchaRef.current
+    if (!cancha) return
+    const rect = cancha.getBoundingClientRect()
+    const base = coordsManualRival || rivalForm
+    const newCoords = base.map((c) => [...c])
+
+    function onMove(ev) {
+      const clientX = ev.touches ? ev.touches[0].clientX : ev.clientX
+      const clientY = ev.touches ? ev.touches[0].clientY : ev.clientY
+      const x = Math.round(Math.min(98, Math.max(2, ((clientX - rect.left) / rect.width) * 100)))
+      const y = Math.round(Math.min(97, Math.max(3, ((clientY - rect.top) / rect.height) * 100)))
+      newCoords[idx] = [x, y]
+      setCoordsManualRival([...newCoords])
+    }
+    function onUp() {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+      window.removeEventListener('touchmove', onMove)
+      window.removeEventListener('touchend', onUp)
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+    window.addEventListener('touchmove', onMove, { passive: false })
+    window.addEventListener('touchend', onUp)
+  }
 
   function bump(s) { setStats((p) => ({ ...p, [s]: (p[s] || 0) + 1 })) }
 
@@ -392,7 +443,7 @@ export default function EnVivo() {
     const saleN = parseInt(saleRival, 10)
     const entraN = parseInt(entraRival, 10)
     if (!isNaN(saleN) && !isNaN(entraN)) {
-      setRivalDorsales(rd => rd.map(d => d === saleN ? entraN : d))
+      setRivalJugadores(rj => rj.map(j => j.dorsal == saleN ? { dorsal: entraN, nombre: '' } : j))
       setMarks(m => ({ ...m, [`r-${entraN}`]: [...(m[`r-${entraN}`] || []), '🔄'] }))
     }
     setEventos((e) => [{ min: minMostrado, tipo: 'cambio-rival', icon: '🔄', label: `Cambio ${rival}`, jugador: `Sale #${saleRival} · Entra #${entraRival}` }, ...e])
@@ -405,7 +456,7 @@ export default function EnVivo() {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition
     if (!SR) { alert('Tu navegador no soporta voz (usa Chrome/Android)'); return }
     const rec = new SR(); rec.lang = 'es-ES'; rec.continuous = true; rec.interimResults = false
-    rec.onresult = (e) => { const i = e.resultIndex; if (e.results[i]?.isFinal) { const txt = e.results[i][0].transcript; const now = Date.now(); if (txt === lastVozRef.current.txt && now - lastVozRef.current.ts < 2000) return; lastVozRef.current = { txt, ts: now }; setOido(txt); const r = clasificarVoz(txt, titRef.current, clubRef.current, rivalRef.current); if (r) { const jug = r.dorsalRival != null ? (RIVAL_DEMO.find(j => j.dorsal === r.dorsalRival) || null) : r.jugador; registrar(r.tipo, jug) } } }
+    rec.onresult = (e) => { const i = e.resultIndex; if (e.results[i]?.isFinal) { const txt = e.results[i][0].transcript; const now = Date.now(); if (txt === lastVozRef.current.txt && now - lastVozRef.current.ts < 2000) return; lastVozRef.current = { txt, ts: now }; setOido(txt); const r = clasificarVoz(txt, titRef.current, clubRef.current, rivalRef.current); if (r) { const jug = r.dorsalRival != null ? { id: 'r-' + r.dorsalRival, dorsal: r.dorsalRival, nombre: rivalJugadoresRef.current.find(j => j.dorsal == r.dorsalRival)?.nombre || ('Rival ' + r.dorsalRival) } : r.jugador; registrar(r.tipo, jug) } } }
     rec.onend = () => { if (escRef.current) { try { rec.start() } catch {} } }
     recRef.current = rec; try { rec.start(); escRef.current = true; setEscuchando(true) } catch {}
   }
@@ -606,7 +657,7 @@ export default function EnVivo() {
         <div>
           {/* ManualControls visible en móvil — antes de la cancha */}
           <div className="ev2-rail-mobile" style={{ display: 'none', marginBottom: 12 }}>
-            <ManualControls rival={rival} onRegistrar={registrar} />
+            <ManualControls rival={rival} onRegistrar={registrar} rivalJugadores={rivalJugadores} />
           </div>
           {tab === 'partido' && (
             <>
@@ -619,7 +670,9 @@ export default function EnVivo() {
                       setFormacion(f)
                       setCoordsManual(null)
                       setModoManual(false)
-                      setEventos((ev) => [{ min: minMostrado, tipo: 'formacion', icon: '🔀', label: `Cambio de formación → ${f}`, jugador: null }, ...ev])
+                      if (partidoIniciado) {
+                        setEventos((ev) => [{ min: minMostrado, tipo: 'formacion', icon: '🔀', label: `Cambio de formación → ${f}`, jugador: null }, ...ev])
+                      }
                     }
                   }}
                     className={`text-xs px-3 py-1.5 rounded-lg border whitespace-nowrap ${formacion === f && !modoManual ? 'border-cyan bg-cyan/10 text-cyan' : 'border-borde text-muted'}`}>{f}</button>
@@ -636,23 +689,71 @@ export default function EnVivo() {
                 </button>
               </div>
               {/* Chips formación rival */}
-              <div className="flex items-center gap-1.5 mb-2 overflow-x-auto pb-1">
+              <div className="flex items-center gap-1.5 mb-1.5 overflow-x-auto pb-1">
                 <span className="text-[10px] font-bold text-rojo uppercase shrink-0 pr-1">{rival.split(' ')[0]}</span>
                 {Object.keys(formsDe(tipo)).map((f) => (
                   <button key={f} onClick={() => {
-                    if (f !== formacionRival) {
+                    if (f !== formacionRival || modoManualRival) {
                       setFormacionRival(f)
-                      setEventos((ev) => [{ min: minMostrado, tipo: 'formacion-rival', icon: '🔀', label: `${rival} cambia a ${f}`, jugador: null }, ...ev])
+                      setCoordsManualRival(null)
+                      setModoManualRival(false)
+                      if (partidoIniciado) {
+                        setEventos((ev) => [{ min: minMostrado, tipo: 'formacion-rival', icon: '🔀', label: `${rival} cambia a ${f}`, jugador: null }, ...ev])
+                      }
                     }
                   }}
-                    className={`text-xs px-3 py-1.5 rounded-lg border whitespace-nowrap ${formacionRival === f ? 'border-rojo bg-rojo/10 text-rojo' : 'border-borde text-muted'}`}>{f}</button>
+                    className={`text-xs px-3 py-1.5 rounded-lg border whitespace-nowrap ${formacionRival === f && !modoManualRival ? 'border-rojo bg-rojo/10 text-rojo' : 'border-borde text-muted'}`}>{f}</button>
                 ))}
+                <button onClick={() => {
+                  if (!modoManualRival) {
+                    setCoordsManualRival(rivalForm.map((c) => [...c]))
+                    setModoManualRival(true)
+                  } else {
+                    setModoManualRival(false)
+                  }
+                }} className={`text-xs px-3 py-1.5 rounded-lg border whitespace-nowrap shrink-0 ${modoManualRival ? 'border-rojo bg-rojo/10 text-rojo' : 'border-borde text-muted'}`}>
+                  ✏️ Mover{modoManualRival ? ' (activo)' : ''}
+                </button>
+                <button onClick={() => setEditandoRival((v) => !v)}
+                  className={`text-xs px-3 py-1.5 rounded-lg border whitespace-nowrap shrink-0 ${editandoRival ? 'border-rojo bg-rojo/10 text-rojo' : 'border-borde text-muted'}`}>
+                  🎽 Alineación{editandoRival ? ' ✓' : ''}
+                </button>
               </div>
+              {editandoRival && (
+                <div className="mb-2 p-2.5 rounded-lg border border-borde" style={{ background: 'rgba(239,68,68,.04)' }}>
+                  <div className="text-[10px] font-bold text-rojo uppercase mb-2">
+                    Alineación de {rival} — dorsal y nombre (opcional, no se registra como evento)
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+                    {rivalJugadores.slice(0, rivalForm.length).map((j, i) => (
+                      <div key={i} className="flex items-center gap-1">
+                        <input type="number" min={1} max={99} className="field text-xs" style={{ width: 46, flexShrink: 0 }}
+                          value={j.dorsal}
+                          onChange={(e) => {
+                            const v = e.target.value.replace(/\D/g, '').slice(0, 2)
+                            setRivalJugadores((arr) => arr.map((x, k) => (k === i ? { ...x, dorsal: v } : x)))
+                          }} />
+                        <input type="text" className="field text-xs flex-1" placeholder={i === 0 ? 'Portero' : `Jugador ${i + 1}`}
+                          value={j.nombre}
+                          onChange={(e) => {
+                            const v = e.target.value
+                            setRivalJugadores((arr) => arr.map((x, k) => (k === i ? { ...x, nombre: v } : x)))
+                          }} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
               {/* CANCHA */}
               <div className="ev2-pitch-wrap">
                 {modoManual && (
                   <div className="text-[10px] text-center py-1 font-bold" style={{ color: '#f59e0b', background: 'rgba(245,158,11,0.1)' }}>
                     ✏️ Modo manual — arrastra los jugadores para reposicionarlos
+                  </div>
+                )}
+                {modoManualRival && (
+                  <div className="text-[10px] text-center py-1 font-bold" style={{ color: '#f87171', background: 'rgba(239,68,68,0.1)' }}>
+                    ✏️ Moviendo a {rival} — arrastra sus jugadores a su posición real
                   </div>
                 )}
                 {titulares.length === 0 && (
@@ -683,7 +784,10 @@ export default function EnVivo() {
                     <Player key={p.id} p={p}
                       onDragStart={modoManual ? (e) => handleDragJugador(e, i) : undefined} />
                   ))}
-                  {puntosRival.map((p) => <Player key={p.id} p={p} />)}
+                  {puntosRival.map((p, i) => (
+                    <Player key={p.id} p={p}
+                      onDragStart={modoManualRival ? (e) => handleDragRival(e, i) : undefined} />
+                  ))}
                 </div>
               </div>
 
@@ -764,7 +868,7 @@ export default function EnVivo() {
 
         {/* RAIL DERECHO — oculto en móvil (contenido duplicado abajo para móvil) */}
         <div className="ev2-rail-right-desktop">
-          <ManualControls rival={rival} onRegistrar={registrar} />
+          <ManualControls rival={rival} onRegistrar={registrar} rivalJugadores={rivalJugadores} />
 
           {/* Vista */}
           <div className="ev2-rail-card">
@@ -923,7 +1027,7 @@ export default function EnVivo() {
       online={online}
       mostrarPWA={mostrarPWA} instalar={instalar} descartar={descartar}
       setGf={setGf} setGc={setGc}
-      setRivalDorsales={setRivalDorsales}
+      rivalJugadores={rivalJugadores} setRivalJugadores={setRivalJugadores}
     />
     </div>
     </>
@@ -984,7 +1088,7 @@ function MobileEnVivo({
   durT1, seg, partidoRestaurado, ICONO_MARCA, min,
   notas, setNotas, online,
   mostrarPWA, instalar, descartar,
-  setGf, setGc, setRivalDorsales,
+  setGf, setGc, rivalJugadores, setRivalJugadores,
 }) {
   const ACCIONES = [
     { tipo: 'gol',        tipoRival: 'gol-rival',        ico: '⚽',  lbl: 'Gol',         needsPlayer: true,  needsPlayerRival: true },
@@ -1027,8 +1131,8 @@ function MobileEnVivo({
     if (!mSaleRival.trim() || !mEntraRival.trim()) return
     const saleN = parseInt(mSaleRival, 10)
     const entraN = parseInt(mEntraRival, 10)
-    if (!isNaN(saleN) && !isNaN(entraN) && setRivalDorsales) {
-      setRivalDorsales(rd => rd.map(d => d === saleN ? entraN : d))
+    if (!isNaN(saleN) && !isNaN(entraN) && setRivalJugadores) {
+      setRivalJugadores(rj => rj.map(j => j.dorsal == saleN ? { dorsal: entraN, nombre: '' } : j))
       setMarks(m => ({ ...m, [`r-${entraN}`]: [...(m[`r-${entraN}`] || []), '🔄'] }))
     }
     setEventos(e => [{ min: minMostrado, tipo: 'cambio-rival', icon: '🔄', label: `Cambio ${rival}`, jugador: `Sale #${mSaleRival} · Entra #${mEntraRival}` }, ...e])
@@ -1038,7 +1142,8 @@ function MobileEnVivo({
 
   function confirmRivalPlayer(dorsal) {
     if (!dorsal?.trim()) return
-    const jug = { id: 'r-' + dorsal, dorsal, nombre: `#${dorsal}` }
+    const conocido = rivalJugadores?.find((j) => j.dorsal == dorsal && j.nombre)
+    const jug = { id: 'r-' + dorsal, dorsal, nombre: conocido?.nombre || `#${dorsal}` }
     registrar(mobileSheet.tipo, jug)
     setMobileSheet(null)
   }
@@ -1129,6 +1234,12 @@ function MobileEnVivo({
             style={{ width:'100%', background:'#1c1c20', border:'1px solid #27272a', borderRadius:8, color:'#fafafa', fontSize:12, fontWeight:700, padding:'5px 8px' }}>
             {Object.keys(formsDe(tipo)).map(f => <option key={f} value={f}>{f}</option>)}
           </select>
+        </div>
+        <div style={{ flexShrink:0, display:'flex', flexDirection:'column', justifyContent:'flex-end' }}>
+          <button onClick={() => setMobileSheet({ type: 'rival-lineup' })}
+            style={{ background:'#1c1c20', border:'1px solid #27272a', borderRadius:8, color:'#fca5a5', fontSize:12, fontWeight:700, padding:'5px 10px', whiteSpace:'nowrap' }}>
+            🎽 Alineación
+          </button>
         </div>
       </div>
 
@@ -1346,6 +1457,16 @@ function MobileEnVivo({
               <div style={{ fontSize:13, fontWeight:800, color:'#fafafa', textAlign:'center', marginBottom:14 }}>
                 {mobileSheet.ico} {mobileSheet.label} rival — dorsal
               </div>
+              {rivalJugadores?.some((j) => j.nombre) && (
+                <div style={{ display:'flex', flexWrap:'wrap', gap:6, marginBottom:12, justifyContent:'center' }}>
+                  {rivalJugadores.filter((j) => j.dorsal).map((j) => (
+                    <button key={j.dorsal} onClick={() => confirmRivalPlayer(String(j.dorsal))}
+                      style={{ padding:'6px 10px', borderRadius:20, border:'1px solid rgba(239,68,68,.35)', background:'rgba(239,68,68,.08)', color:'#fca5a5', fontSize:11, fontWeight:700 }}>
+                      #{j.dorsal} {j.nombre || ''}
+                    </button>
+                  ))}
+                </div>
+              )}
               <input className="field" type="number" min={1} max={99} placeholder="Nº dorsal del rival"
                 value={rivalDorsal} onChange={e => setRivalDorsal(e.target.value)}
                 style={{ marginBottom:12, fontSize:20, fontWeight:800, textAlign:'center' }} />
@@ -1360,6 +1481,32 @@ function MobileEnVivo({
             </>)}
 
             {/* Sheet: cambio rival */}
+            {mobileSheet.type === 'rival-lineup' && (<>
+              <div style={{ fontSize:13, fontWeight:800, color:'#fafafa', textAlign:'center', marginBottom:6 }}>🎽 Alineación de {rival}</div>
+              <div style={{ fontSize:10, color:'#71717a', textAlign:'center', marginBottom:14 }}>Dorsal y nombre (opcional) — no se registra como evento</div>
+              <div style={{ display:'flex', flexDirection:'column', gap:6, marginBottom:12 }}>
+                {rivalJugadores.slice(0, (formsDe(tipo)[formacionRival] || Object.values(formsDe(tipo))[0]).length).map((j, i) => (
+                  <div key={i} style={{ display:'flex', gap:6 }}>
+                    <input type="number" min={1} max={99}
+                      style={{ width:56, flexShrink:0, background:'#121214', border:'1px solid #27272a', borderRadius:8, color:'#fafafa', fontSize:13, fontWeight:700, padding:'8px', textAlign:'center' }}
+                      value={j.dorsal}
+                      onChange={(e) => {
+                        const v = e.target.value.replace(/\D/g, '').slice(0, 2)
+                        setRivalJugadores((arr) => arr.map((x, k) => (k === i ? { ...x, dorsal: v } : x)))
+                      }} />
+                    <input type="text" placeholder={i === 0 ? 'Portero' : `Jugador ${i + 1}`}
+                      style={{ flex:1, background:'#121214', border:'1px solid #27272a', borderRadius:8, color:'#fafafa', fontSize:13, padding:'8px 10px' }}
+                      value={j.nombre}
+                      onChange={(e) => {
+                        const v = e.target.value
+                        setRivalJugadores((arr) => arr.map((x, k) => (k === i ? { ...x, nombre: v } : x)))
+                      }} />
+                  </div>
+                ))}
+              </div>
+              <button onClick={() => setMobileSheet(null)} className="btn btn-primary w-full">Listo</button>
+            </>)}
+
             {mobileSheet.type === 'cambio-rival' && (<>
               <div style={{ fontSize:13, fontWeight:800, color:'#fafafa', textAlign:'center', marginBottom:14 }}>🔄 Cambio — {rival}</div>
               <div style={{ fontSize:10, fontWeight:800, color:'#ef4444', marginBottom:4 }}>SALE dorsal</div>
