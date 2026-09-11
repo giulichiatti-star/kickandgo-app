@@ -1,6 +1,23 @@
 import { supabase } from './supabase'
 import { cacheSet, cacheGet } from './cache'
 
+// Normaliza un nombre de equipo para comparar: minúsculas, sin tildes/diacríticos,
+// guiones/barras convertidos a espacio (para no pegar palabras), sin puntuación
+// suelta y espacios colapsados. Se usa para IGUALDAD exacta tras normalizar —
+// nunca para "contiene" — así "Vilassar", "vilassar" o "Vilassar," son el mismo
+// equipo, pero "Club Calella" y "Club Atlètic Calella" (clubes distintos en la
+// misma ciudad) NO se fusionan por coincidencia parcial.
+function normalizarNombre(s) {
+  return (s || '')
+    .toString()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[-_/]/g, ' ')
+    .replace(/[.,'"´`]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
 // Lee la competición del equipo activo (equipoId) — fallback a profiles para retrocompatibilidad
 export async function getCompeticion(equipoId) {
   const key = 'competicion_' + (equipoId || 'default')
@@ -53,18 +70,18 @@ export function calcularTabla(jugados = [], nuestrosPartidos = [], clubNombre = 
     }
   }).filter(p => p.local && p.visitante)
 
-  // Para cada jugado del CSV, descartar si hay un partido nuestro contra el mismo rival
-  const nomClub = (clubNombre || '').toLowerCase()
+  // Para cada jugado del CSV, descartar si hay un partido nuestro contra el mismo rival.
+  // Comparación por IGUALDAD tras normalizar (no por "contiene"): evita fusionar
+  // clubes distintos con nombres parecidos (ej. "Calella" vs "Atlètic Calella").
+  const nomClub = normalizarNombre(clubNombre)
   const rivalesNuestros = new Set(
-    nuestros.map(p => (p.local.toLowerCase() === nomClub ? p.visitante : p.local).toLowerCase())
+    nuestros.map(p => normalizarNombre(p.local) === nomClub ? normalizarNombre(p.visitante) : normalizarNombre(p.local))
   )
   const jugadosFiltrados = jugados.filter(j => {
-    const involucraClub = nomClub && (
-      j.local?.toLowerCase().includes(nomClub) ||
-      j.visitante?.toLowerCase().includes(nomClub)
-    )
+    const nl = normalizarNombre(j.local), nv = normalizarNombre(j.visitante)
+    const involucraClub = nomClub && (nl === nomClub || nv === nomClub)
     if (!involucraClub) return true
-    const rival = j.local?.toLowerCase().includes(nomClub) ? j.visitante?.toLowerCase() : j.local?.toLowerCase()
+    const rival = nl === nomClub ? nv : nl
     return !rivalesNuestros.has(rival)
   })
 
@@ -74,9 +91,16 @@ export function calcularTabla(jugados = [], nuestrosPartidos = [], clubNombre = 
   todos.forEach(({ local, visitante, golesLocal, golesVisitante }) => {
     const gl = Number(golesLocal), gv = Number(golesVisitante)
     if (!local || !visitante || isNaN(gl) || isNaN(gv)) return
-    if (!eq[local]) eq[local] = { nom: local, pj:0, pg:0, pe:0, pp:0, gf:0, gc:0, pts:0, forma:[], ico:'🛡️' }
-    if (!eq[visitante]) eq[visitante] = { nom: visitante, pj:0, pg:0, pe:0, pp:0, gf:0, gc:0, pts:0, forma:[], ico:'🛡️' }
-    const L = eq[local], V = eq[visitante]
+    const kl = normalizarNombre(local), kv = normalizarNombre(visitante)
+    if (!kl || !kv) return
+    // Si el nombre normalizado coincide con el nuestro, mostramos siempre el
+    // nombre configurado en Ajustes — así la tabla no muestra variantes
+    // distintas de nuestro propio club según cómo lo escribiera la federación.
+    const nomLocal = kl === nomClub && clubNombre ? clubNombre : local
+    const nomVisitante = kv === nomClub && clubNombre ? clubNombre : visitante
+    if (!eq[kl]) eq[kl] = { nom: nomLocal, pj:0, pg:0, pe:0, pp:0, gf:0, gc:0, pts:0, forma:[], ico:'🛡️' }
+    if (!eq[kv]) eq[kv] = { nom: nomVisitante, pj:0, pg:0, pe:0, pp:0, gf:0, gc:0, pts:0, forma:[], ico:'🛡️' }
+    const L = eq[kl], V = eq[kv]
     L.pj++; V.pj++
     L.gf += gl; L.gc += gv; V.gf += gv; V.gc += gl
     if (gl > gv) { L.pg++; L.pts += 3; L.forma.push('V'); V.pp++; V.forma.push('D') }
@@ -84,8 +108,8 @@ export function calcularTabla(jugados = [], nuestrosPartidos = [], clubNombre = 
     else { V.pg++; V.pts += 3; V.forma.push('V'); L.pp++; L.forma.push('D') }
   })
 
-  // Marcar nuestro equipo
-  if (clubNombre && eq[clubNombre]) eq[clubNombre].miEquipo = true
+  // Marcar nuestro equipo (comparación normalizada, no exacta)
+  if (nomClub && eq[nomClub]) eq[nomClub].miEquipo = true
 
   const tabla = Object.values(eq)
     .map(t => ({ ...t, forma: t.forma.slice(-5), pos: 0 }))
