@@ -4,7 +4,7 @@ import { useEquipo } from '../contexts/EquipoContext'
 import { listarEntrenos, borrarEntreno } from '../lib/entrenamientos'
 import { listarConvocatorias, borrarConvocatoria } from '../lib/convocatorias'
 import { listarNotasCalendario, guardarNotaCalendario, borrarNotaCalendario } from '../lib/calendarioNotas'
-import { getCompeticion } from '../lib/competicion'
+import { getCompeticion, resolverLiga } from '../lib/competicion'
 import '../calendario.css'
 
 const DOWS = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom']
@@ -53,7 +53,10 @@ export default function Calendario() {
         const map = {}
         ;(n || []).forEach(x => { map[x.fecha] = x.texto })
         setNotasDia(map)
-        setPartidosLiga(comp?.proximas_fechas || [])
+        // resolverLiga() migra el formato antiguo (comp.calendario, de antes
+        // de separar jugados/próximos) — leer proximas_fechas directo se
+        // perdía esos datos si nunca se re-guardaron en el formato actual.
+        setPartidosLiga(resolverLiga(comp).proximas_fechas || [])
       } catch {}
     })()
   }, [equipoId])
