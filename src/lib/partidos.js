@@ -1,5 +1,6 @@
 import { supabase } from './supabase'
 import { cacheSet, cacheGet } from './cache'
+import { sincronizarTarjetasPartido } from './tarjetas'
 
 function hoyISO() { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` }
 
@@ -22,6 +23,11 @@ export async function guardarPartido(p, equipoId) {
   }
   const { data, error } = await supabase.from('partidos').insert(payload).select().single()
   if (error) throw error
+  // Las tarjetas del acta pasan a Disciplina. El partido ya está guardado: si
+  // esto falla no se debe perder el partido (ni reintentarlo y duplicarlo).
+  try {
+    await sincronizarTarjetasPartido({ id: data.id, fecha: data.fecha, rival: data.rival, eventos: payload.notas }, equipoId)
+  } catch (err) { console.error('[partidos] sincronizar tarjetas', err) }
   return data
 }
 
@@ -60,6 +66,10 @@ export async function borrarPartido(id) {
   // Soft delete — mantiene el registro para recovery
   const { error } = await supabase.from('partidos').update({ activo: false }).eq('id', id)
   if (error) throw error
+  // Las tarjetas de ese partido también dejan de contar en Disciplina.
+  try {
+    await supabase.from('tarjetas').delete().eq('partido_id', id)
+  } catch (err) { console.error('[partidos] borrar tarjetas del partido', err) }
 }
 
 export async function borrarTodosPartidos(equipoId) {

@@ -419,7 +419,7 @@ export default function EnVivo() {
         const ya = prev.filter((x) => x.tipo === 'amarilla' && x.jugador === ev.jugador).length
         if (ya >= 1) {
           setMarks((m) => ({ ...m, [jug.id]: [...(m[jug.id] || []), '🟥'] }))
-          return [{ min: minMostrado, tipo: 'roja', icon: '🟥', label: 'Roja (doble amarilla)', jugador: ev.jugador }, ...lista]
+          return [{ min: minMostrado, tipo: 'roja', icon: '🟥', label: 'Roja (doble amarilla)', jugador: ev.jugador, jugador_id: ev.jugador_id }, ...lista]
         }
       }
       return lista
@@ -483,7 +483,7 @@ export default function EnVivo() {
       rival, gf, gc, formacion,
       local_visitante: localVisitante,
       notas_entrenador: notas,
-      eventos: eventos.map((e) => ({ min: e.min, tipo: e.tipo, label: e.label, jugador: e.jugador, saleId: e.saleId, entraId: e.entraId })),
+      eventos: eventos.map((e) => ({ min: e.min, tipo: e.tipo, label: e.label, jugador: e.jugador, jugador_id: e.jugador_id, saleId: e.saleId, entraId: e.entraId })),
       alineacion,
       valoraciones: vals,
       _eid: eid,
