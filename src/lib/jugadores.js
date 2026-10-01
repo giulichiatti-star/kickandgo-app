@@ -7,7 +7,7 @@ export async function listarJugadores(equipoId) {
   if (!equipoId) return []
   const key = 'jugadores_' + equipoId
   try {
-    let q = supabase.from('jugadores').select('*').order('dorsal', { ascending: true }).eq('equipo_id', equipoId)
+    let q = supabase.from('jugadores').select('*').order('dorsal', { ascending: true }).eq('equipo_id', equipoId).eq('activo', true)
     const { data, error } = await q
     if (error) throw error
     cacheSet(key, data)
